@@ -1,7 +1,18 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { OHADA_PCG } from "../constants/ohadaPCG";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+let aiClient: GoogleGenAI | null = null;
+
+function getAI(): GoogleGenAI {
+  if (!aiClient) {
+    const key = process.env.GEMINI_API_KEY;
+    if (!key) {
+      console.warn('GEMINI_API_KEY environment variable is missing. AI features will not work.');
+    }
+    aiClient = new GoogleGenAI({ apiKey: key || 'dummy-key-to-prevent-crash' });
+  }
+  return aiClient;
+}
 
 export interface SuggestedEntry {
   description: string;
@@ -9,6 +20,7 @@ export interface SuggestedEntry {
 }
 
 export async function suggestAccountingEntry(description: string, amount: number): Promise<SuggestedEntry> {
+  const ai = getAI();
   const prompt = `
     En tant qu'expert comptable OHADA, analyse la description suivante et propose une écriture comptable équilibrée.
     Description: "${description}"
