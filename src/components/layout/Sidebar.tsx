@@ -57,7 +57,7 @@ export const Sidebar = ({ user }: { user?: any }) => {
       <div className="p-6 flex-1 overflow-y-auto">
         <div className="flex items-center gap-2 mb-10">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">S</div>
-          <span className="text-xl font-bold text-slate-900 tracking-tight">SMARTDesk</span>
+          <span className="text-xl font-bold text-slate-900 tracking-tight">SmartDesk</span>
         </div>
         
         <nav className="space-y-8">
@@ -103,7 +103,7 @@ export const Sidebar = ({ user }: { user?: any }) => {
             {user?.name?.charAt(0) || 'A'}
           </div>
           <div className="flex flex-col">
-            <span className="text-sm font-semibold text-slate-900">{user?.name || 'Admin SMARTDesk'}</span>
+            <span className="text-sm font-semibold text-slate-900">{user?.name || 'Admin SmartDesk'}</span>
             <span className="text-xs text-slate-500">{user?.role || 'Gérant PME'}</span>
           </div>
         </div>

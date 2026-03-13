@@ -100,7 +100,7 @@ export const MOCK_CONTRACT_TEMPLATES: ContractTemplate[] = [
     id: 'TMP-001',
     name: 'Modèle CDI Standard',
     type: 'CDI',
-    content: 'CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE\n\nEntre les soussignés :\nLa société SMARTDesk Congo...\nEt M/Mme [NOM_EMPLOYE]...\n\nArticle 1 : Fonctions...\nArticle 2 : Rémunération...',
+    content: 'CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE\n\nEntre les soussignés :\nLa société SmartDesk Congo...\nEt M/Mme [NOM_EMPLOYE]...\n\nArticle 1 : Fonctions...\nArticle 2 : Rémunération...',
     lastModified: '2024-01-05'
   },
   {

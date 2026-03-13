@@ -27,7 +27,7 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
       case '/accounting': return 'Comptabilité';
       case '/users': return 'Utilisateurs & Permissions';
       case '/settings': return 'Paramètres Système';
-      default: return 'SMARTDesk';
+      default: return 'SmartDesk';
     }
   };
 
@@ -36,9 +36,12 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
       <Sidebar user={user} />
       <div className="flex-1 flex flex-col">
         <Header title={getTitle(location.pathname)} onLogout={onLogout} />
-        <main className="p-8 max-w-7xl mx-auto w-full">
+        <main className="p-8 max-w-7xl mx-auto w-full flex-1">
           {children}
         </main>
+        <footer className="py-4 text-center text-sm text-slate-500 border-t border-slate-200">
+          SmartDesk by <a href="https://tbi-center.fr" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">TBI Center</a>
+        </footer>
       </div>
     </div>
   );

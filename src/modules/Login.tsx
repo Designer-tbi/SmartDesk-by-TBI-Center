@@ -129,7 +129,8 @@ export const Login = ({ onLogin }: LoginProps) => {
         </div>
         
         <p className="mt-8 text-center text-slate-400 text-xs">
-          &copy; 2024 {MOCK_COMPANY.name}. Tous droits réservés.
+          &copy; 2024 {MOCK_COMPANY.name}. Tous droits réservés. <br className="mt-1" />
+          SmartDesk by <a href="https://tbi-center.fr" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">TBI Center</a>
         </p>
       </div>
     </div>
