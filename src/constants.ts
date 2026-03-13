@@ -167,6 +167,24 @@ export const MOCK_PERMISSIONS: Permission[] = [
   { id: 'accounting.view', name: 'Voir Comptabilité', description: 'Accès en lecture au module Comptabilité', module: 'Comptabilité' },
 ];
 
+export const MOCK_TRANSACTIONS = [
+  { id: 'TRX-001', date: '2024-03-01', description: 'Paiement Client Dupont', category: 'Ventes', amount: 1440, type: 'income' },
+  { id: 'TRX-002', date: '2024-03-05', description: 'Achat Matériel', category: 'Achats', amount: 450, type: 'expense' },
+];
+
+export const MOCK_JOURNAL_ENTRIES = [
+  {
+    id: 'JE-001',
+    date: '2024-03-01',
+    description: 'Facture Vente Dupont',
+    items: [
+      { accountId: '411', debit: 1440, credit: 0 },
+      { accountId: '701', debit: 0, credit: 1200 },
+      { accountId: '4431', debit: 0, credit: 240 }
+    ]
+  }
+];
+
 export const DEMO_ACCOUNTS = [
   { email: 'admin@smartdesk.cg', password: 'admin', name: 'Admin User', role: 'Administrateur' },
   { email: 'manager@smartdesk.cg', password: 'manager', name: 'Jean Mvoula', role: 'Manager' },
