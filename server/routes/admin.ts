@@ -22,6 +22,35 @@ adminRouter.get('/stats', async (req, res, next) => {
   }
 });
 
+adminRouter.get('/users', async (req, res, next) => {
+  try {
+    const users = await req.db.query(`
+      SELECT u.id, u.email, u.role, u.name, u.status, u."lastLogin", c.name as "companyName"
+      FROM users u
+      LEFT JOIN companies c ON u."companyId" = c.id
+    `);
+    res.json(users.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.get('/activity', async (req, res, next) => {
+  try {
+    const activity = await req.db.query(`
+      SELECT a.*, u.name as "userName", c.name as "companyName"
+      FROM activity_log a
+      LEFT JOIN users u ON a."userId" = u.id
+      LEFT JOIN companies c ON a."companyId" = c.id
+      ORDER BY a."createdAt" DESC
+      LIMIT 100
+    `);
+    res.json(activity.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
 adminRouter.get('/companies', async (req, res, next) => {
   try {
     const companies = await req.db.query('SELECT * FROM companies');

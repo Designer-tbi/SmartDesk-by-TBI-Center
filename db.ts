@@ -256,6 +256,17 @@ const initSql = `
     FOREIGN KEY ("roleId") REFERENCES roles(id)
   );
 
+  CREATE TABLE IF NOT EXISTS activity_log (
+    id TEXT PRIMARY KEY,
+    "companyId" TEXT,
+    "userId" TEXT,
+    action TEXT NOT NULL,
+    details TEXT,
+    "createdAt" TEXT NOT NULL,
+    FOREIGN KEY ("companyId") REFERENCES companies(id),
+    FOREIGN KEY ("userId") REFERENCES users(id)
+  );
+
   ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo TEXT;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
   ALTER TABLE users ADD COLUMN IF NOT EXISTS "lastLogin" TEXT;

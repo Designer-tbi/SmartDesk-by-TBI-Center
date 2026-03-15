@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../lib/api';
-import { Building2, Users, Activity, Trash2, Edit2, Plus, CheckCircle2, XCircle, X } from 'lucide-react';
+import { useWebSocket } from '../lib/websocket';
+import { Building2, Users, Activity, Trash2, Edit2, Plus, CheckCircle2, XCircle, X, Search, Clock } from 'lucide-react';
 
 export const SuperAdmin = () => {
+  const [activeTab, setActiveTab] = useState<'companies' | 'users' | 'activity'>('companies');
   const [stats, setStats] = useState<any>(null);
   const [companies, setCompanies] = useState<any[]>([]);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [activityLog, setActivityLog] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const { lastMessage } = useWebSocket();
 
+  // ... existing state ...
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
   const [formData, setFormData] = useState({ name: '', type: 'real', status: 'active' });
@@ -20,6 +26,42 @@ export const SuperAdmin = () => {
 
   const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (lastMessage?.type === 'ACTIVITY') {
+      setActivityLog(prev => [lastMessage.data, ...prev].slice(0, 100));
+      fetchData(); // Refresh stats if needed
+    }
+  }, [lastMessage]);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [statsRes, companiesRes, usersRes, activityRes] = await Promise.all([
+        apiFetch('/api/admin/stats'),
+        apiFetch('/api/admin/companies'),
+        apiFetch('/api/admin/users'),
+        apiFetch('/api/admin/activity')
+      ]);
+
+      if (statsRes.ok && companiesRes.ok && usersRes.ok && activityRes.ok) {
+        setStats(await statsRes.json());
+        setCompanies(await companiesRes.json());
+        setAllUsers(await usersRes.json());
+        setActivityLog(await activityRes.json());
+      } else {
+        setError('Erreur lors du chargement des données.');
+      }
+    } catch (err) {
+      setError('Erreur de connexion.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const fetchCompanyUsers = async (companyId: string) => {
     try {
@@ -71,7 +113,7 @@ export const SuperAdmin = () => {
     try {
       const res = await apiFetch(`/api/admin/users/${userToDelete}`, { method: 'DELETE' });
       if (res.ok) {
-        fetchCompanyUsers(selectedCompany.id);
+        if (selectedCompany) fetchCompanyUsers(selectedCompany.id);
         fetchData();
       }
     } catch (err) {
@@ -80,31 +122,6 @@ export const SuperAdmin = () => {
       setUserToDelete(null);
     }
   };
-
-  const fetchData = async () => {
-    try {
-      setIsLoading(true);
-      const [statsRes, companiesRes] = await Promise.all([
-        apiFetch('/api/admin/stats'),
-        apiFetch('/api/admin/companies')
-      ]);
-
-      if (statsRes.ok && companiesRes.ok) {
-        setStats(await statsRes.json());
-        setCompanies(await companiesRes.json());
-      } else {
-        setError('Erreur lors du chargement des données.');
-      }
-    } catch (err) {
-      setError('Erreur de connexion.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-  }, []);
 
   const handleDeleteCompany = async (id: string) => {
     setCompanyToDelete(id);
@@ -187,9 +204,36 @@ export const SuperAdmin = () => {
     >
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Tableau de Bord Super Admin</h1>
+        <div className="flex bg-slate-100 p-1 rounded-lg">
+          <button 
+            onClick={() => setActiveTab('companies')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+              activeTab === 'companies' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Entreprises
+          </button>
+          <button 
+            onClick={() => setActiveTab('users')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+              activeTab === 'users' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Utilisateurs
+          </button>
+          <button 
+            onClick={() => setActiveTab('activity')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+              activeTab === 'activity' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            Activité
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
+      {/* ... existing stats ... */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-4">
@@ -228,82 +272,204 @@ export const SuperAdmin = () => {
         </div>
       </div>
 
-      {/* Companies List */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">Liste des Entreprises</h2>
-          <button 
-            onClick={() => handleOpenModal()}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"
+      {/* Main Content Sections */}
+      <AnimatePresence mode="wait">
+        {activeTab === 'companies' && (
+          <motion.div
+            key="companies"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
           >
-            <Plus className="w-4 h-4" />
-            Nouvelle Entreprise
-          </button>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 text-slate-500 font-medium">
-              <tr>
-                <th className="px-6 py-4">Nom</th>
-                <th className="px-6 py-4">Type</th>
-                <th className="px-6 py-4">Statut</th>
-                <th className="px-6 py-4">Création</th>
-                <th className="px-6 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-200">
-              {companies.map((company) => (
-                <tr key={company.id} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-900">{company.name}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      company.type === 'real' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'
-                    }`}>
-                      {company.type === 'real' ? 'Réelle' : 'Démo'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      company.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-800'
-                    }`}>
-                      {company.status === 'active' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                      {company.status === 'active' ? 'Actif' : 'Inactif'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-slate-500">
-                    {new Date(company.createdAt || company.created_at).toLocaleDateString('fr-FR')}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button 
-                        onClick={() => handleOpenUserModal(company)}
-                        className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
-                        title="Gérer les utilisateurs"
-                      >
-                        <Users className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleOpenModal(company)}
-                        className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
-                        title="Modifier l'entreprise"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </button>
-                      <button 
-                        onClick={() => handleDeleteCompany(company.id)}
-                        className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
-                        title="Supprimer l'entreprise"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">Liste des Entreprises</h2>
+              <button 
+                onClick={() => handleOpenModal()}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Nouvelle Entreprise
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-slate-500 font-medium">
+                  <tr>
+                    <th className="px-6 py-4">Nom</th>
+                    <th className="px-6 py-4">Type</th>
+                    <th className="px-6 py-4">Statut</th>
+                    <th className="px-6 py-4">Création</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {companies.map((company) => (
+                    <tr key={company.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-4 font-medium text-slate-900">{company.name}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          company.type === 'real' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {company.type === 'real' ? 'Réelle' : 'Démo'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          company.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-800'
+                        }`}>
+                          {company.status === 'active' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                          {company.status === 'active' ? 'Actif' : 'Inactif'}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-500">
+                        {new Date(company.createdAt || company.created_at).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleOpenUserModal(company)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                            title="Gérer les utilisateurs"
+                          >
+                            <Users className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleOpenModal(company)}
+                            className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                            title="Modifier l'entreprise"
+                          >
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteCompany(company.id)}
+                            className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Supprimer l'entreprise"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'users' && (
+          <motion.div
+            key="users"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+          >
+            <div className="p-6 border-b border-slate-200">
+              <h2 className="text-lg font-bold text-slate-900">Tous les Utilisateurs</h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-slate-50 text-slate-500 font-medium">
+                  <tr>
+                    <th className="px-6 py-4">Nom</th>
+                    <th className="px-6 py-4">Email</th>
+                    <th className="px-6 py-4">Entreprise</th>
+                    <th className="px-6 py-4">Rôle</th>
+                    <th className="px-6 py-4">Dernière Connexion</th>
+                    <th className="px-6 py-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {allUsers.map((user) => (
+                    <tr key={user.id} className="hover:bg-slate-50">
+                      <td className="px-6 py-4 font-medium text-slate-900">{user.name}</td>
+                      <td className="px-6 py-4 text-slate-500">{user.email}</td>
+                      <td className="px-6 py-4 text-slate-500">{user.companyName || 'N/A'}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          user.role === 'super_admin' ? 'bg-purple-100 text-purple-800' : 
+                          user.role === 'admin' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'
+                        }`}>
+                          {user.role}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-slate-500">
+                        {user.lastLogin ? new Date(user.lastLogin).toLocaleString('fr-FR') : 'Jamais'}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <button 
+                          onClick={() => handleDeleteUser(user.id)}
+                          className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                          disabled={user.role === 'super_admin'}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'activity' && (
+          <motion.div
+            key="activity"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+          >
+            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">Journal d'Activité en Temps Réel</h2>
+              <div className="flex items-center gap-2 text-xs text-emerald-600 font-medium">
+                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                Live
+              </div>
+            </div>
+            <div className="p-6">
+              <div className="space-y-6">
+                {activityLog.map((log, index) => (
+                  <div key={log.id} className="flex gap-4 relative">
+                    {index !== activityLog.length - 1 && (
+                      <div className="absolute left-[11px] top-8 bottom-[-24px] w-px bg-slate-100" />
+                    )}
+                    <div className="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 mt-1">
+                      <Clock className="w-3 h-3 text-slate-400" />
                     </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-4">
+                        <p className="text-sm font-medium text-slate-900">
+                          {log.userName || 'Système'}
+                          <span className="mx-2 text-slate-300">•</span>
+                          <span className="text-slate-500 font-normal">{log.action}</span>
+                        </p>
+                        <span className="text-xs text-slate-400 shrink-0">
+                          {new Date(log.createdAt).toLocaleTimeString('fr-FR')}
+                        </span>
+                      </div>
+                      <p className="text-sm text-slate-500 mt-1">{log.details}</p>
+                      <div className="mt-2 flex items-center gap-2">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-50 text-slate-500 text-[10px] font-medium border border-slate-100">
+                          {log.companyName || 'Global'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {activityLog.length === 0 && (
+                  <div className="text-center py-12 text-slate-500">
+                    Aucune activité récente.
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Users Modal */}
       {isUserModalOpen && selectedCompany && (
