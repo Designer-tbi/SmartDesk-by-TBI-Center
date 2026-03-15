@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../lib/api';
 import { Plus, Calendar, CheckCircle2, Circle, Clock, MoreHorizontal, X, Pencil, Trash2, Eye, Loader2 } from 'lucide-react';
 import { Project } from '../types';
 
@@ -17,7 +18,7 @@ export const Projects = () => {
   const fetchProjects = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/projects');
+      const response = await apiFetch('/api/projects');
       if (response.ok) {
         const data = await response.json();
         setProjects(data);
@@ -43,7 +44,7 @@ export const Projects = () => {
     e.preventDefault();
     try {
       if (editingProject) {
-        const response = await fetch(`/api/projects/${editingProject.id}`, {
+        const response = await apiFetch(`/api/projects/${editingProject.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newProject),
@@ -52,7 +53,7 @@ export const Projects = () => {
         setEditingProject(null);
       } else {
         const id = Math.random().toString(36).substr(2, 9);
-        const response = await fetch('/api/projects', {
+        const response = await apiFetch('/api/projects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...newProject, id }),
@@ -69,7 +70,7 @@ export const Projects = () => {
   const handleDelete = async (id: string) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
       try {
-        const response = await fetch(`/api/projects/${id}`, {
+        const response = await apiFetch(`/api/projects/${id}`, {
           method: 'DELETE',
         });
         if (response.ok) fetchProjects();

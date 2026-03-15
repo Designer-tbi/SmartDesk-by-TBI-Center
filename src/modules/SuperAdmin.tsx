@@ -1,0 +1,590 @@
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { apiFetch } from '../lib/api';
+import { Building2, Users, Activity, Trash2, Edit2, Plus, CheckCircle2, XCircle, X } from 'lucide-react';
+
+export const SuperAdmin = () => {
+  const [stats, setStats] = useState<any>(null);
+  const [companies, setCompanies] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCompany, setEditingCompany] = useState<any>(null);
+  const [formData, setFormData] = useState({ name: '', type: 'real', status: 'active' });
+
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [selectedCompany, setSelectedCompany] = useState<any>(null);
+  const [companyUsers, setCompanyUsers] = useState<any[]>([]);
+  const [newUserForm, setNewUserForm] = useState({ name: '', email: '', password: '', role: 'admin' });
+
+  const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
+  const [userToDelete, setUserToDelete] = useState<string | null>(null);
+
+  const fetchCompanyUsers = async (companyId: string) => {
+    try {
+      const res = await apiFetch(`/api/admin/companies/${companyId}/users`);
+      if (res.ok) {
+        setCompanyUsers(await res.json());
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleOpenUserModal = (company: any) => {
+    setSelectedCompany(company);
+    fetchCompanyUsers(company.id);
+    setIsUserModalOpen(true);
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await apiFetch(`/api/admin/companies/${selectedCompany.id}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newUserForm,
+          id: `user_${Date.now()}`
+        })
+      });
+
+      if (res.ok) {
+        setNewUserForm({ name: '', email: '', password: '', role: 'admin' });
+        fetchCompanyUsers(selectedCompany.id);
+        fetchData(); // Update total users count
+      } else {
+        alert('Erreur lors de la création de l\'utilisateur.');
+      }
+    } catch (err) {
+      alert('Erreur de connexion.');
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    setUserToDelete(userId);
+  };
+
+  const confirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    try {
+      const res = await apiFetch(`/api/admin/users/${userToDelete}`, { method: 'DELETE' });
+      if (res.ok) {
+        fetchCompanyUsers(selectedCompany.id);
+        fetchData();
+      }
+    } catch (err) {
+      alert('Erreur de connexion.');
+    } finally {
+      setUserToDelete(null);
+    }
+  };
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const [statsRes, companiesRes] = await Promise.all([
+        apiFetch('/api/admin/stats'),
+        apiFetch('/api/admin/companies')
+      ]);
+
+      if (statsRes.ok && companiesRes.ok) {
+        setStats(await statsRes.json());
+        setCompanies(await companiesRes.json());
+      } else {
+        setError('Erreur lors du chargement des données.');
+      }
+    } catch (err) {
+      setError('Erreur de connexion.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleDeleteCompany = async (id: string) => {
+    setCompanyToDelete(id);
+  };
+
+  const confirmDeleteCompany = async () => {
+    if (!companyToDelete) return;
+    try {
+      const res = await apiFetch(`/api/admin/companies/${companyToDelete}`, {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        fetchData();
+      } else {
+        alert('Erreur lors de la suppression.');
+      }
+    } catch (err) {
+      alert('Erreur de connexion.');
+    } finally {
+      setCompanyToDelete(null);
+    }
+  };
+
+  const handleOpenModal = (company?: any) => {
+    if (company) {
+      setEditingCompany(company);
+      setFormData({ name: company.name, type: company.type, status: company.status });
+    } else {
+      setEditingCompany(null);
+      setFormData({ name: '', type: 'real', status: 'active' });
+    }
+    setIsModalOpen(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const url = editingCompany 
+        ? `/api/admin/companies/${editingCompany.id}`
+        : '/api/admin/companies';
+      
+      const method = editingCompany ? 'PUT' : 'POST';
+      
+      const body = {
+        ...formData,
+        id: editingCompany ? editingCompany.id : `company_${Date.now()}`
+      };
+
+      const res = await apiFetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      if (res.ok) {
+        setIsModalOpen(false);
+        fetchData();
+      } else {
+        alert('Erreur lors de l\'enregistrement.');
+      }
+    } catch (err) {
+      alert('Erreur de connexion.');
+    }
+  };
+
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64">Chargement...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500">{error}</div>;
+  }
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-6"
+    >
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-900">Tableau de Bord Super Admin</h1>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+              <Building2 className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-500">Entreprises Réelles</p>
+              <h3 className="text-2xl font-bold text-slate-900">{stats?.realCompanies || 0}</h3>
+            </div>
+          </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center">
+              <Activity className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-500">Entreprises Démo</p>
+              <h3 className="text-2xl font-bold text-slate-900">{stats?.demoCompanies || 0}</h3>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center">
+              <Users className="w-6 h-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-slate-500">Total Utilisateurs</p>
+              <h3 className="text-2xl font-bold text-slate-900">{stats?.totalUsers || 0}</h3>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Companies List */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-900">Liste des Entreprises</h2>
+          <button 
+            onClick={() => handleOpenModal()}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle Entreprise
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-slate-500 font-medium">
+              <tr>
+                <th className="px-6 py-4">Nom</th>
+                <th className="px-6 py-4">Type</th>
+                <th className="px-6 py-4">Statut</th>
+                <th className="px-6 py-4">Création</th>
+                <th className="px-6 py-4 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200">
+              {companies.map((company) => (
+                <tr key={company.id} className="hover:bg-slate-50">
+                  <td className="px-6 py-4 font-medium text-slate-900">{company.name}</td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      company.type === 'real' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'
+                    }`}>
+                      {company.type === 'real' ? 'Réelle' : 'Démo'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4">
+                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                      company.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-800'
+                    }`}>
+                      {company.status === 'active' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
+                      {company.status === 'active' ? 'Actif' : 'Inactif'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-slate-500">
+                    {new Date(company.createdAt || company.created_at).toLocaleDateString('fr-FR')}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <button 
+                        onClick={() => handleOpenUserModal(company)}
+                        className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                        title="Gérer les utilisateurs"
+                      >
+                        <Users className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleOpenModal(company)}
+                        className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                        title="Modifier l'entreprise"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteCompany(company.id)}
+                        className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                        title="Supprimer l'entreprise"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Users Modal */}
+      {isUserModalOpen && selectedCompany && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          >
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0">
+              <h2 className="text-lg font-bold text-slate-900">
+                Utilisateurs : {selectedCompany.name}
+              </h2>
+              <button 
+                onClick={() => setIsUserModalOpen(false)}
+                className="text-slate-400 hover:text-slate-500 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <div className="p-6 overflow-y-auto flex-1 space-y-6">
+              {/* Add User Form */}
+              <form onSubmit={handleCreateUser} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+                <h3 className="text-sm font-bold text-slate-900">Ajouter un utilisateur</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-700">Nom complet</label>
+                    <input
+                      type="text"
+                      required
+                      value={newUserForm.name}
+                      onChange={(e) => setNewUserForm({ ...newUserForm, name: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-700">Email</label>
+                    <input
+                      type="email"
+                      required
+                      value={newUserForm.email}
+                      onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-700">Mot de passe</label>
+                    <input
+                      type="password"
+                      required
+                      value={newUserForm.password}
+                      onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium text-slate-700">Rôle</label>
+                    <select
+                      value={newUserForm.role}
+                      onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    >
+                      <option value="admin">Administrateur</option>
+                      <option value="user">Utilisateur</option>
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+              </form>
+
+              {/* Users List */}
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-50 text-slate-500 font-medium">
+                    <tr>
+                      <th className="px-4 py-3">Nom</th>
+                      <th className="px-4 py-3">Email</th>
+                      <th className="px-4 py-3">Rôle</th>
+                      <th className="px-4 py-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    {companyUsers.map((u) => (
+                      <tr key={u.id}>
+                        <td className="px-4 py-3 font-medium text-slate-900">{u.name}</td>
+                        <td className="px-4 py-3 text-slate-500">{u.email}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                            u.role === 'admin' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'
+                          }`}>
+                            {u.role === 'admin' ? 'Admin' : 'User'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <button 
+                            onClick={() => handleDeleteUser(u.id)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    {companyUsers.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
+                          Aucun utilisateur trouvé.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Company Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+          >
+            <div className="flex items-center justify-between p-6 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-900">
+                {editingCompany ? 'Modifier l\'entreprise' : 'Nouvelle entreprise'}
+              </h2>
+              <button 
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-500 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Nom de l'entreprise</label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  placeholder="Ex: Acme Corp"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Type</label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                >
+                  <option value="real">Réelle</option>
+                  <option value="demo">Démo</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Statut</label>
+                <select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                >
+                  <option value="active">Actif</option>
+                  <option value="inactive">Inactif</option>
+                </select>
+              </div>
+
+              <div className="pt-4 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                >
+                  {editingCompany ? 'Enregistrer' : 'Créer'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+      {/* User Deletion Modal */}
+      {userToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+          >
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">Confirmer la suppression</h2>
+              <button 
+                onClick={() => setUserToDelete(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-600">
+                Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.
+              </p>
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setUserToDelete(null)}
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDeleteUser}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Company Deletion Modal */}
+      {companyToDelete && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+          >
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="text-lg font-bold text-slate-900">Confirmer la suppression</h2>
+              <button 
+                onClick={() => setCompanyToDelete(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-6">
+              <p className="text-sm text-slate-600">
+                Êtes-vous sûr de vouloir supprimer cette entreprise et <strong>toutes ses données</strong> ? Cette action est irréversible.
+              </p>
+              <div className="mt-6 flex items-center justify-end gap-3">
+                <button
+                  onClick={() => setCompanyToDelete(null)}
+                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={confirmDeleteCompany}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+                >
+                  Supprimer définitivement
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
+    </motion.div>
+  );
+};

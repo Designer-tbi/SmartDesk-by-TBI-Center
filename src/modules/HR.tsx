@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { apiFetch } from '../lib/api';
 import { MOCK_EMPLOYEES, MOCK_LEAVES, MOCK_PAYSLIPS, MOCK_CONTRACTS, MOCK_CONTRACT_TEMPLATES } from '../constants';
 import { 
   Plus, Mail, Phone, MapPin, Briefcase, Calendar, DollarSign, X, Pencil, Trash2, Eye, 
@@ -7,7 +8,14 @@ import {
 } from 'lucide-react';
 import { Employee, LeaveRequest, Payslip, Contract, ContractTemplate } from '../types';
 
-export const HR = () => {
+import { useTranslation } from '../lib/i18n';
+
+export const HR = ({ user }: { user: any }) => {
+  const { t } = useTranslation();
+  const isUS = user?.country === 'US';
+  const currencySymbol = isUS ? '$' : '€';
+
+  const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
   const [activeTab, setActiveTab] = useState<'directory' | 'leaves' | 'payroll' | 'contracts' | 'stats'>('directory');
   const [contractSubTab, setContractSubTab] = useState<'list' | 'templates' | 'signed'>('list');
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -52,7 +60,7 @@ export const HR = () => {
   const fetchEmployees = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/employees');
+      const response = await apiFetch('/api/employees');
       if (response.ok) {
         const data = await response.json();
         setEmployees(data);
@@ -85,7 +93,7 @@ export const HR = () => {
     e.preventDefault();
     try {
       if (editingEmployee) {
-        const response = await fetch(`/api/employees/${editingEmployee.id}`, {
+        const response = await apiFetch(`/api/employees/${editingEmployee.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newEmployee),
@@ -94,7 +102,7 @@ export const HR = () => {
         setEditingEmployee(null);
       } else {
         const id = Math.random().toString(36).substr(2, 9);
-        const response = await fetch('/api/employees', {
+        const response = await apiFetch('/api/employees', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...newEmployee, id }),
@@ -105,6 +113,17 @@ export const HR = () => {
       setNewEmployee({ name: '', role: '', department: '', email: '', phone: '', address: '', status: 'Active', contractType: 'CDI', joinDate: '', salary: 0, profilePicture: '', documents: [] });
     } catch (error) {
       console.error('Failed to save employee:', error);
+    }
+  };
+
+  const handleDeleteEmployee = async (id: string) => {
+    if (window.confirm('Supprimer cet employé ?')) {
+      try {
+        const response = await apiFetch(`/api/employees/${id}`, { method: 'DELETE' });
+        if (response.ok) fetchEmployees();
+      } catch (error) {
+        console.error('Failed to delete employee:', error);
+      }
     }
   };
 
@@ -334,7 +353,7 @@ export const HR = () => {
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                     <button onClick={() => setViewEmployee(employee)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Eye className="w-4 h-4" /></button>
                     <button onClick={() => { setEditingEmployee(employee); setNewEmployee(employee); setIsModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
-                    <button className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => handleDeleteEmployee(employee.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
                 <p className="text-sm text-indigo-600 font-semibold mb-4">{employee.role}</p>
@@ -354,7 +373,7 @@ export const HR = () => {
                   </div>
                   <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
                     <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
-                    {employee.salary.toLocaleString()} XAF
+                    {employee.salary.toLocaleString()} {currencySymbol}
                   </div>
                 </div>
               </div>
@@ -425,7 +444,7 @@ export const HR = () => {
                           <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">{contract.type}</span>
                         </td>
                         <td className="px-6 py-4 font-bold text-slate-900">
-                          {contract.salary.toLocaleString()} XAF
+                          {contract.salary.toLocaleString()} {currencySymbol}
                         </td>
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 w-fit ${
@@ -660,7 +679,7 @@ export const HR = () => {
                       {payslip.month} {payslip.year}
                     </td>
                     <td className="px-6 py-4 font-bold text-slate-900">
-                      {payslip.netSalary.toLocaleString()} XAF
+                      {payslip.netSalary.toLocaleString()} {currencySymbol}
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
@@ -705,7 +724,7 @@ export const HR = () => {
               <span className="text-xs font-bold text-slate-400">Masse salariale</span>
             </div>
             <div className="text-2xl font-black text-slate-900">{(employees.reduce((acc, curr) => acc + curr.salary, 0) / 12).toLocaleString()}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">XAF / mois</div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{currencySymbol} / mois</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
@@ -904,7 +923,7 @@ export const HR = () => {
                   <input type="date" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none" value={newContract.startDate} onChange={e => setNewContract({...newContract, startDate: e.target.value})} required />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Salaire Mensuel (XAF)</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Salaire Mensuel ({currencySymbol})</label>
                   <input type="number" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newContract.salary} onChange={e => setNewContract({...newContract, salary: parseInt(e.target.value)})} required />
                 </div>
               </div>
@@ -960,7 +979,7 @@ export const HR = () => {
                   <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none" value={newEmployee.department} onChange={e => setNewEmployee({...newEmployee, department: e.target.value})} required />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Salaire Annuel (XAF)</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Salaire Annuel ({currencySymbol})</label>
                   <input type="number" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.salary} onChange={e => setNewEmployee({...newEmployee, salary: parseInt(e.target.value)})} required />
                 </div>
                 <div className="space-y-1.5">
@@ -1070,7 +1089,7 @@ export const HR = () => {
                   </div>
                   <div className="flex items-center gap-3 text-slate-900 font-bold">
                     <DollarSign className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm">{viewEmployee.salary.toLocaleString()} XAF / an</span>
+                    <span className="text-sm">{viewEmployee.salary.toLocaleString()} {currencySymbol} / an</span>
                   </div>
                 </div>
               </div>

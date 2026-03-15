@@ -1,10 +1,20 @@
 import React from 'react';
-import { Search, Bell, HelpCircle, LogOut } from 'lucide-react';
+import { Search, Bell, HelpCircle, LogOut, PlayCircle } from 'lucide-react';
 
 export const Header = ({ title, onLogout }: { title: string, onLogout?: () => void }) => {
+  const isDemoMode = localStorage.getItem('demoMode') === 'true';
+
   return (
-    <header className="h-16 bg-white border-bottom border-slate-200 px-8 flex items-center justify-between sticky top-0 z-10">
-      <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+    <header className="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between sticky top-0 z-10">
+      <div className="flex items-center gap-4">
+        <h1 className="text-xl font-semibold text-slate-900">{title}</h1>
+        {isDemoMode && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold uppercase tracking-wider border border-indigo-100">
+            <PlayCircle className="w-3.5 h-3.5" />
+            Mode Démo
+          </div>
+        )}
+      </div>
       
       <div className="flex items-center gap-6">
         <div className="relative">

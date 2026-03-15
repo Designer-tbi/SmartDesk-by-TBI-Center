@@ -1,20 +1,31 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, TrendingUp, TrendingDown, DollarSign, X, BookOpen, FileText, BarChart3, ListTree, Save, Sparkles, Download, Building2, CheckCircle2, Loader2 } from 'lucide-react';
+import { apiFetch } from '../lib/api';
+import { Plus, TrendingUp, TrendingDown, DollarSign, X, BookOpen, FileText, BarChart3, ListTree, Save, Sparkles, Download, Building2, CheckCircle2, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LineChart, Line } from 'recharts';
 import { Transaction, JournalEntry } from '../types';
 import { OHADA_PCG } from '../constants/ohadaPCG';
+import { US_GAAP } from '../constants/usGAAP';
 import { MOCK_COMPANY } from '../constants';
 import { suggestAccountingEntry } from '../services/accountingAutomation';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { useTranslation } from '../lib/i18n';
 
-export const Accounting = () => {
+export const Accounting = ({ user }: { user?: any }) => {
+  const { t } = useTranslation();
+  const isUS = user?.country === 'US';
+  const PCG = isUS ? US_GAAP : OHADA_PCG;
+  const currencySymbol = isUS ? '$' : '€';
+
+  const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
+
   const [activeTab, setActiveTab] = useState<'Dashboard' | 'Journal' | 'Bilan' | 'Resultat' | 'PCG' | 'Liasses' | 'TVA'>('Dashboard');
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [newEntry, setNewEntry] = useState<Omit<JournalEntry, 'id'>>({
     date: new Date().toISOString().split('T')[0],
@@ -30,9 +41,9 @@ export const Accounting = () => {
     setIsLoading(true);
     try {
       const [transRes, journalRes, invRes] = await Promise.all([
-        fetch('/api/transactions'),
-        fetch('/api/journal-entries'),
-        fetch('/api/invoices')
+        apiFetch('/api/transactions'),
+        apiFetch('/api/journal-entries'),
+        apiFetch('/api/invoices')
       ]);
       if (transRes.ok) setTransactions(await transRes.json());
       if (journalRes.ok) setJournalEntries(await journalRes.json());
@@ -50,8 +61,8 @@ export const Accounting = () => {
 
   // Calculate Bilan and Resultat
   type AccountDetail = { name: string, balance: number, type: string };
-  const getAccountType = (code: string) => OHADA_PCG.find(acc => acc.code === code)?.type;
-  const getAccountName = (code: string) => OHADA_PCG.find(acc => acc.code === code)?.name;
+  const getAccountType = (code: string) => PCG.find(acc => acc.code === code)?.type;
+  const getAccountName = (code: string) => PCG.find(acc => acc.code === code)?.name;
 
   const bilanDetails: Record<string, AccountDetail> = journalEntries.reduce((acc, entry) => {
     entry.items.forEach(item => {
@@ -97,7 +108,7 @@ export const Accounting = () => {
     return acc;
   }, { collected: 0, deductible: 0 });
 
-  // Add TVA from paid invoices (actual totals)
+  // Add {taxLabel} from paid invoices (actual totals)
   const tvaFromInvoices = invoices
     .filter(inv => inv.status === 'Paid')
     .reduce((sum, inv) => sum + (inv.tvaTotal || 0), 0);
@@ -119,17 +130,41 @@ export const Accounting = () => {
       return;
     }
     try {
-      const response = await fetch('/api/journal-entries', {
-        method: 'POST',
+      const url = editingEntryId ? `/api/journal-entries/${editingEntryId}` : '/api/journal-entries';
+      const method = editingEntryId ? 'PUT' : 'POST';
+      const response = await apiFetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newEntry, id: Date.now().toString() }),
+        body: JSON.stringify({ ...newEntry, id: editingEntryId || Date.now().toString() }),
       });
       if (response.ok) fetchData();
       setIsModalOpen(false);
+      setEditingEntryId(null);
       setNewEntry({ date: new Date().toISOString().split('T')[0], description: '', items: [{ accountId: '', debit: 0, credit: 0 }] });
     } catch (error) {
       console.error('Failed to save journal entry:', error);
     }
+  };
+
+  const handleDeleteEntry = async (id: string) => {
+    if (window.confirm('Supprimer cette écriture ?')) {
+      try {
+        const response = await apiFetch(`/api/journal-entries/${id}`, { method: 'DELETE' });
+        if (response.ok) fetchData();
+      } catch (error) {
+        console.error('Failed to delete entry:', error);
+      }
+    }
+  };
+
+  const openEdit = (entry: JournalEntry) => {
+    setEditingEntryId(entry.id);
+    setNewEntry({
+      date: entry.date,
+      description: entry.description,
+      items: entry.items.map(item => ({ accountId: item.accountId, debit: item.debit, credit: item.credit }))
+    });
+    setIsModalOpen(true);
   };
 
   const handleGenerateEntry = async () => {
@@ -160,7 +195,7 @@ export const Accounting = () => {
 
     // Header
     doc.setFontSize(18);
-    doc.text('DÉCLARATION DE TVA', 105, 20, { align: 'center' });
+    doc.text(`DÉCLARATION DE ${taxLabel.toUpperCase()}`, 105, 20, { align: 'center' });
     
     doc.setFontSize(10);
     doc.text(MOCK_COMPANY.name, 20, 35);
@@ -173,19 +208,19 @@ export const Accounting = () => {
     // TVA Data Table
     autoTable(doc, {
       startY: 60,
-      head: [['Libellé', 'Montant (XAF)']],
+      head: [['Libellé', 'Montant (' + currencySymbol + ')']],
       body: [
-        ['TVA Collectée (Journal)', (tvaData.collected - tvaFromInvoices).toLocaleString()],
-        ['TVA sur Factures Payées', tvaFromInvoices.toLocaleString()],
-        ['TOTAL TVA COLLECTÉE', tvaData.collected.toLocaleString()],
-        ['TVA Déductible', tvaData.deductible.toLocaleString()],
-        ['TVA À PAYER / CRÉDIT', (tvaData.collected - tvaData.deductible).toLocaleString()],
+        [`${taxLabel} Collectée (Journal)`, (tvaData.collected - tvaFromInvoices).toLocaleString()],
+        [`${taxLabel} sur Factures Payées`, tvaFromInvoices.toLocaleString()],
+        [`TOTAL ${taxLabel} COLLECTÉE`, tvaData.collected.toLocaleString()],
+        [`${taxLabel} Déductible`, tvaData.deductible.toLocaleString()],
+        [`${taxLabel} À PAYER / CRÉDIT`, (tvaData.collected - tvaData.deductible).toLocaleString()],
       ],
       theme: 'striped',
       headStyles: { fillColor: [79, 70, 229] },
     });
 
-    doc.save(`Declaration_TVA_${month}_${year}.pdf`);
+    doc.save(`Declaration_${taxLabel}_${month}_${year}.pdf`);
   };
 
   const downloadLiassePDF = () => {
@@ -266,7 +301,7 @@ export const Accounting = () => {
 
     const net = resultatTotals.revenue - resultatTotals.expenses;
     doc.setFontSize(14);
-    doc.text(`RÉSULTAT NET : ${net.toLocaleString()} XAF`, 105, (doc as any).lastAutoTable.finalY + 30, { align: 'center' });
+    doc.text(`RÉSULTAT NET : ${net.toLocaleString()} ${currencySymbol}`, 105, (doc as any).lastAutoTable.finalY + 30, { align: 'center' });
 
     doc.save(`Liasse_Fiscale_${MOCK_COMPANY.name.replace(/\s+/g, '_')}_${year}.pdf`);
   };
@@ -280,21 +315,21 @@ export const Accounting = () => {
               <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><TrendingUp /></div>
               <div>
                 <p className="text-sm text-slate-500">Revenus</p>
-                <p className="text-xl font-bold">{totalIncome.toLocaleString()} XAF</p>
+                <p className="text-xl font-bold">{totalIncome.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="p-3 bg-rose-100 text-rose-600 rounded-xl"><TrendingDown /></div>
               <div>
                 <p className="text-sm text-slate-500">Dépenses</p>
-                <p className="text-xl font-bold">{totalExpenses.toLocaleString()} XAF</p>
+                <p className="text-xl font-bold">{totalExpenses.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl"><DollarSign /></div>
               <div>
                 <p className="text-sm text-slate-500">Bénéfice Net</p>
-                <p className="text-xl font-bold">{netProfit.toLocaleString()} XAF</p>
+                <p className="text-xl font-bold">{netProfit.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
           </div>
@@ -325,6 +360,7 @@ export const Accounting = () => {
                 <th className="p-4 text-sm font-bold text-slate-600">Description</th>
                 <th className="p-4 text-sm font-bold text-slate-600">Débit</th>
                 <th className="p-4 text-sm font-bold text-slate-600">Crédit</th>
+                <th className="p-4 text-sm font-bold text-slate-600">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -336,6 +372,14 @@ export const Accounting = () => {
                       <td className="p-4 text-sm">{idx === 0 ? entry.description : ''}</td>
                       <td className="p-4 text-sm">{item.debit > 0 ? item.debit.toLocaleString() : '-'}</td>
                       <td className="p-4 text-sm">{item.credit > 0 ? item.credit.toLocaleString() : '-'}</td>
+                      <td className="p-4 text-sm">
+                        {idx === 0 && (
+                          <div className="flex gap-2">
+                            <button onClick={() => openEdit(entry)} className="text-slate-400 hover:text-amber-600"><Pencil className="w-4 h-4" /></button>
+                            <button onClick={() => handleDeleteEntry(entry.id)} className="text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </React.Fragment>
@@ -377,7 +421,7 @@ export const Accounting = () => {
                   <li key={code} className="flex justify-between text-sm"><span>{v.name} ({code})</span><span className="font-bold">{v.balance.toLocaleString()}</span></li>
                 ))}
               </ul>
-              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200">Total: {bilanTotals.assets.toLocaleString()} XAF</p>
+              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200">Total: {bilanTotals.assets.toLocaleString()} {currencySymbol}</p>
             </div>
             <div className="bg-slate-50 p-4 rounded-lg">
               <h4 className="font-bold text-slate-600 mb-2">Passif & Capitaux</h4>
@@ -386,7 +430,7 @@ export const Accounting = () => {
                   <li key={code} className="flex justify-between text-sm"><span>{v.name} ({code})</span><span className="font-bold">{v.balance.toLocaleString()}</span></li>
                 ))}
               </ul>
-              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200">Total: {bilanTotals.liabilities.toLocaleString()} XAF</p>
+              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200">Total: {bilanTotals.liabilities.toLocaleString()} {currencySymbol}</p>
             </div>
           </div>
         </div>
@@ -402,7 +446,7 @@ export const Accounting = () => {
                   <li key={code} className="flex justify-between text-sm text-emerald-600"><span>{v.name} ({code})</span><span className="font-bold">{v.balance.toLocaleString()}</span></li>
                 ))}
               </ul>
-              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200 text-emerald-600">Total: {resultatTotals.revenue.toLocaleString()} XAF</p>
+              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200 text-emerald-600">Total: {resultatTotals.revenue.toLocaleString()} {currencySymbol}</p>
             </div>
             <div className="bg-slate-50 p-4 rounded-lg">
               <h4 className="font-bold text-slate-600 mb-2">Charges</h4>
@@ -411,19 +455,19 @@ export const Accounting = () => {
                   <li key={code} className="flex justify-between text-sm text-rose-600"><span>{v.name} ({code})</span><span className="font-bold">{v.balance.toLocaleString()}</span></li>
                 ))}
               </ul>
-              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200 text-rose-600">Total: {resultatTotals.expenses.toLocaleString()} XAF</p>
+              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200 text-rose-600">Total: {resultatTotals.expenses.toLocaleString()} {currencySymbol}</p>
             </div>
           </div>
           <div className="bg-indigo-50 p-4 rounded-lg">
             <h4 className="font-bold text-indigo-900 mb-2">Résultat Net</h4>
-            <p className="text-3xl font-bold text-indigo-700">{(resultatTotals.revenue - resultatTotals.expenses).toLocaleString()} XAF</p>
+            <p className="text-3xl font-bold text-indigo-700">{(resultatTotals.revenue - resultatTotals.expenses).toLocaleString()} {currencySymbol}</p>
           </div>
         </div>
       );
       case 'TVA': return (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold">Déclaration de TVA</h3>
+            <h3 className="text-lg font-bold">Déclaration de {taxLabel}</h3>
             <button 
               onClick={downloadTVAPDF}
               className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-sm active:scale-95"
@@ -433,20 +477,20 @@ export const Accounting = () => {
           </div>
           <div className="grid grid-cols-4 gap-6">
             <div className="bg-slate-50 p-4 rounded-lg">
-              <h4 className="font-bold text-slate-600 mb-2">TVA Collectée (Journal)</h4>
-              <p className="text-2xl font-bold text-emerald-600">{(tvaData.collected - tvaFromInvoices).toLocaleString()} XAF</p>
+              <h4 className="font-bold text-slate-600 mb-2">{taxLabel} Collectée (Journal)</h4>
+              <p className="text-2xl font-bold text-emerald-600">{(tvaData.collected - tvaFromInvoices).toLocaleString()} {currencySymbol}</p>
             </div>
             <div className="bg-slate-50 p-4 rounded-lg">
-              <h4 className="font-bold text-slate-600 mb-2">TVA sur Factures Payées</h4>
-              <p className="text-2xl font-bold text-emerald-600">{tvaFromInvoices.toLocaleString()} XAF</p>
+              <h4 className="font-bold text-slate-600 mb-2">{taxLabel} sur Factures Payées</h4>
+              <p className="text-2xl font-bold text-emerald-600">{tvaFromInvoices.toLocaleString()} {currencySymbol}</p>
             </div>
             <div className="bg-slate-50 p-4 rounded-lg">
-              <h4 className="font-bold text-slate-600 mb-2">TVA Déductible (445)</h4>
-              <p className="text-2xl font-bold text-rose-600">{tvaData.deductible.toLocaleString()} XAF</p>
+              <h4 className="font-bold text-slate-600 mb-2">{taxLabel} Déductible (445)</h4>
+              <p className="text-2xl font-bold text-rose-600">{tvaData.deductible.toLocaleString()} {currencySymbol}</p>
             </div>
             <div className="bg-indigo-50 p-4 rounded-lg">
-              <h4 className="font-bold text-indigo-900 mb-2">TVA à payer / Crédit</h4>
-              <p className="text-3xl font-bold text-indigo-700">{(tvaData.collected - tvaData.deductible).toLocaleString()} XAF</p>
+              <h4 className="font-bold text-indigo-900 mb-2">{taxLabel} à payer / Crédit</h4>
+              <p className="text-3xl font-bold text-indigo-700">{(tvaData.collected - tvaData.deductible).toLocaleString()} {currencySymbol}</p>
             </div>
           </div>
         </div>
@@ -553,7 +597,7 @@ export const Accounting = () => {
             onClick={() => setActiveTab(tab as any)}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${activeTab === tab ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
           >
-            {tab}
+            {tab === 'TVA' ? taxLabel : tab}
           </button>
         ))}
       </div>
@@ -571,11 +615,13 @@ export const Accounting = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-6 space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold">Nouvelle écriture</h3>
-              <button type="button" onClick={handleGenerateEntry} className="flex items-center gap-1 text-sm bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg hover:bg-indigo-200" disabled={isGenerating}>
-                <Sparkles className="w-4 h-4" /> {isGenerating ? 'Génération...' : 'Générer avec IA'}
-              </button>
-              <button onClick={() => setIsModalOpen(false)}><X className="w-5 h-5 text-slate-400"/></button>
+              <h3 className="text-lg font-bold">{editingEntryId ? 'Modifier l\'écriture' : 'Nouvelle écriture'}</h3>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={handleGenerateEntry} className="flex items-center gap-1 text-sm bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg hover:bg-indigo-200" disabled={isGenerating}>
+                  <Sparkles className="w-4 h-4" /> {isGenerating ? 'Génération...' : 'Générer avec IA'}
+                </button>
+                <button onClick={() => { setIsModalOpen(false); setEditingEntryId(null); }}><X className="w-5 h-5 text-slate-400"/></button>
+              </div>
             </div>
             <form onSubmit={handleSaveEntry} className="space-y-4">
               <input type="text" placeholder="Description" className="w-full p-2 border rounded-lg" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} required />

@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../lib/api';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   LineChart, Line, PieChart, Pie, Cell 
 } from 'recharts';
 import { TrendingUp, Users, DollarSign, Package, ArrowUpRight, ArrowDownRight, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const data = [
   { name: 'Jan', sales: 4000, expenses: 2400 },
@@ -22,30 +24,42 @@ const pieData = [
 
 const COLORS = ['#4f46e5', '#10b981', '#f59e0b'];
 
-const StatCard = ({ title, value, change, icon: Icon, trend }: any) => (
-  <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+const StatCard = ({ title, value, change, icon: Icon, trend, delay }: any) => (
+  <motion.div 
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.4, delay }}
+    className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+  >
     <div className="flex items-center justify-between mb-4">
-      <div className="p-2 bg-slate-50 rounded-lg">
+      <div className="p-2 bg-indigo-50 rounded-xl">
         <Icon className="w-5 h-5 text-indigo-600" />
       </div>
-      <div className={`flex items-center gap-1 text-xs font-medium ${trend === 'up' ? 'text-emerald-600' : 'text-rose-600'}`}>
+      <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${trend === 'up' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
         {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
         {change}
       </div>
     </div>
     <h3 className="text-slate-500 text-sm font-medium">{title}</h3>
-    <p className="text-2xl font-bold text-slate-900 mt-1">{value}</p>
-  </div>
+    <p className="text-3xl font-black text-slate-900 mt-1 tracking-tight">{value}</p>
+  </motion.div>
 );
 
-export const Dashboard = () => {
+import { useTranslation } from '../lib/i18n';
+
+export const Dashboard = ({ user }: { user: any }) => {
+  const { t } = useTranslation();
+  const isUS = user?.country === 'US';
+  const currencySymbol = isUS ? '$' : '€';
+
+  const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
   const [stats, setStats] = useState({ contacts: 0, revenue: 0, orders: 0, products: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('/api/stats');
+        const response = await apiFetch('/api/stats');
         if (response.ok) {
           const data = await response.json();
           setStats(data);
@@ -61,7 +75,7 @@ export const Dashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
+      <div className="flex flex-col items-center justify-center py-20 gap-4 h-full">
         <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
         <p className="text-sm font-medium text-slate-500">Chargement du tableau de bord...</p>
       </div>
@@ -69,17 +83,26 @@ export const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-8">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-8"
+    >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Chiffre d'Affaires" value={`${stats.revenue.toLocaleString()} XAF`} change="+12.5%" icon={DollarSign} trend="up" />
-        <StatCard title="Nouveaux Clients" value={stats.contacts.toString()} change="+3.2%" icon={Users} trend="up" />
-        <StatCard title="Commandes" value={stats.orders.toString()} change="-2.4%" icon={Package} trend="down" />
-        <StatCard title="Produits" value={stats.products.toString()} change="+1.1%" icon={TrendingUp} trend="up" />
+        <StatCard title="Chiffre d'Affaires" value={`${stats.revenue.toLocaleString()} ${currencySymbol}`} change="+12.5%" icon={DollarSign} trend="up" delay={0.1} />
+        <StatCard title="Nouveaux Clients" value={stats.contacts.toString()} change="+3.2%" icon={Users} trend="up" delay={0.2} />
+        <StatCard title="Commandes" value={stats.orders.toString()} change="-2.4%" icon={Package} trend="down" delay={0.3} />
+        <StatCard title="Produits" value={stats.products.toString()} change="+1.1%" icon={TrendingUp} trend="up" delay={0.4} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900 mb-6">Performance des Ventes</h3>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+          className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"
+        >
+          <h3 className="text-lg font-bold text-slate-900 mb-6">Performance des Ventes</h3>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data}>
@@ -87,17 +110,23 @@ export const Dashboard = () => {
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                 <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  cursor={{ fill: '#f8fafc' }}
                 />
-                <Bar dataKey="sales" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expenses" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="sales" fill="#4f46e5" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="expenses" fill="#e2e8f0" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
-        </div>
+        </motion.div>
 
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-          <h3 className="text-lg font-semibold text-slate-900 mb-6">Répartition par Catégorie</h3>
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.6 }}
+          className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"
+        >
+          <h3 className="text-lg font-bold text-slate-900 mb-6">Répartition par Catégorie</h3>
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -112,51 +141,58 @@ export const Dashboard = () => {
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
-                <Tooltip />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                />
               </PieChart>
             </ResponsiveContainer>
           </div>
           <div className="space-y-3 mt-4">
             {pieData.map((item, index) => (
               <div key={item.name} className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index] }}></div>
-                  <span className="text-slate-600">{item.name}</span>
+                <div className="flex items-center gap-3">
+                  <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: COLORS[index] }}></div>
+                  <span className="text-slate-600 font-medium">{item.name}</span>
                 </div>
-                <span className="font-medium text-slate-900">{item.value} XAF</span>
+                <span className="font-bold text-slate-900">{item.value} {currencySymbol}</span>
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </div>
       
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <h3 className="text-lg font-semibold text-slate-900 mb-6">Activités Récentes</h3>
-        <div className="space-y-6">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.7 }}
+        className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"
+      >
+        <h3 className="text-lg font-bold text-slate-900 mb-6">Activités Récentes</h3>
+        <div className="space-y-4">
           {[
-            { user: 'Jean Dupont', action: 'a payé la facture', target: 'INV-2024-001', time: 'Il y a 2 heures', amount: '1,200 XAF' },
+            { user: 'Jean Dupont', action: 'a payé la facture', target: 'INV-2024-001', time: 'Il y a 2 heures', amount: '1,200 {currencySymbol}' },
             { user: 'Alice Bernard', action: 'a mis à jour le projet', target: 'Refonte Site Web', time: 'Il y a 4 heures' },
             { user: 'Marie Curie', action: 'nouveau lead enregistré', target: 'Labo X', time: 'Il y a 6 heures' },
           ].map((activity, i) => (
-            <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+            <div key={i} className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-colors">
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-medium">
+                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold shadow-sm">
                   {activity.user.charAt(0)}
                 </div>
                 <div>
                   <p className="text-sm">
-                    <span className="font-semibold text-slate-900">{activity.user}</span>
-                    <span className="text-slate-500 mx-1">{activity.action}</span>
-                    <span className="font-medium text-indigo-600">{activity.target}</span>
+                    <span className="font-bold text-slate-900">{activity.user}</span>
+                    <span className="text-slate-500 mx-1.5">{activity.action}</span>
+                    <span className="font-semibold text-indigo-600">{activity.target}</span>
                   </p>
-                  <p className="text-xs text-slate-400 mt-0.5">{activity.time}</p>
+                  <p className="text-xs text-slate-400 mt-1 font-medium">{activity.time}</p>
                 </div>
               </div>
-              {activity.amount && <span className="text-sm font-bold text-emerald-600">+{activity.amount}</span>}
+              {activity.amount && <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">+{activity.amount}</span>}
             </div>
           ))}
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };

@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../lib/api';
 import { Plus, Package, AlertTriangle, ArrowRightLeft, Tag, X, Save, Eye, Pencil, Trash2, Loader2 } from 'lucide-react';
 import { Product } from '../types';
 
-export const Inventory = () => {
+import { useTranslation } from '../lib/i18n';
+
+export const Inventory = ({ user }: { user: any }) => {
+  const { t } = useTranslation();
+  const isUS = user?.country === 'US';
+  const currencySymbol = isUS ? '$' : '€';
+
+  const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [categories, setCategories] = useState<string[]>([]);
@@ -23,7 +31,7 @@ export const Inventory = () => {
   const fetchProducts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/products');
+      const response = await apiFetch('/api/products');
       if (response.ok) {
         const data = await response.json();
         setProducts(data);
@@ -41,7 +49,7 @@ export const Inventory = () => {
     try {
       if (editingProduct) {
         // Update logic (not implemented in server yet, but let's assume PUT)
-        const response = await fetch(`/api/products/${editingProduct.id}`, {
+        const response = await apiFetch(`/api/products/${editingProduct.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newProduct),
@@ -50,7 +58,7 @@ export const Inventory = () => {
         setEditingProduct(null);
       } else {
         const id = Math.random().toString(36).substr(2, 9);
-        const response = await fetch('/api/products', {
+        const response = await apiFetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...newProduct, id }),
@@ -67,7 +75,7 @@ export const Inventory = () => {
   const handleDeleteProduct = async (id: string) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce produit ?')) {
       try {
-        const response = await fetch(`/api/products/${id}`, {
+        const response = await apiFetch(`/api/products/${id}`, {
           method: 'DELETE',
         });
         if (response.ok) fetchProducts();
@@ -78,17 +86,28 @@ export const Inventory = () => {
     }
   };
 
-  const handleMovement = (e: React.FormEvent) => {
+  const handleMovement = async (e: React.FormEvent) => {
     e.preventDefault();
-    setProducts(products.map(p => {
-      if (p.id === movement.productId) {
-        const newStock = movement.type === 'IN' ? p.stock + movement.quantity : p.stock - movement.quantity;
-        return { ...p, stock: Math.max(0, newStock) };
+    const product = products.find(p => p.id === movement.productId);
+    if (!product) return;
+
+    const newStock = movement.type === 'IN' ? product.stock + movement.quantity : product.stock - movement.quantity;
+    const updatedProduct = { ...product, stock: Math.max(0, newStock) };
+
+    try {
+      const response = await apiFetch(`/api/products/${product.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedProduct),
+      });
+      if (response.ok) {
+        fetchProducts();
       }
-      return p;
-    }));
-    setIsStockMovementOpen(false);
-    setMovement({ productId: '', quantity: 0, type: 'IN' });
+      setIsStockMovementOpen(false);
+      setMovement({ productId: '', quantity: 0, type: 'IN' });
+    } catch (error) {
+      console.error('Failed to update stock:', error);
+    }
   };
 
   const handleDeleteCategory = (cat: string) => {
@@ -130,7 +149,7 @@ export const Inventory = () => {
             </div>
             <div>
               <p className="text-sm text-slate-500 font-medium">Valeur Stock</p>
-              <p className="text-2xl font-bold text-slate-900">{products.reduce((sum, p) => sum + (p.price * p.stock), 0).toLocaleString()} XAF</p>
+              <p className="text-2xl font-bold text-slate-900">{products.reduce((sum, p) => sum + (p.price * p.stock), 0).toLocaleString()} {currencySymbol}</p>
             </div>
           </div>
         </div>
@@ -189,7 +208,7 @@ export const Inventory = () => {
                     {product.category}
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                    {product.price.toLocaleString()} XAF
+                    {product.price.toLocaleString()} {currencySymbol}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
@@ -299,7 +318,7 @@ export const Inventory = () => {
               <p><strong>SKU:</strong> {viewProduct.sku}</p>
               <p><strong>Catégorie:</strong> {viewProduct.category}</p>
               <p><strong>Type:</strong> {viewProduct.type === 'product' ? 'Produit' : 'Service'}</p>
-              <p><strong>Prix:</strong> {viewProduct.price.toLocaleString()} XAF</p>
+              <p><strong>Prix:</strong> {viewProduct.price.toLocaleString()} {currencySymbol}</p>
               <p><strong>Taux TVA:</strong> {(viewProduct.tvaRate * 100).toFixed(0)}%</p>
               <p><strong>Stock:</strong> {viewProduct.stock}</p>
               <p><strong>Description:</strong> {viewProduct.description || 'Aucune description'}</p>

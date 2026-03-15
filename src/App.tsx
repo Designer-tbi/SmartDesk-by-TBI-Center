@@ -12,6 +12,9 @@ import { Accounting } from './modules/Accounting';
 import { Settings } from './modules/Settings';
 import { Users } from './modules/Users';
 import { Login } from './modules/Login';
+import { SuperAdmin } from './modules/SuperAdmin';
+import { AnimatePresence, motion } from 'framer-motion';
+import { apiFetch } from './lib/api';
 
 const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, onLogout?: () => void, user: any }) => {
   const location = useLocation();
@@ -27,6 +30,7 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
       case '/accounting': return 'Comptabilité';
       case '/users': return 'Utilisateurs & Permissions';
       case '/settings': return 'Paramètres Système';
+      case '/super-admin': return 'Administration Globale';
       default: return 'SmartDesk';
     }
   };
@@ -37,7 +41,17 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
       <div className="flex-1 flex flex-col">
         <Header title={getTitle(location.pathname)} onLogout={onLogout} />
         <main className="p-8 max-w-7xl mx-auto w-full flex-1">
-          {children}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
         </main>
         <footer className="py-4 text-center text-sm text-slate-500 border-t border-slate-200">
           SmartDesk by <a href="https://tbi-center.fr" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">TBI Center</a>
@@ -47,28 +61,66 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
   );
 };
 
+import { I18nProvider } from './lib/i18n';
+
 export default function App() {
   const [user, setUser] = React.useState<any>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Validate token by fetching current user
+      apiFetch('/api/auth/me')
+        .then(res => {
+          if (res.ok) {
+            return res.json();
+          }
+          throw new Error('Invalid token');
+        })
+        .then(user => {
+          setUser(user);
+          setIsLoading(false);
+        })
+        .catch(() => {
+          localStorage.removeItem('token');
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+    }
+  }, []);
+
+  if (isLoading) {
+    return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
+  }
 
   if (!user) {
-    return <Login onLogin={setUser} />;
+    return (
+      <I18nProvider>
+        <Login onLogin={setUser} />
+      </I18nProvider>
+    );
   }
 
   return (
-    <Router>
-      <PageWrapper onLogout={() => setUser(null)} user={user}>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/crm" element={<CRM />} />
-          <Route path="/sales" element={<Sales />} />
-          <Route path="/inventory" element={<Inventory />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/hr" element={<HR />} />
-          <Route path="/accounting" element={<Accounting />} />
-          <Route path="/users" element={<Users />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </PageWrapper>
-    </Router>
+    <I18nProvider>
+      <Router>
+        <PageWrapper onLogout={() => { localStorage.removeItem('token'); setUser(null); }} user={user}>
+          <Routes>
+            <Route path="/" element={<Dashboard user={user} />} />
+            <Route path="/crm" element={<CRM />} />
+            <Route path="/sales" element={<Sales user={user} />} />
+            <Route path="/inventory" element={<Inventory user={user} />} />
+            <Route path="/projects" element={<Projects />} />
+            <Route path="/hr" element={<HR user={user} />} />
+            <Route path="/accounting" element={<Accounting user={user} />} />
+            <Route path="/users" element={<Users />} />
+            <Route path="/settings" element={<Settings />} />
+            {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
+          </Routes>
+        </PageWrapper>
+      </Router>
+    </I18nProvider>
   );
 }

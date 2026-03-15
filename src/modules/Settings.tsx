@@ -1,18 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { MOCK_COMPANY } from '../constants';
-import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle } from 'lucide-react';
+import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2 } from 'lucide-react';
 import { CompanyInfo } from '../types';
+import { apiFetch } from '../lib/api';
 
 export const Settings = () => {
   const [company, setCompany] = useState<CompanyInfo>(MOCK_COMPANY);
   const [isSaved, setIsSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // In a real app, we would save to a backend here
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
+  useEffect(() => {
+    fetchCompany();
+  }, []);
+
+  const fetchCompany = async () => {
+    try {
+      const response = await apiFetch('/api/company');
+      if (response.ok) {
+        const data = await response.json();
+        if (data) setCompany(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch company:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await apiFetch('/api/company', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(company),
+      });
+      if (response.ok) {
+        setIsSaved(true);
+        setTimeout(() => setIsSaved(false), 3000);
+      }
+    } catch (error) {
+      console.error('Failed to save company:', error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <p className="text-sm font-medium text-slate-500">Chargement des paramètres...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

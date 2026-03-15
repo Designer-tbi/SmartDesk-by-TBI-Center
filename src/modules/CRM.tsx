@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { apiFetch } from '../lib/api';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Filter, MoreVertical, Mail, Phone, ExternalLink, X, User, Building2, Globe, Tag, Briefcase, Check, Pencil, Trash2, Eye, Calendar, Loader2 } from 'lucide-react';
 import { Contact } from '../types';
 
@@ -29,7 +31,7 @@ export const CRM = () => {
   const fetchContacts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/contacts');
+      const response = await apiFetch('/api/contacts');
       if (response.ok) {
         const data = await response.json();
         setContacts(data);
@@ -62,7 +64,7 @@ export const CRM = () => {
     e.preventDefault();
     try {
       if (editingContactId) {
-        const response = await fetch(`/api/contacts/${editingContactId}`, {
+        const response = await apiFetch(`/api/contacts/${editingContactId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newContact),
@@ -72,7 +74,7 @@ export const CRM = () => {
         }
       } else {
         const id = Math.random().toString(36).substr(2, 9);
-        const response = await fetch('/api/contacts', {
+        const response = await apiFetch('/api/contacts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...newContact, id }),
@@ -90,7 +92,7 @@ export const CRM = () => {
   const handleDeleteContact = async (id: string) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce contact ?')) {
       try {
-        const response = await fetch(`/api/contacts/${id}`, {
+        const response = await apiFetch(`/api/contacts/${id}`, {
           method: 'DELETE',
         });
         if (response.ok) {
@@ -109,7 +111,11 @@ export const CRM = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-6"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
@@ -136,8 +142,14 @@ export const CRM = () => {
               Filtres
             </button>
             
-            {isFilterMenuOpen && (
-              <div className="absolute top-full left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-10 animate-in fade-in slide-in-from-top-2 duration-200">
+            <AnimatePresence>
+              {isFilterMenuOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute top-full left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-10"
+                >
                 <div className="p-3 border-b border-slate-100">
                   <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-2">Trier par</h4>
                   <div className="space-y-1">
@@ -157,10 +169,11 @@ export const CRM = () => {
                     </button>
                   </div>
                 </div>
-              </div>
+              </motion.div>
             )}
-          </div>
+          </AnimatePresence>
         </div>
+      </div>
         
         <button 
           onClick={() => { resetForm(); setIsModalOpen(true); }}
@@ -255,11 +268,18 @@ export const CRM = () => {
       </div>
 
       {/* Slide-over Nouveau Contact */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm transition-all">
-          <div className="absolute inset-0" onClick={resetForm}></div>
-          
-          <div className="relative w-full max-w-md sm:max-w-lg md:max-w-xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm transition-all">
+            <div className="absolute inset-0" onClick={resetForm}></div>
+            
+            <motion.div 
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-md sm:max-w-lg md:max-w-xl bg-white h-full shadow-2xl flex flex-col"
+            >
             <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">{editingContactId ? 'Modifier le Contact' : 'Nouveau Contact'}</h3>
@@ -395,29 +415,36 @@ export const CRM = () => {
             </div>
 
             <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex gap-3">
-              <button 
-                type="button"
-                onClick={resetForm}
-                className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95"
-              >
-                Annuler
-              </button>
-              <button 
-                type="submit"
-                form="new-contact-form"
-                className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
-              >
-                {editingContactId ? 'Mettre à jour' : 'Enregistrer'}
-              </button>
-            </div>
+                <button 
+                  type="button"
+                  onClick={resetForm}
+                  className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit"
+                  form="new-contact-form"
+                  className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                >
+                  {editingContactId ? 'Mettre à jour' : 'Enregistrer'}
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Preview Modal */}
-      {viewContact && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+      <AnimatePresence>
+        {viewContact && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
+            >
             <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <h3 className="text-xl font-bold text-slate-900">Détails du Contact</h3>
               <button 
@@ -481,9 +508,10 @@ export const CRM = () => {
                 Modifier le Contact
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
-    </div>
+      </AnimatePresence>
+    </motion.div>
   );
 };

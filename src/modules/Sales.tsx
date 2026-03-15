@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { apiFetch } from '../lib/api';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MOCK_INVOICES, MOCK_CONTACTS, MOCK_PRODUCTS, MOCK_COMPANY, MOCK_QUOTE_TEMPLATES } from '../constants';
 import { 
   Plus, Download, FileText, CheckCircle, Clock, AlertCircle, Eye, Pencil, Trash2, Mail, X, 
@@ -7,7 +9,14 @@ import {
 } from 'lucide-react';
 import { Invoice, Contact, Product, QuoteTemplate } from '../types';
 
-export const Sales = () => {
+import { useTranslation } from '../lib/i18n';
+
+export const Sales = ({ user }: { user: any }) => {
+  const { t } = useTranslation();
+  const isUS = user?.country === 'US';
+  const currencySymbol = isUS ? '$' : '€';
+
+  const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -35,9 +44,9 @@ export const Sales = () => {
     setIsLoading(true);
     try {
       const [invRes, conRes, prodRes] = await Promise.all([
-        fetch('/api/invoices'),
-        fetch('/api/contacts'),
-        fetch('/api/products')
+        apiFetch('/api/invoices'),
+        apiFetch('/api/contacts'),
+        apiFetch('/api/products')
       ]);
       if (invRes.ok) setInvoices(await invRes.json());
       if (conRes.ok) setContacts(await conRes.json());
@@ -167,12 +176,18 @@ export const Sales = () => {
 
     try {
       if (editingInvoiceId) {
-        // Update logic (not implemented in server yet, but let's assume POST for now or add PUT)
-        // For simplicity in this demo, we'll just re-fetch after save
+        const response = await apiFetch(`/api/invoices/${editingInvoiceId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newInvoice),
+        });
+        if (response.ok) {
+          fetchData();
+        }
       } else {
         const prefix = newInvoice.type === 'Invoice' ? 'INV' : 'DEV';
         const id = `${prefix}-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
-        const response = await fetch('/api/invoices', {
+        const response = await apiFetch('/api/invoices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...newInvoice, id }),
@@ -187,10 +202,19 @@ export const Sales = () => {
     }
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer ce document ?')) {
-      setInvoices(invoices.filter(inv => inv.id !== id));
-      if (viewInvoice?.id === id) setViewInvoice(null);
+      try {
+        const response = await apiFetch(`/api/invoices/${id}`, {
+          method: 'DELETE',
+        });
+        if (response.ok) {
+          fetchData();
+          if (viewInvoice?.id === id) setViewInvoice(null);
+        }
+      } catch (error) {
+        console.error('Failed to delete invoice:', error);
+      }
     }
   };
 
@@ -291,7 +315,11 @@ export const Sales = () => {
   const getContact = (id: string) => contacts.find(c => c.id === id);
 
   return (
-    <div className="space-y-6">
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="space-y-6"
+    >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
@@ -374,7 +402,7 @@ export const Sales = () => {
               <div>
                 <p className="text-xs text-slate-500 font-medium">Factures Payées</p>
                 <p className="text-lg font-bold text-slate-900">
-                  {invoices.filter(i => i.type === 'Invoice' && i.status === 'Paid').reduce((sum, i) => sum + i.total, 0).toLocaleString()} XAF
+                  {invoices.filter(i => i.type === 'Invoice' && i.status === 'Paid').reduce((sum, i) => sum + i.total, 0).toLocaleString()} {currencySymbol}
                 </p>
               </div>
             </div>
@@ -385,7 +413,7 @@ export const Sales = () => {
               <div>
                 <p className="text-xs text-slate-500 font-medium">En attente</p>
                 <p className="text-lg font-bold text-slate-900">
-                  {invoices.filter(i => i.status === 'Sent').reduce((sum, i) => sum + i.total, 0).toLocaleString()} XAF
+                  {invoices.filter(i => i.status === 'Sent').reduce((sum, i) => sum + i.total, 0).toLocaleString()} {currencySymbol}
                 </p>
               </div>
             </div>
@@ -396,7 +424,7 @@ export const Sales = () => {
               <div>
                 <p className="text-xs text-slate-500 font-medium">En retard</p>
                 <p className="text-lg font-bold text-slate-900">
-                  {invoices.filter(i => i.status === 'Overdue').reduce((sum, i) => sum + i.total, 0).toLocaleString()} XAF
+                  {invoices.filter(i => i.status === 'Overdue').reduce((sum, i) => sum + i.total, 0).toLocaleString()} {currencySymbol}
                 </p>
               </div>
             </div>
@@ -437,7 +465,7 @@ export const Sales = () => {
                         <div className="text-xs text-slate-500">{new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</div>
                       </td>
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">
-                        {invoice.total.toLocaleString()} XAF
+                        {invoice.total.toLocaleString()} {currencySymbol}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
@@ -501,7 +529,7 @@ export const Sales = () => {
               <div className="p-3 bg-slate-50 rounded-xl mb-4">
                 <p className="text-xs text-slate-500 mb-1">{template.items.length} articles</p>
                 <p className="text-sm font-bold text-indigo-600">
-                  {template.items.reduce((sum, i) => sum + (i.price * i.quantity), 0).toLocaleString()} XAF
+                  {template.items.reduce((sum, i) => sum + (i.price * i.quantity), 0).toLocaleString()} {currencySymbol}
                 </p>
               </div>
               <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-widest">
@@ -542,7 +570,7 @@ export const Sales = () => {
                     <tr key={quote.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="text-sm font-bold text-slate-900">{quote.id}</div>
-                        <div className="text-[10px] text-slate-400">{quote.total.toLocaleString()} XAF</div>
+                        <div className="text-[10px] text-slate-400">{quote.total.toLocaleString()} {currencySymbol}</div>
                       </td>
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">{getContactName(quote.contactId)}</td>
                       <td className="px-6 py-4 text-sm text-slate-500 font-medium">{quote.signedAt || quote.date}</td>
@@ -568,128 +596,142 @@ export const Sales = () => {
       )}
 
       {/* Signature Modal */}
-      {signingQuote && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
-          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
-            <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-black uppercase tracking-tight">Signature du Devis</h3>
-                <p className="text-indigo-100 text-xs font-bold mt-1">ID: {signingQuote.id} • {getContactName(signingQuote.contactId)}</p>
-              </div>
-              <button onClick={() => setSigningQuote(null)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
-                <X className="w-6 h-6"/>
-              </button>
-            </div>
-            
-            <div className="p-8 space-y-6">
-              <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 max-h-[400px] overflow-y-auto">
-                <div className="flex justify-between items-start mb-6">
-                  <div>
-                    <h4 className="text-lg font-black text-slate-900 uppercase tracking-tight">DEVIS {signingQuote.id}</h4>
-                    <p className="text-xs text-slate-500 font-bold">Date: {signingQuote.date}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-slate-900">{MOCK_COMPANY.name}</p>
-                    <p className="text-[10px] text-slate-500">{MOCK_COMPANY.address}</p>
-                  </div>
+      <AnimatePresence>
+        {signingQuote && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200"
+            >
+              <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
+                <div>
+                  <h3 className="text-xl font-black uppercase tracking-tight">Signature du Devis</h3>
+                  <p className="text-indigo-100 text-xs font-bold mt-1">ID: {signingQuote.id} • {getContactName(signingQuote.contactId)}</p>
                 </div>
-                
-                <table className="w-full text-left mb-6">
-                  <thead>
-                    <tr className="border-b border-slate-200">
-                      <th className="py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Description</th>
-                      <th className="py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {signingQuote.items.map((item, i) => (
-                      <tr key={i}>
-                        <td className="py-3">
-                          <p className="text-sm font-bold text-slate-900">{item.name}</p>
-                          <p className="text-[10px] text-slate-500">{item.quantity} x {item.price.toLocaleString()} XAF</p>
-                        </td>
-                        <td className="py-3 text-sm font-bold text-slate-900 text-right">
-                          {(item.quantity * item.price).toLocaleString()} XAF
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                
-                <div className="flex justify-end pt-4 border-t border-slate-200">
-                  <div className="w-48 space-y-2">
-                    <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">
-                      <span>Total HT</span>
-                      <span>{signingQuote.totalHT.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-lg font-black text-indigo-600 uppercase tracking-tight">
-                      <span>Total TTC</span>
-                      <span>{signingQuote.total.toLocaleString()} XAF</span>
-                    </div>
-                  </div>
-                </div>
+                <button onClick={() => setSigningQuote(null)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
+                  <X className="w-6 h-6"/>
+                </button>
               </div>
               
-              <div className="flex flex-col items-center gap-6 pt-6 border-t border-slate-100">
-                <div className="w-full max-w-md space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Signature Client</label>
-                    <button 
-                      onClick={clearSignature}
-                      className="flex items-center gap-1 text-[10px] font-bold text-red-500 hover:text-red-600 uppercase tracking-widest"
-                    >
-                      <Eraser className="w-3 h-3" /> Effacer
-                    </button>
+              <div className="p-8 space-y-6">
+                <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200 max-h-[400px] overflow-y-auto">
+                  <div className="flex justify-between items-start mb-6">
+                    <div>
+                      <h4 className="text-lg font-black text-slate-900 uppercase tracking-tight">DEVIS {signingQuote.id}</h4>
+                      <p className="text-xs text-slate-500 font-bold">Date: {signingQuote.date}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-slate-900">{MOCK_COMPANY.name}</p>
+                      <p className="text-[10px] text-slate-500">{MOCK_COMPANY.address}</p>
+                    </div>
                   </div>
-                  <div className="relative h-48 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl overflow-hidden cursor-crosshair">
-                    <canvas
-                      ref={canvasRef}
-                      width={448}
-                      height={192}
-                      className="w-full h-full"
-                      onMouseDown={startDrawing}
-                      onMouseMove={draw}
-                      onMouseUp={stopDrawing}
-                      onMouseLeave={stopDrawing}
-                      onTouchStart={startDrawing}
-                      onTouchMove={draw}
-                      onTouchEnd={stopDrawing}
-                    />
-                    {!hasSignature && (
-                      <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-300 italic text-sm">
-                        Signez ici avec votre souris ou votre doigt
+                  
+                  <table className="w-full text-left mb-6">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Description</th>
+                        <th className="py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {signingQuote.items.map((item, i) => (
+                        <tr key={i}>
+                          <td className="py-3">
+                            <p className="text-sm font-bold text-slate-900">{item.name}</p>
+                            <p className="text-[10px] text-slate-500">{item.quantity} x {item.price.toLocaleString()} {currencySymbol}</p>
+                          </td>
+                          <td className="py-3 text-sm font-bold text-slate-900 text-right">
+                            {(item.quantity * item.price).toLocaleString()} {currencySymbol}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  
+                  <div className="flex justify-end pt-4 border-t border-slate-200">
+                    <div className="w-48 space-y-2">
+                      <div className="flex justify-between text-xs font-bold text-slate-500 uppercase tracking-widest">
+                        <span>Total HT</span>
+                        <span>{signingQuote.totalHT.toLocaleString()}</span>
                       </div>
-                    )}
+                      <div className="flex justify-between text-lg font-black text-indigo-600 uppercase tracking-tight">
+                        <span>Total TTC</span>
+                        <span>{signingQuote.total.toLocaleString()} {currencySymbol}</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
-                <div className="flex gap-4 w-full">
-                  <button onClick={() => { setSigningQuote(null); setHasSignature(false); }} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all">Annuler</button>
-                  <button 
-                    onClick={() => handleSignQuote(signingQuote.id)}
-                    disabled={!hasSignature}
-                    className={`flex-1 py-4 rounded-2xl font-bold transition-all shadow-xl flex items-center justify-center gap-2 ${
-                      hasSignature 
-                        ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200" 
-                        : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
-                    }`}
-                  >
-                    <FileSignature className="w-5 h-5" />
-                    Valider le Devis
-                  </button>
+                <div className="flex flex-col items-center gap-6 pt-6 border-t border-slate-100">
+                  <div className="w-full max-w-md space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Signature Client</label>
+                      <button 
+                        onClick={clearSignature}
+                        className="flex items-center gap-1 text-[10px] font-bold text-red-500 hover:text-red-600 uppercase tracking-widest"
+                      >
+                        <Eraser className="w-3 h-3" /> Effacer
+                      </button>
+                    </div>
+                    <div className="relative h-48 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl overflow-hidden cursor-crosshair">
+                      <canvas
+                        ref={canvasRef}
+                        width={448}
+                        height={192}
+                        className="w-full h-full"
+                        onMouseDown={startDrawing}
+                        onMouseMove={draw}
+                        onMouseUp={stopDrawing}
+                        onMouseLeave={stopDrawing}
+                        onTouchStart={startDrawing}
+                        onTouchMove={draw}
+                        onTouchEnd={stopDrawing}
+                      />
+                      {!hasSignature && (
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-300 italic text-sm">
+                          Signez ici avec votre souris ou votre doigt
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <div className="flex gap-4 w-full">
+                    <button onClick={() => { setSigningQuote(null); setHasSignature(false); }} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all">Annuler</button>
+                    <button 
+                      onClick={() => handleSignQuote(signingQuote.id)}
+                      disabled={!hasSignature}
+                      className={`flex-1 py-4 rounded-2xl font-bold transition-all shadow-xl flex items-center justify-center gap-2 ${
+                        hasSignature 
+                          ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200" 
+                          : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
+                      }`}
+                    >
+                      <FileSignature className="w-5 h-5" />
+                      Valider le Devis
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* Slide-over Form */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm transition-all">
-          <div className="absolute inset-0" onClick={resetForm}></div>
-          
-          <div className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm transition-all">
+            <div className="absolute inset-0" onClick={resetForm}></div>
+            
+            <motion.div 
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col"
+            >
             <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">{editingInvoiceId ? 'Modifier le Document' : 'Nouveau Document'}</h3>
@@ -805,7 +847,7 @@ export const Sales = () => {
                           >
                             <option value="">Sélectionner un produit</option>
                             {products.map(p => (
-                              <option key={p.id} value={p.id}>{p.name} - {p.price} XAF</option>
+                              <option key={p.id} value={p.id}>{p.name} - {p.price} {currencySymbol}</option>
                             ))}
                           </select>
                         </div>
@@ -847,13 +889,13 @@ export const Sales = () => {
                   </div>
                   <div className="flex flex-col items-end pt-2 space-y-1">
                     <div className="text-sm text-slate-500">
-                      Total HT : {newInvoice.totalHT?.toLocaleString()} XAF
+                      Total HT : {newInvoice.totalHT?.toLocaleString()} {currencySymbol}
                     </div>
                     <div className="text-sm text-slate-500">
-                      TVA : {newInvoice.tvaTotal?.toLocaleString()} XAF
+                      TVA : {newInvoice.tvaTotal?.toLocaleString()} {currencySymbol}
                     </div>
                     <div className="text-lg font-bold text-slate-900">
-                      Total TTC : {newInvoice.total?.toLocaleString()} XAF
+                      Total TTC : {newInvoice.total?.toLocaleString()} {currencySymbol}
                     </div>
                   </div>
                 </div>
@@ -878,14 +920,21 @@ export const Sales = () => {
                 {editingInvoiceId ? 'Mettre à jour' : 'Enregistrer'}
               </button>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
+      </AnimatePresence>
 
       {/* Preview Modal */}
-      {viewInvoice && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+      <AnimatePresence>
+        {viewInvoice && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
+            >
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${viewInvoice.type === 'Invoice' ? 'bg-indigo-50 text-indigo-600' : 'bg-purple-50 text-purple-600'}`}>
@@ -967,9 +1016,9 @@ export const Sales = () => {
                           {item.description && <div className="text-xs text-slate-500 font-normal">{item.description}</div>}
                         </td>
                         <td className="py-4 text-sm text-slate-600 text-center">{item.quantity}</td>
-                        <td className="py-4 text-sm text-slate-600 text-right">{item.price.toLocaleString()} XAF</td>
+                        <td className="py-4 text-sm text-slate-600 text-right">{item.price.toLocaleString()} {currencySymbol}</td>
                         <td className="py-4 text-sm text-slate-600 text-center">{item.tvaRate !== undefined ? `${(item.tvaRate * 100).toFixed(0)}%` : '0%'}</td>
-                        <td className="py-4 text-sm font-bold text-slate-900 text-right">{(item.quantity * item.price).toLocaleString()} XAF</td>
+                        <td className="py-4 text-sm font-bold text-slate-900 text-right">{(item.quantity * item.price).toLocaleString()} {currencySymbol}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -979,15 +1028,15 @@ export const Sales = () => {
                   <div className="w-64 space-y-3">
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500 font-medium">Sous-total HT</span>
-                      <span className="font-bold text-slate-900">{viewInvoice.totalHT.toLocaleString()} XAF</span>
+                      <span className="font-bold text-slate-900">{viewInvoice.totalHT.toLocaleString()} {currencySymbol}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-500 font-medium">TVA</span>
-                      <span className="font-bold text-slate-900">{viewInvoice.tvaTotal.toLocaleString()} XAF</span>
+                      <span className="font-bold text-slate-900">{viewInvoice.tvaTotal.toLocaleString()} {currencySymbol}</span>
                     </div>
                     <div className="flex justify-between text-lg pt-3 border-t-2 border-slate-900">
                       <span className="font-black text-slate-900">Total TTC</span>
-                      <span className="font-black text-indigo-600">{viewInvoice.total.toLocaleString()} XAF</span>
+                      <span className="font-black text-indigo-600">{viewInvoice.total.toLocaleString()} {currencySymbol}</span>
                     </div>
                   </div>
                 </div>
@@ -1000,9 +1049,10 @@ export const Sales = () => {
                 )}
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       )}
-    </div>
+      </AnimatePresence>
+    </motion.div>
   );
 };
