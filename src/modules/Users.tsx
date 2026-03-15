@@ -12,6 +12,7 @@ export const Users = () => {
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
 
   const [newUser, setNewUser] = useState({ name: '', email: '', roleId: '', password: '' });
+  const [newRole, setNewRole] = useState({ name: '', permissions: [] as string[] });
 
   useEffect(() => {
     fetchData();
@@ -66,6 +67,47 @@ export const Users = () => {
         console.error('Failed to delete user:', error);
       }
     }
+  };
+
+  const handleAddRole = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const id = `role-${Math.random().toString(36).substr(2, 9)}`;
+      const response = await apiFetch('/api/company/roles', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newRole, id })
+      });
+      if (response.ok) {
+        fetchData();
+        setIsRoleModalOpen(false);
+        setNewRole({ name: '', permissions: [] });
+      }
+    } catch (error) {
+      console.error('Failed to add role:', error);
+    }
+  };
+
+  const handleDeleteRole = async (id: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce rôle ?')) {
+      try {
+        const response = await apiFetch(`/api/company/roles/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+          fetchData();
+        }
+      } catch (error) {
+        console.error('Failed to delete role:', error);
+      }
+    }
+  };
+
+  const togglePermission = (permId: string) => {
+    setNewRole(prev => ({
+      ...prev,
+      permissions: prev.permissions.includes(permId)
+        ? prev.permissions.filter(p => p !== permId)
+        : [...prev.permissions, permId]
+    }));
   };
 
   const getRoleName = (roleId: string) => roles.find(r => r.id === roleId)?.name || roleId;
@@ -177,7 +219,7 @@ export const Users = () => {
                   <button className="p-2 text-slate-400 hover:text-indigo-600">
                     <Edit2 className="w-4 h-4" />
                   </button>
-                  <button className="p-2 text-slate-400 hover:text-red-600">
+                  <button onClick={() => handleDeleteRole(role.id)} className="p-2 text-slate-400 hover:text-red-600">
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
@@ -242,6 +284,75 @@ export const Users = () => {
                 </select>
               </div>
               <button type="submit" className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold mt-4">Créer l'utilisateur</button>
+            </div>
+          </form>
+        </div>
+      )}
+      {/* Role Modal */}
+      {isRoleModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
+          <form onSubmit={handleAddRole} className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-6">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-xl font-bold">Nouveau Rôle</h3>
+              <button type="button" onClick={() => setIsRoleModalOpen(false)}><X className="w-6 h-6 text-slate-400" /></button>
+            </div>
+            <div className="space-y-6">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Nom du rôle</label>
+                <input 
+                  type="text" 
+                  required 
+                  value={newRole.name} 
+                  onChange={e => setNewRole({...newRole, name: e.target.value})} 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" 
+                  placeholder="Ex: Responsable RH" 
+                />
+              </div>
+              
+              <div className="space-y-3">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Permissions</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                  {MOCK_PERMISSIONS.map(perm => (
+                    <div 
+                      key={perm.id}
+                      onClick={() => togglePermission(perm.id)}
+                      className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center gap-3 ${
+                        newRole.permissions.includes(perm.id)
+                          ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                          : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${
+                        newRole.permissions.includes(perm.id)
+                          ? "bg-indigo-600 border-indigo-600 text-white"
+                          : "bg-white border-slate-300"
+                      }`}>
+                        {newRole.permissions.includes(perm.id) && <Check className="w-3 h-3" />}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold">{perm.name}</div>
+                        <div className="text-[10px] opacity-70">{perm.module}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setIsRoleModalOpen(false)}
+                  className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all"
+                >
+                  Annuler
+                </button>
+                <button 
+                  type="submit" 
+                  className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                >
+                  Créer le rôle
+                </button>
+              </div>
             </div>
           </form>
         </div>

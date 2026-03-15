@@ -106,7 +106,7 @@ export const HR = ({ user }: { user: any }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newEmployee),
         });
-        if (response.ok) fetchEmployees();
+        if (response.ok) fetchData();
         setEditingEmployee(null);
       } else {
         const id = Math.random().toString(36).substr(2, 9);
@@ -115,7 +115,7 @@ export const HR = ({ user }: { user: any }) => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...newEmployee, id }),
         });
-        if (response.ok) fetchEmployees();
+        if (response.ok) fetchData();
       }
       setIsModalOpen(false);
       setNewEmployee({ name: '', role: '', department: '', email: '', phone: '', address: '', status: 'Active', contractType: 'CDI', joinDate: '', salary: 0, profilePicture: '', documents: [] });
@@ -128,7 +128,7 @@ export const HR = ({ user }: { user: any }) => {
     if (window.confirm('Supprimer cet employé ?')) {
       try {
         const response = await apiFetch(`/api/employees/${id}`, { method: 'DELETE' });
-        if (response.ok) fetchEmployees();
+        if (response.ok) fetchData();
       } catch (error) {
         console.error('Failed to delete employee:', error);
       }
