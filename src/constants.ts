@@ -100,7 +100,7 @@ export const MOCK_CONTRACT_TEMPLATES: ContractTemplate[] = [
     id: 'TMP-001',
     name: 'Modèle CDI Standard',
     type: 'CDI',
-    content: 'CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE\n\nEntre les soussignés :\nLa société SmartDesk Congo...\nEt M/Mme [NOM_EMPLOYE]...\n\nArticle 1 : Fonctions...\nArticle 2 : Rémunération...',
+    content: 'CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE\n\nEntre les soussignés :\nLa société SmartDesk...\nEt M/Mme [NOM_EMPLOYE]...\n\nArticle 1 : Fonctions...\nArticle 2 : Rémunération...',
     lastModified: '2024-01-05'
   },
   {
@@ -135,11 +135,11 @@ export const MOCK_QUOTE_TEMPLATES: QuoteTemplate[] = [
 ];
 
 export const MOCK_COMPANY = {
-  name: 'SmartDesk Congo SARL',
+  name: 'SmartDesk',
   address: "Avenue de la Paix, Brazzaville, République du Congo",
-  email: 'contact@smartdesk-congo.cg',
+  email: 'contact@smartdesk.cg',
   phone: '+242 06 600 00 00',
-  website: 'https://smartdesk-congo.cg',
+  website: 'https://smartdesk.cg',
   taxId: 'NIF: 1234567A',
   rccm: 'RCCM: CG-BZV-01-2024-B12-00001',
   idNat: 'ID NAT: 01-123-A4567B',
