@@ -1,8 +1,7 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
-import { db, seedDatabase } from "./db.js";
+import { db, seedDatabase, connectionString } from "./db.js";
 import * as mockData from "./src/constants.js";
 
 // Import routers
@@ -36,6 +35,15 @@ seedDatabase(db, mockData);
 app.use(dbMiddleware);
 
 // API Routes
+app.get('/api/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    environment: process.env.NODE_ENV,
+    vercel: !!process.env.VERCEL,
+    database: connectionString.includes('neon.tech') ? 'neon' : 'custom'
+  });
+});
+
 app.use('/api/contacts', contactsRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/invoices', invoicesRouter);
@@ -56,13 +64,15 @@ export default app;
 // Only start the server if not running on Vercel
 if (!process.env.VERCEL) {
   if (process.env.NODE_ENV !== "production") {
-    createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    }).then(vite => {
-      app.use(vite.middlewares);
-      app.listen(PORT, "0.0.0.0", () => {
-        console.log(`Server running on http://localhost:${PORT}`);
+    import("vite").then(({ createServer: createViteServer }) => {
+      createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      }).then(vite => {
+        app.use(vite.middlewares);
+        app.listen(PORT, "0.0.0.0", () => {
+          console.log(`Server running on http://localhost:${PORT}`);
+        });
       });
     });
   } else {

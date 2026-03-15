@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 const rawConnectionString = process.env.DATABASE_URL;
 const fallbackString = 'postgresql://neondb_owner:npg_j5oWLtA6DrXs@ep-twilight-hat-adrtam2f-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
 
-const connectionString = (rawConnectionString && rawConnectionString.startsWith('postgres')) 
+export const connectionString = (rawConnectionString && rawConnectionString.startsWith('postgres')) 
   ? rawConnectionString 
   : fallbackString;
 
@@ -267,11 +267,22 @@ const initSql = `
   ALTER TABLE employees ADD COLUMN IF NOT EXISTS documents TEXT;
 `;
 
-db.query(initSql).catch(err => console.error("Error initializing database", err));
+// Initialize database
+export async function initializeDatabase() {
+  try {
+    await db.query(initSql);
+    console.log("Database initialized successfully");
+  } catch (err) {
+    console.error("Error initializing database", err);
+  }
+}
 
 // Seeding function
 export async function seedDatabase(dbInstance: Pool, data: any) {
   try {
+    // Ensure database is initialized before seeding
+    await initializeDatabase();
+    
     // Check if super admin exists
     const res1 = await dbInstance.query('SELECT * FROM users WHERE email = $1', ['eden@tbi-center.fr']);
     if (res1.rows.length === 0) {

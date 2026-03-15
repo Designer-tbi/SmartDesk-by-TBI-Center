@@ -1,4 +1,4 @@
-import { Contact, Product, Invoice, Project, Employee, User, Role, Permission, LeaveRequest, Payslip, Contract, ContractTemplate, QuoteTemplate } from './types';
+import { Contact, Product, Invoice, Project, Employee, User, Role, Permission, LeaveRequest, Payslip, Contract, ContractTemplate, QuoteTemplate } from './types.js';
 
 export const MOCK_CONTACTS: Contact[] = [
   { id: '1', name: 'Jean Dupont', email: 'jean@dupont.fr', phone: '0123456789', company: 'Dupont SA', status: 'Client', lastContact: '2024-03-10' },
