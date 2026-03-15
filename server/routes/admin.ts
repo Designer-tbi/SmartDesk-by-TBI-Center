@@ -6,71 +6,78 @@ export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireSuperAdmin);
 
-adminRouter.get('/stats', (req, res, next) => {
+adminRouter.get('/stats', async (req, res, next) => {
   try {
-    const realCompaniesCount = req.db.prepare("SELECT COUNT(*) as count FROM companies WHERE type = 'real'").get() as any;
-    const demoCompaniesCount = req.db.prepare("SELECT COUNT(*) as count FROM companies WHERE type = 'demo'").get() as any;
-    const totalUsers = req.db.prepare("SELECT COUNT(*) as count FROM users").get() as any;
+    const realCompaniesCount = await req.db.query("SELECT COUNT(*) as count FROM companies WHERE type = 'real'");
+    const demoCompaniesCount = await req.db.query("SELECT COUNT(*) as count FROM companies WHERE type = 'demo'");
+    const totalUsers = await req.db.query("SELECT COUNT(*) as count FROM users");
 
     res.json({
-      realCompanies: realCompaniesCount?.count || 0,
-      demoCompanies: demoCompaniesCount?.count || 0,
-      totalUsers: totalUsers?.count || 0
+      realCompanies: parseInt(realCompaniesCount.rows[0]?.count || '0', 10),
+      demoCompanies: parseInt(demoCompaniesCount.rows[0]?.count || '0', 10),
+      totalUsers: parseInt(totalUsers.rows[0]?.count || '0', 10)
     });
   } catch (error) {
     next(error);
   }
 });
 
-adminRouter.get('/companies', (req, res, next) => {
+adminRouter.get('/companies', async (req, res, next) => {
   try {
-    const companies = req.db.prepare('SELECT * FROM companies').all();
-    res.json(companies);
+    const companies = await req.db.query('SELECT * FROM companies');
+    res.json(companies.rows);
   } catch (error) {
     next(error);
   }
 });
 
-adminRouter.post('/companies', (req, res, next) => {
+adminRouter.post('/companies', async (req, res, next) => {
   try {
     const { id, name, type, status } = req.body;
-    req.db.prepare('INSERT INTO companies (id, name, type, status, createdAt) VALUES (?, ?, ?, ?, ?)')
-      .run(id, name, type, status || 'active', new Date().toISOString());
+    await req.db.query('INSERT INTO companies (id, name, type, status, "createdAt") VALUES ($1, $2, $3, $4, $5)',
+      [id, name, type, status || 'active', new Date().toISOString()]);
     res.status(201).json({ id, name, type, status: status || 'active' });
   } catch (error) {
     next(error);
   }
 });
 
-adminRouter.put('/companies/:id', (req, res, next) => {
+adminRouter.put('/companies/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, type, status } = req.body;
-    req.db.prepare('UPDATE companies SET name = ?, type = ?, status = ? WHERE id = ?')
-      .run(name, type, status, id);
+    await req.db.query('UPDATE companies SET name = $1, type = $2, status = $3 WHERE id = $4',
+      [name, type, status, id]);
     res.json({ id, name, type, status });
   } catch (error) {
     next(error);
   }
 });
 
-adminRouter.delete('/companies/:id', (req, res, next) => {
+adminRouter.delete('/companies/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    // Delete all associated data first
-    req.db.transaction(() => {
-      req.db.prepare('DELETE FROM journal_items WHERE journalEntryId IN (SELECT id FROM journal_entries WHERE companyId = ?)').run(id);
-      req.db.prepare('DELETE FROM journal_entries WHERE companyId = ?').run(id);
-      req.db.prepare('DELETE FROM transactions WHERE companyId = ?').run(id);
-      req.db.prepare('DELETE FROM employees WHERE companyId = ?').run(id);
-      req.db.prepare('DELETE FROM projects WHERE companyId = ?').run(id);
-      req.db.prepare('DELETE FROM invoice_items WHERE invoiceId IN (SELECT id FROM invoices WHERE companyId = ?)').run(id);
-      req.db.prepare('DELETE FROM invoices WHERE companyId = ?').run(id);
-      req.db.prepare('DELETE FROM products WHERE companyId = ?').run(id);
-      req.db.prepare('DELETE FROM contacts WHERE companyId = ?').run(id);
-      req.db.prepare('DELETE FROM users WHERE companyId = ?').run(id);
-      req.db.prepare('DELETE FROM companies WHERE id = ?').run(id);
-    })();
+    const client = await req.db.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM journal_items WHERE "journalEntryId" IN (SELECT id FROM journal_entries WHERE "companyId" = $1)', [id]);
+      await client.query('DELETE FROM journal_entries WHERE "companyId" = $1', [id]);
+      await client.query('DELETE FROM transactions WHERE "companyId" = $1', [id]);
+      await client.query('DELETE FROM employees WHERE "companyId" = $1', [id]);
+      await client.query('DELETE FROM projects WHERE "companyId" = $1', [id]);
+      await client.query('DELETE FROM invoice_items WHERE "invoiceId" IN (SELECT id FROM invoices WHERE "companyId" = $1)', [id]);
+      await client.query('DELETE FROM invoices WHERE "companyId" = $1', [id]);
+      await client.query('DELETE FROM products WHERE "companyId" = $1', [id]);
+      await client.query('DELETE FROM contacts WHERE "companyId" = $1', [id]);
+      await client.query('DELETE FROM users WHERE "companyId" = $1', [id]);
+      await client.query('DELETE FROM companies WHERE id = $1', [id]);
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
     res.status(204).send();
   } catch (error) {
     next(error);
@@ -78,10 +85,10 @@ adminRouter.delete('/companies/:id', (req, res, next) => {
 });
 
 // Manage users for a company
-adminRouter.get('/companies/:companyId/users', (req, res, next) => {
+adminRouter.get('/companies/:companyId/users', async (req, res, next) => {
   try {
-    const users = req.db.prepare('SELECT id, email, role, name FROM users WHERE companyId = ?').all(req.params.companyId);
-    res.json(users);
+    const users = await req.db.query('SELECT id, email, role, name, status, "lastLogin" FROM users WHERE "companyId" = $1', [req.params.companyId]);
+    res.json(users.rows);
   } catch (error) {
     next(error);
   }
@@ -89,19 +96,19 @@ adminRouter.get('/companies/:companyId/users', (req, res, next) => {
 
 adminRouter.post('/companies/:companyId/users', async (req, res, next) => {
   try {
-    const { id, email, password, role, name } = req.body;
+    const { id, email, password, role, name, status } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
-    req.db.prepare('INSERT INTO users (id, companyId, email, password, role, name) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(id, req.params.companyId, email, hashedPassword, role, name);
-    res.status(201).json({ id, companyId: req.params.companyId, email, role, name });
+    await req.db.query('INSERT INTO users (id, "companyId", email, password, role, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [id, req.params.companyId, email, hashedPassword, role, name, status || 'Active']);
+    res.status(201).json({ id, companyId: req.params.companyId, email, role, name, status: status || 'Active' });
   } catch (error) {
     next(error);
   }
 });
 
-adminRouter.delete('/users/:id', (req, res, next) => {
+adminRouter.delete('/users/:id', async (req, res, next) => {
   try {
-    req.db.prepare('DELETE FROM users WHERE id = ? AND role != ?').run(req.params.id, 'super_admin');
+    await req.db.query('DELETE FROM users WHERE id = $1 AND role != $2', [req.params.id, 'super_admin']);
     res.status(204).send();
   } catch (error) {
     next(error);

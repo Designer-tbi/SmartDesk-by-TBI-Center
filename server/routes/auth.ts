@@ -8,8 +8,24 @@ const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
 
 export const authRouter = Router();
 
-authRouter.get('/me', requireAuth, (req, res) => {
-  res.json(req.user);
+authRouter.get('/me', requireAuth, async (req, res, next) => {
+  try {
+    const userRes = await req.db.query('SELECT * FROM users WHERE id = $1', [req.user!.id]);
+    const user = userRes.rows[0];
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+    if (req.user!.companyId) {
+      const companyRes = await req.db.query('SELECT * FROM companies WHERE id = $1', [req.user!.companyId]);
+      const company = companyRes.rows[0];
+      if (!company) {
+        return res.status(401).json({ error: 'Company not found' });
+      }
+    }
+    res.json(req.user);
+  } catch (error) {
+    next(error);
+  }
 });
 
 authRouter.post('/login', async (req, res, next) => {
@@ -22,7 +38,8 @@ authRouter.post('/login', async (req, res, next) => {
     }
     
     // Find user
-    const user = req.db.prepare('SELECT * FROM users WHERE email = ?').get(email) as any;
+    const userRes = await req.db.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = userRes.rows[0];
     
     if (!user) {
       console.log('Login failed: User not found');
@@ -49,7 +66,8 @@ authRouter.post('/login', async (req, res, next) => {
     let company: any = null;
     // Check if company is active (if not super admin)
     if (user.companyId) {
-      company = req.db.prepare('SELECT status, type, country, state FROM companies WHERE id = ?').get(user.companyId) as any;
+      const companyRes = await req.db.query('SELECT status, type, country, state FROM companies WHERE id = $1', [user.companyId]);
+      company = companyRes.rows[0];
       if (!company || company.status !== 'active') {
         console.log('Login failed: Company inactive');
         return res.status(403).json({ error: 'Company account is inactive' });
@@ -67,6 +85,10 @@ authRouter.post('/login', async (req, res, next) => {
     }
 
     console.log('Login successful for user:', user.id);
+    
+    // Update lastLogin
+    await req.db.query('UPDATE users SET "lastLogin" = $1 WHERE id = $2', [new Date().toISOString(), user.id]);
+
     // Generate token
     const token = jwt.sign(
       { 
@@ -113,28 +135,38 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
     const companyId = `demo-company-${Date.now()}`;
     const userId = `demo-user-${Date.now()}`;
     
-    db.transaction(() => {
+    const client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      
       // Create company
       const finalCompanyName = companyName ? `${companyName} (${country || 'Démo'})` : `Démo - ${prenom} ${nom}`;
-      db.prepare(`
-        INSERT INTO companies (id, name, type, status, country, state, createdAt)
-        VALUES (?, ?, 'demo', 'active', ?, ?, CURRENT_TIMESTAMP)
-      `).run(companyId, finalCompanyName, country || 'FR', state || null);
+      await client.query(`
+        INSERT INTO companies (id, name, type, status, country, state, "createdAt")
+        VALUES ($1, $2, 'demo', 'active', $3, $4, CURRENT_TIMESTAMP)
+      `, [companyId, finalCompanyName, country || 'FR', state || null]);
       
       // Create user
       const hashedCode = bcrypt.hashSync(code, 10);
-      db.prepare(`
-        INSERT INTO users (id, companyId, email, password, role, name)
-        VALUES (?, ?, ?, ?, 'admin', ?)
-      `).run(userId, companyId, email, hashedCode, `${prenom} ${nom}`);
+      await client.query(`
+        INSERT INTO users (id, "companyId", email, password, role, name)
+        VALUES ($1, $2, $3, $4, 'admin', $5)
+      `, [userId, companyId, email, hashedCode, `${prenom} ${nom}`]);
       
       // Seed some initial data for this demo company
       const contactId = `contact-${Date.now()}`;
-      db.prepare(`
-        INSERT INTO contacts (id, companyId, name, email, phone, company, status, lastContact)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(contactId, companyId, `${prenom} ${nom}`, email, telephone || '0123456789', companyName || 'Entreprise Fictive', 'lead', new Date().toISOString());
-    })();
+      await client.query(`
+        INSERT INTO contacts (id, "companyId", name, email, phone, company, status, "lastContact")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `, [contactId, companyId, `${prenom} ${nom}`, email, telephone || '0123456789', companyName || 'Entreprise Fictive', 'lead', new Date().toISOString()]);
+      
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
 
     // Use provided SMTP credentials
     const transporter = nodemailer.createTransport({

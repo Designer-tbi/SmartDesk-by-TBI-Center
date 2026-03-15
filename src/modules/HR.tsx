@@ -20,10 +20,10 @@ export const HR = ({ user }: { user: any }) => {
   const [contractSubTab, setContractSubTab] = useState<'list' | 'templates' | 'signed'>('list');
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [leaves, setLeaves] = useState<LeaveRequest[]>(MOCK_LEAVES);
-  const [payslips, setPayslips] = useState<Payslip[]>(MOCK_PAYSLIPS);
-  const [contracts, setContracts] = useState<Contract[]>(MOCK_CONTRACTS);
-  const [templates, setTemplates] = useState<ContractTemplate[]>(MOCK_CONTRACT_TEMPLATES);
+  const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
+  const [payslips, setPayslips] = useState<Payslip[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [templates, setTemplates] = useState<ContractTemplate[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
@@ -54,19 +54,27 @@ export const HR = ({ user }: { user: any }) => {
   const [isSending, setIsSending] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchEmployees();
+    fetchData();
   }, []);
 
-  const fetchEmployees = async () => {
+  const fetchData = async () => {
     setIsLoading(true);
     try {
-      const response = await apiFetch('/api/employees');
-      if (response.ok) {
-        const data = await response.json();
-        setEmployees(data);
-      }
+      const [empRes, leavesRes, payslipsRes, contractsRes, templatesRes] = await Promise.all([
+        apiFetch('/api/employees'),
+        apiFetch('/api/employees/leaves'),
+        apiFetch('/api/employees/payslips'),
+        apiFetch('/api/employees/contracts'),
+        apiFetch('/api/employees/contract-templates')
+      ]);
+      
+      if (empRes.ok) setEmployees(await empRes.json());
+      if (leavesRes.ok) setLeaves(await leavesRes.json());
+      if (payslipsRes.ok) setPayslips(await payslipsRes.json());
+      if (contractsRes.ok) setContracts(await contractsRes.json());
+      if (templatesRes.ok) setTemplates(await templatesRes.json());
     } catch (error) {
-      console.error('Failed to fetch employees:', error);
+      console.error('Failed to fetch HR data:', error);
     } finally {
       setIsLoading(false);
     }
@@ -127,7 +135,7 @@ export const HR = ({ user }: { user: any }) => {
     }
   };
 
-  const handleSaveContract = (e: React.FormEvent) => {
+  const handleSaveContract = async (e: React.FormEvent) => {
     e.preventDefault();
     const contract: Contract = {
       id: `CTR-${Date.now()}`,
@@ -139,12 +147,23 @@ export const HR = ({ user }: { user: any }) => {
       content: newContract.content || '',
       createdAt: new Date().toISOString().split('T')[0]
     };
-    setContracts([contract, ...contracts]);
-    setIsContractModalOpen(false);
-    setNewContract({ employeeId: '', type: 'CDI', startDate: '', salary: 0, content: '', status: 'Draft' });
+    try {
+      const response = await apiFetch('/api/employees/contracts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(contract),
+      });
+      if (response.ok) {
+        fetchData();
+        setIsContractModalOpen(false);
+        setNewContract({ employeeId: '', type: 'CDI', startDate: '', salary: 0, content: '', status: 'Draft' });
+      }
+    } catch (error) {
+      console.error('Failed to save contract:', error);
+    }
   };
 
-  const handleSaveTemplate = (e: React.FormEvent) => {
+  const handleSaveTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     const template: ContractTemplate = {
       id: `TMP-${Date.now()}`,
@@ -153,9 +172,20 @@ export const HR = ({ user }: { user: any }) => {
       content: newTemplate.content || '',
       lastModified: new Date().toISOString().split('T')[0]
     };
-    setTemplates([template, ...templates]);
-    setIsTemplateModalOpen(false);
-    setNewTemplate({ name: '', type: 'CDI', content: '' });
+    try {
+      const response = await apiFetch('/api/employees/contract-templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(template),
+      });
+      if (response.ok) {
+        fetchData();
+        setIsTemplateModalOpen(false);
+        setNewTemplate({ name: '', type: 'CDI', content: '' });
+      }
+    } catch (error) {
+      console.error('Failed to save template:', error);
+    }
   };
 
   const applyTemplate = (templateId: string) => {
@@ -165,30 +195,53 @@ export const HR = ({ user }: { user: any }) => {
     }
   };
 
-  const handleSendContract = (id: string) => {
+  const handleSendContract = async (id: string) => {
     setIsSending(id);
-    setTimeout(() => {
-      setContracts(contracts.map(c => 
-        c.id === id ? { 
-          ...c, 
-          status: 'Sent', 
-          signatureLink: `${window.location.origin}/sign/${c.id}` 
-        } : c
-      ));
+    const contract = contracts.find(c => c.id === id);
+    if (!contract) return;
+    
+    try {
+      const response = await apiFetch(`/api/employees/contracts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...contract,
+          status: 'Sent',
+          signatureLink: `${window.location.origin}/sign/${id}`
+        }),
+      });
+      if (response.ok) {
+        fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to send contract:', error);
+    } finally {
       setIsSending(null);
-    }, 1500);
+    }
   };
 
-  const handleSignContract = (id: string) => {
-    setContracts(contracts.map(c => 
-      c.id === id ? { 
-        ...c, 
-        status: 'Signed', 
-        signedAt: new Date().toISOString().split('T')[0] 
-      } : c
-    ));
-    setSigningContract(null);
-    setHasSignature(false);
+  const handleSignContract = async (id: string) => {
+    const contract = contracts.find(c => c.id === id);
+    if (!contract) return;
+    
+    try {
+      const response = await apiFetch(`/api/employees/contracts/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...contract,
+          status: 'Signed',
+          signedAt: new Date().toISOString().split('T')[0]
+        }),
+      });
+      if (response.ok) {
+        fetchData();
+        setSigningContract(null);
+        setHasSignature(false);
+      }
+    } catch (error) {
+      console.error('Failed to sign contract:', error);
+    }
   };
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {

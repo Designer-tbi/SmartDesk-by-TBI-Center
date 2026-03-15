@@ -3,90 +3,111 @@ import { requireAuth, requireCompany } from '../middleware/auth.js';
 
 export const accountingRouter = Router();
 
-accountingRouter.get('/transactions', requireAuth, requireCompany, (req, res, next) => {
+accountingRouter.get('/transactions', requireAuth, requireCompany, async (req, res, next) => {
   try {
-    const transactions = req.db.prepare('SELECT * FROM transactions WHERE companyId = ?').all(req.user!.companyId);
-    res.json(transactions);
+    const transactions = await req.db.query('SELECT * FROM transactions WHERE "companyId" = $1', [req.user!.companyId]);
+    res.json(transactions.rows);
   } catch (error) {
     next(error);
   }
 });
 
-accountingRouter.get('/journal-entries', requireAuth, requireCompany, (req, res, next) => {
+accountingRouter.get('/journal-entries', requireAuth, requireCompany, async (req, res, next) => {
   try {
-    const entries = req.db.prepare('SELECT * FROM journal_entries WHERE companyId = ?').all(req.user!.companyId);
-    const entriesWithItems = entries.map((entry: any) => {
-      const items = req.db.prepare('SELECT * FROM journal_items WHERE journalEntryId = ?').all(entry.id);
-      return { ...entry, items };
-    });
+    const entriesRes = await req.db.query('SELECT * FROM journal_entries WHERE "companyId" = $1', [req.user!.companyId]);
+    const entries = entriesRes.rows;
+    
+    const entriesWithItems = await Promise.all(entries.map(async (entry: any) => {
+      const itemsRes = await req.db.query('SELECT * FROM journal_items WHERE "journalEntryId" = $1', [entry.id]);
+      return { ...entry, items: itemsRes.rows };
+    }));
+    
     res.json(entriesWithItems);
   } catch (error) {
     next(error);
   }
 });
 
-accountingRouter.post('/journal-entries', requireAuth, requireCompany, (req, res, next) => {
+accountingRouter.post('/journal-entries', requireAuth, requireCompany, async (req, res, next) => {
+  const client = await req.db.connect();
   try {
     const entry = req.body;
     
-    // Use transaction
-    const insertEntryAndItems = req.db.transaction((entryData) => {
-      req.db.prepare('INSERT INTO journal_entries (id, companyId, date, description) VALUES (?, ?, ?, ?)')
-        .run(entryData.id, req.user!.companyId, entryData.date, entryData.description);
-      
-      const insertItem = req.db.prepare('INSERT INTO journal_items (journalEntryId, accountId, debit, credit) VALUES (?, ?, ?, ?)');
-      if (Array.isArray(entryData.items)) {
-        entryData.items.forEach((item: any) => {
-          insertItem.run(entryData.id, item.accountId, item.debit, item.credit);
-        });
+    await client.query('BEGIN');
+    
+    await client.query(
+      'INSERT INTO journal_entries (id, "companyId", date, description) VALUES ($1, $2, $3, $4)',
+      [entry.id, req.user!.companyId, entry.date, entry.description]
+    );
+    
+    if (Array.isArray(entry.items)) {
+      for (const item of entry.items) {
+        await client.query(
+          'INSERT INTO journal_items ("journalEntryId", "accountId", debit, credit) VALUES ($1, $2, $3, $4)',
+          [entry.id, item.accountId, item.debit, item.credit]
+        );
       }
-    });
-
-    insertEntryAndItems(entry);
+    }
+    
+    await client.query('COMMIT');
     res.status(201).json(entry);
   } catch (error) {
+    await client.query('ROLLBACK');
     next(error);
+  } finally {
+    client.release();
   }
 });
 
-accountingRouter.put('/journal-entries/:id', requireAuth, requireCompany, (req, res, next) => {
+accountingRouter.put('/journal-entries/:id', requireAuth, requireCompany, async (req, res, next) => {
+  const client = await req.db.connect();
   try {
     const { id } = req.params;
     const entry = req.body;
     
-    const updateEntryAndItems = req.db.transaction((entryData) => {
-      req.db.prepare('UPDATE journal_entries SET date = ?, description = ? WHERE id = ? AND companyId = ?')
-        .run(entryData.date, entryData.description, id, req.user!.companyId);
-      
-      // Delete existing items
-      req.db.prepare('DELETE FROM journal_items WHERE journalEntryId = ?').run(id);
-      
-      // Insert new items
-      const insertItem = req.db.prepare('INSERT INTO journal_items (journalEntryId, accountId, debit, credit) VALUES (?, ?, ?, ?)');
-      if (Array.isArray(entryData.items)) {
-        entryData.items.forEach((item: any) => {
-          insertItem.run(id, item.accountId, item.debit, item.credit);
-        });
+    await client.query('BEGIN');
+    
+    await client.query(
+      'UPDATE journal_entries SET date = $1, description = $2 WHERE id = $3 AND "companyId" = $4',
+      [entry.date, entry.description, id, req.user!.companyId]
+    );
+    
+    await client.query('DELETE FROM journal_items WHERE "journalEntryId" = $1', [id]);
+    
+    if (Array.isArray(entry.items)) {
+      for (const item of entry.items) {
+        await client.query(
+          'INSERT INTO journal_items ("journalEntryId", "accountId", debit, credit) VALUES ($1, $2, $3, $4)',
+          [id, item.accountId, item.debit, item.credit]
+        );
       }
-    });
-
-    updateEntryAndItems(entry);
+    }
+    
+    await client.query('COMMIT');
     res.json(entry);
   } catch (error) {
+    await client.query('ROLLBACK');
     next(error);
+  } finally {
+    client.release();
   }
 });
 
-accountingRouter.delete('/journal-entries/:id', requireAuth, requireCompany, (req, res, next) => {
+accountingRouter.delete('/journal-entries/:id', requireAuth, requireCompany, async (req, res, next) => {
+  const client = await req.db.connect();
   try {
     const { id } = req.params;
-    const deleteEntryAndItems = req.db.transaction(() => {
-      req.db.prepare('DELETE FROM journal_items WHERE journalEntryId = ?').run(id);
-      req.db.prepare('DELETE FROM journal_entries WHERE id = ? AND companyId = ?').run(id, req.user!.companyId);
-    });
-    deleteEntryAndItems();
+    
+    await client.query('BEGIN');
+    await client.query('DELETE FROM journal_items WHERE "journalEntryId" = $1', [id]);
+    await client.query('DELETE FROM journal_entries WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    await client.query('COMMIT');
+    
     res.status(204).send();
   } catch (error) {
+    await client.query('ROLLBACK');
     next(error);
+  } finally {
+    client.release();
   }
 });

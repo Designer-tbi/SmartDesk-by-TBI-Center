@@ -1,16 +1,74 @@
-import React, { useState } from 'react';
-import { MOCK_USERS, MOCK_ROLES, MOCK_PERMISSIONS } from '../constants';
+import React, { useState, useEffect } from 'react';
+import { MOCK_ROLES, MOCK_PERMISSIONS } from '../constants';
 import { User, Role, Permission } from '../types';
 import { Users as UsersIcon, Shield, Lock, Plus, Search, MoreVertical, Mail, ShieldCheck, UserPlus, X, Check, Trash2, Edit2 } from 'lucide-react';
+import { apiFetch } from '../lib/api';
 
 export const Users = () => {
-  const [users, setUsers] = useState<User[]>(MOCK_USERS);
-  const [roles, setRoles] = useState<Role[]>(MOCK_ROLES);
+  const [users, setUsers] = useState<User[]>([]);
+  const [roles, setRoles] = useState<Role[]>([]);
   const [activeTab, setActiveTab] = useState<'users' | 'roles'>('users');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
 
-  const getRoleName = (roleId: string) => roles.find(r => r.id === roleId)?.name || 'Inconnu';
+  const [newUser, setNewUser] = useState({ name: '', email: '', roleId: '', password: '' });
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const [usersRes, rolesRes] = await Promise.all([
+        apiFetch('/api/company/users'),
+        apiFetch('/api/company/roles')
+      ]);
+      if (usersRes.ok) setUsers(await usersRes.json());
+      if (rolesRes.ok) {
+        const rolesData = await rolesRes.json();
+        setRoles(rolesData);
+        if (rolesData.length > 0 && !newUser.roleId) {
+          setNewUser(prev => ({ ...prev, roleId: rolesData[0].id }));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch data:', error);
+    }
+  };
+
+  const handleAddUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const id = Math.random().toString(36).substr(2, 9);
+      const response = await apiFetch('/api/company/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newUser, id, role: newUser.roleId })
+      });
+      if (response.ok) {
+        fetchData();
+        setIsUserModalOpen(false);
+        setNewUser({ name: '', email: '', roleId: roles[0]?.id || '', password: '' });
+      }
+    } catch (error) {
+      console.error('Failed to add user:', error);
+    }
+  };
+
+  const handleDeleteUser = async (id: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ?')) {
+      try {
+        const response = await apiFetch(`/api/company/users/${id}`, { method: 'DELETE' });
+        if (response.ok) {
+          fetchData();
+        }
+      } catch (error) {
+        console.error('Failed to delete user:', error);
+      }
+    }
+  };
+
+  const getRoleName = (roleId: string) => roles.find(r => r.id === roleId)?.name || roleId;
 
   return (
     <div className="space-y-6">
@@ -96,7 +154,7 @@ export const Users = () => {
                         <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm">
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm">
+                        <button onClick={() => handleDeleteUser(user.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
@@ -156,32 +214,36 @@ export const Users = () => {
         </div>
       )}
 
-      {/* User Modal Placeholder */}
+      {/* User Modal */}
       {isUserModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6">
+          <form onSubmit={handleAddUser} className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold">Nouvel Utilisateur</h3>
-              <button onClick={() => setIsUserModalOpen(false)}><X className="w-6 h-6 text-slate-400" /></button>
+              <button type="button" onClick={() => setIsUserModalOpen(false)}><X className="w-6 h-6 text-slate-400" /></button>
             </div>
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-400 uppercase">Nom complet</label>
-                <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Ex: Jean Mvoula" />
+                <input type="text" required value={newUser.name} onChange={e => setNewUser({...newUser, name: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="Ex: Jean Mvoula" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-400 uppercase">Email</label>
-                <input type="email" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="email@exemple.cg" />
+                <input type="email" required value={newUser.email} onChange={e => setNewUser({...newUser, email: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="email@exemple.cg" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-400 uppercase">Mot de passe</label>
+                <input type="password" required value={newUser.password} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="••••••••" />
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-400 uppercase">Rôle</label>
-                <select className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                <select value={newUser.roleId} onChange={e => setNewUser({...newUser, roleId: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
                   {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
-              <button className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold mt-4">Créer l'utilisateur</button>
+              <button type="submit" className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold mt-4">Créer l'utilisateur</button>
             </div>
-          </div>
+          </form>
         </div>
       )}
     </div>

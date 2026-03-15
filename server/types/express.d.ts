@@ -1,9 +1,9 @@
-import { Database } from 'better-sqlite3';
+import { Pool } from 'pg';
 
 declare global {
   namespace Express {
     interface Request {
-      db: Database;
+      db: Pool;
       user?: {
         id: string;
         companyId: string | null;

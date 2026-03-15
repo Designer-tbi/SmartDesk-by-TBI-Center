@@ -23,7 +23,7 @@ export const Sales = ({ user }: { user: any }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'Tous' | 'Invoice' | 'Quote'>('Tous');
   const [quoteSubTab, setQuoteSubTab] = useState<'list' | 'templates' | 'signed'>('list');
-  const [templates, setTemplates] = useState<QuoteTemplate[]>(MOCK_QUOTE_TEMPLATES);
+  const [templates, setTemplates] = useState<QuoteTemplate[]>([]);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
@@ -43,14 +43,16 @@ export const Sales = ({ user }: { user: any }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [invRes, conRes, prodRes] = await Promise.all([
+      const [invRes, conRes, prodRes, tmplRes] = await Promise.all([
         apiFetch('/api/invoices'),
         apiFetch('/api/contacts'),
-        apiFetch('/api/products')
+        apiFetch('/api/products'),
+        apiFetch('/api/invoices/quote-templates')
       ]);
       if (invRes.ok) setInvoices(await invRes.json());
       if (conRes.ok) setContacts(await conRes.json());
       if (prodRes.ok) setProducts(await prodRes.json());
+      if (tmplRes.ok) setTemplates(await tmplRes.json());
     } catch (error) {
       console.error('Failed to fetch sales data:', error);
     } finally {
@@ -68,7 +70,9 @@ export const Sales = ({ user }: { user: any }) => {
     tvaTotal: 0,
     total: 0,
     status: 'Draft',
-    notes: ''
+    notes: '',
+    signedAt: '',
+    description: ''
   });
 
   const filteredInvoices = invoices.filter(inv => filter === 'Tous' ? true : inv.type === filter);
@@ -827,6 +831,29 @@ export const Sales = ({ user }: { user: any }) => {
                     />
                   </div>
                 </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Description</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    value={newInvoice.description || ''}
+                    onChange={(e) => setNewInvoice({...newInvoice, description: e.target.value})}
+                    placeholder="Description du document..."
+                  />
+                </div>
+
+                {newInvoice.type === 'Quote' && newInvoice.status === 'Accepted' && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Date de signature</label>
+                    <input 
+                      type="date" 
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      value={newInvoice.signedAt || ''}
+                      onChange={(e) => setNewInvoice({...newInvoice, signedAt: e.target.value})}
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
