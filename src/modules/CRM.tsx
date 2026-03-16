@@ -157,7 +157,7 @@ export const CRM = ({ user }: { user: any }) => {
       className="space-y-8"
     >
       {/* Stats Header */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {[
           { label: t('crm.stats.total'), value: stats.total, icon: Users, color: 'bg-blue-500' },
           { label: t('crm.stats.leads'), value: stats.leads, icon: UserPlus, color: 'bg-amber-500' },
@@ -169,15 +169,15 @@ export const CRM = ({ user }: { user: any }) => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group"
+            className="bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group"
           >
             <div className="flex items-center justify-between">
-              <div className={`p-3 rounded-2xl ${stat.color} text-white shadow-lg shadow-current/20 group-hover:scale-110 transition-transform`}>
-                <stat.icon className="w-5 h-5" />
+              <div className={`p-2.5 sm:p-3 rounded-xl sm:rounded-2xl ${stat.color} text-white shadow-lg shadow-current/20 group-hover:scale-110 transition-transform`}>
+                <stat.icon className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                <p className="text-2xl font-black text-slate-900">{stat.value}</p>
+                <p className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+                <p className="text-xl sm:text-2xl font-black text-slate-900">{stat.value}</p>
               </div>
             </div>
           </motion.div>
@@ -194,8 +194,8 @@ export const CRM = ({ user }: { user: any }) => {
         </div>
       )}
 
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 flex-1">
           <div className="relative flex-1 w-full max-w-md">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
@@ -207,12 +207,12 @@ export const CRM = ({ user }: { user: any }) => {
             />
           </div>
           
-          <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
+          <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm overflow-x-auto">
             {(['all', 'Client', 'Lead'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-1.5 text-sm font-bold rounded-xl transition-all ${
+                className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-bold rounded-xl transition-all whitespace-nowrap ${
                   filter === f 
                     ? "bg-slate-900 text-white shadow-md" 
                     : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
@@ -224,11 +224,11 @@ export const CRM = ({ user }: { user: any }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="relative flex-1 sm:flex-none">
             <button 
               onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
             >
               <Filter className="w-4 h-4" />
               {t('crm.sort')}
@@ -268,23 +268,23 @@ export const CRM = ({ user }: { user: any }) => {
           
           <button 
             onClick={() => { resetForm(); setIsModalOpen(true); }}
-            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
           >
             <Plus className="w-5 h-5" />
-            {t('crm.addContact')}
+            <span className="whitespace-nowrap">{t('crm.addContact')}</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+      <div className="bg-white rounded-2xl sm:rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto scrollbar-hide">
           {isLoading ? (
               <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
                 <p className="text-sm font-medium text-slate-500">{t('crm.loading')}</p>
               </div>
             ) : (
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse min-w-[600px]">
                 <thead>
                   <tr className="bg-slate-50/50 border-b border-slate-200">
                     <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('crm.contact')}</th>

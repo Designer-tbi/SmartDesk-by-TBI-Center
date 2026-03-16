@@ -21,6 +21,7 @@ import { apiFetch } from './lib/api';
 const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, onLogout?: () => void, user: any }) => {
   const location = useLocation();
   const { t } = useTranslation();
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   
   const getTitle = (path: string) => {
     switch (path) {
@@ -40,12 +41,16 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
     }
   };
 
+  React.useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [location.pathname]);
+
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <Sidebar user={user} />
+      <Sidebar user={user} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
-        <Header title={getTitle(location.pathname)} onLogout={onLogout} />
-        <main className="p-8 max-w-7xl mx-auto w-full flex-1 min-w-0">
+        <Header title={getTitle(location.pathname)} onLogout={onLogout} onMenuClick={() => setIsSidebarOpen(true)} />
+        <main className="p-4 lg:p-8 max-w-7xl mx-auto w-full flex-1 min-w-0">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}

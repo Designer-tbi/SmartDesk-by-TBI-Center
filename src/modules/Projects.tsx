@@ -1,16 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../lib/api';
-import { Plus, Calendar, CheckCircle2, Circle, Clock, MoreHorizontal, X, Pencil, Trash2, Eye, Loader2 } from 'lucide-react';
+import { Plus, Calendar, CheckCircle2, Circle, Clock, MoreHorizontal, X, Pencil, Trash2, Eye, Loader2, Search, Filter } from 'lucide-react';
 import { Project } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { useTranslation } from '../lib/i18n';
 
 export const Projects = () => {
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [viewProject, setViewProject] = useState<Project | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
   const [newProject, setNewProject] = useState<Partial<Project>>({ name: '', client: '', status: 'Planning', deadline: '', progress: 0, description: '', details: '' });
 
   useEffect(() => {
@@ -83,23 +87,62 @@ export const Projects = () => {
     }
   };
 
+  const filteredProjects = projects.filter(project => {
+    const matchesSearch = project.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         project.client.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus = statusFilter === 'All' || project.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const statuses = ['All', 'Planning', 'In Progress', 'Completed', 'On Hold'];
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">Projets en cours</h2>
-        <button onClick={() => { setEditingProject(null); setNewProject({ name: '', client: '', status: 'Planning', deadline: '', progress: 0, description: '', details: '' }); setIsModalOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
-          <Plus className="w-4 h-4" />
-          Nouveau Projet
-        </button>
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <h2 className="text-lg font-semibold text-slate-900">{t('projects.activeProjects')}</h2>
+        
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1 lg:max-w-2xl lg:justify-end">
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text"
+              placeholder={t('projects.searchPlaceholder')}
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1 sm:pb-0">
+            {statuses.map(status => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                  statusFilter === status 
+                    ? 'bg-indigo-600 text-white shadow-sm' 
+                    : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-200'
+                }`}
+              >
+                {status === 'All' ? t('common.all') : status}
+              </button>
+            ))}
+          </div>
+
+          <button onClick={() => { setEditingProject(null); setNewProject({ name: '', client: '', status: 'Planning', deadline: '', progress: 0, description: '', details: '' }); setIsModalOpen(true); }} className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95">
+            <Plus className="w-4 h-4" />
+            <span className="whitespace-nowrap">{t('projects.newProject')}</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {isLoading ? (
           <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-            <p className="text-sm font-medium text-slate-500">Chargement des projets...</p>
+            <p className="text-sm font-medium text-slate-500">{t('projects.loading')}</p>
           </div>
-        ) : projects.length > 0 ? projects.map((project) => (
+        ) : filteredProjects.length > 0 ? filteredProjects.map((project) => (
           <div key={project.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-200 transition-colors">
             <div className="flex items-start justify-between mb-4">
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
@@ -137,7 +180,7 @@ export const Projects = () => {
           </div>
         )) : (
           <div className="col-span-full text-center py-20 text-slate-500">
-            Aucun projet trouvé.
+            {t('projects.noProjectsFound')}
           </div>
         )}
       </div>

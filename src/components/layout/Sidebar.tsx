@@ -13,7 +13,8 @@ import {
   Settings,
   ChevronRight,
   ChevronLeft,
-  Calculator
+  Calculator,
+  X
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -24,7 +25,7 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const Sidebar = ({ user }: { user?: any }) => {
+export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolean, onClose?: () => void }) => {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
@@ -74,22 +75,41 @@ export const Sidebar = ({ user }: { user?: any }) => {
     : navSections;
 
   return (
-    <aside className={cn(
-      "bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 left-0 transition-all duration-300 z-20",
-      isCollapsed ? "w-20 shrink-0" : "w-64 shrink-0"
-    )}>
-      <button 
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3 top-8 bg-white border border-slate-200 rounded-full p-1 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 shadow-sm transition-colors z-30"
-      >
-        {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-      </button>
+    <>
+      {/* Mobile Overlay */}
+      <div 
+        className={cn(
+          "fixed inset-0 bg-slate-900/50 z-40 transition-opacity lg:hidden",
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+        onClick={onClose}
+      />
 
-      <div className="p-6 flex-1 overflow-y-auto overflow-x-hidden">
-        <div className={cn("flex items-center gap-3 mb-10", isCollapsed ? "justify-center" : "")}>
-          <div className="w-8 h-8 shrink-0 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">S</div>
-          {!isCollapsed && <span className="text-xl font-bold text-slate-900 tracking-tight whitespace-nowrap">SmartDesk</span>}
-        </div>
+      <aside className={cn(
+        "bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 left-0 transition-all duration-300 z-50",
+        "fixed lg:sticky", // Fixed on mobile, sticky on desktop
+        isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0", // Toggle on mobile
+        isCollapsed ? "w-20 shrink-0" : "w-64 shrink-0"
+      )}>
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="absolute -right-3 top-8 bg-white border border-slate-200 rounded-full p-1 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 shadow-sm transition-colors z-30 hidden lg:block"
+        >
+          {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+
+        <div className="p-6 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className={cn("flex items-center justify-between mb-10", isCollapsed ? "lg:justify-center" : "")}>
+            <div className={cn("flex items-center gap-3", isCollapsed ? "lg:justify-center" : "")}>
+              <div className="w-8 h-8 shrink-0 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">S</div>
+              {(!isCollapsed || isOpen) && <span className="text-xl font-bold text-slate-900 tracking-tight whitespace-nowrap">SmartDesk</span>}
+            </div>
+            {isOpen && (
+              <button onClick={onClose} className="lg:hidden p-2 text-slate-400 hover:text-slate-600">
+                <X className="w-6 h-6" />
+              </button>
+            )}
+          </div>
         
         <nav className="space-y-8">
           {sectionsToRender.map((section) => (
@@ -140,12 +160,12 @@ export const Sidebar = ({ user }: { user?: any }) => {
         </nav>
       </div>
       
-      <div className={cn("mt-auto p-6 border-t border-slate-100", isCollapsed ? "flex justify-center px-2" : "")}>
-        <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
+      <div className={cn("mt-auto p-6 border-t border-slate-100", isCollapsed ? "lg:flex lg:justify-center lg:px-2" : "")}>
+        <div className={cn("flex items-center", isCollapsed ? "lg:justify-center" : "gap-3")}>
           <div className="w-10 h-10 shrink-0 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold" title={isCollapsed ? (user?.name || 'Admin') : undefined}>
             {user?.name?.charAt(0) || 'A'}
           </div>
-          {!isCollapsed && (
+          {(!isCollapsed || isOpen) && (
             <div className="flex flex-col overflow-hidden">
               <span className="text-sm font-semibold text-slate-900 truncate">{user?.name || 'Admin SmartDesk'}</span>
               <span className="text-xs text-slate-500 truncate">{user?.role || 'Gérant PME'}</span>
@@ -154,5 +174,6 @@ export const Sidebar = ({ user }: { user?: any }) => {
         </div>
       </div>
     </aside>
+    </>
   );
 };

@@ -148,7 +148,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                 Un mot de passe de connexion vous sera envoyé par mail quelques minutes suivant votre inscription.
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Prénom</label>
                   <div className="relative">
@@ -194,7 +194,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Entreprise</label>
                   <div className="relative">

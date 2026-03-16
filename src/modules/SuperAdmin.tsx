@@ -317,8 +317,8 @@ export const SuperAdmin = () => {
                 Nouvelle Entreprise
               </button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto scrollbar-hide">
+              <table className="w-full text-left text-sm min-w-[800px]">
                 <thead className="bg-slate-50 text-slate-500 font-medium">
                   <tr>
                     <th className="px-6 py-4">Nom</th>
@@ -394,8 +394,8 @@ export const SuperAdmin = () => {
             <div className="p-6 border-b border-slate-200">
               <h2 className="text-lg font-bold text-slate-900">Tous les Utilisateurs</h2>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
+            <div className="overflow-x-auto scrollbar-hide">
+              <table className="w-full text-left text-sm min-w-[1000px]">
                 <thead className="bg-slate-50 text-slate-500 font-medium">
                   <tr>
                     <th className="px-6 py-4">Nom</th>
@@ -574,8 +574,8 @@ export const SuperAdmin = () => {
               </form>
 
               {/* Users List */}
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
-                <table className="w-full text-left text-sm">
+              <div className="border border-slate-200 rounded-xl overflow-hidden overflow-x-auto scrollbar-hide">
+                <table className="w-full text-left text-sm min-w-[600px]">
                   <thead className="bg-slate-50 text-slate-500 font-medium">
                     <tr>
                       <th className="px-4 py-3">Nom</th>

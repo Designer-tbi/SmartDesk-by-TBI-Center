@@ -29,19 +29,19 @@ const StatCard = ({ title, value, change, icon: Icon, trend, delay }: any) => (
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.4, delay }}
-    className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all group"
+    className="bg-white p-5 sm:p-8 rounded-2xl sm:rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all group"
   >
-    <div className="flex items-center justify-between mb-6">
-      <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
-        <Icon className="w-5 h-5" />
+    <div className="flex items-center justify-between mb-4 sm:mb-6">
+      <div className="p-2.5 sm:p-3 bg-slate-50 rounded-xl sm:rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+        <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
       </div>
-      <div className={`flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${trend === 'up' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
-        {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+      <div className={`flex items-center gap-1 text-[9px] sm:text-[10px] font-black px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full uppercase tracking-wider ${trend === 'up' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+        {trend === 'up' ? <ArrowUpRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" /> : <ArrowDownRight className="w-2.5 h-2.5 sm:w-3 sm:h-3" />}
         {change}
       </div>
     </div>
-    <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-[0.15em] ml-0.5">{title}</h3>
-    <p className="text-4xl font-black text-slate-900 mt-2 tracking-tighter">{value}</p>
+    <h3 className="text-slate-400 text-[9px] sm:text-[10px] font-black uppercase tracking-[0.15em] ml-0.5">{title}</h3>
+    <p className="text-2xl sm:text-4xl font-black text-slate-900 mt-1 sm:mt-2 tracking-tighter">{value}</p>
   </motion.div>
 );
 
@@ -115,19 +115,19 @@ export const Dashboard = ({ user }: { user: any }) => {
       animate={{ opacity: 1 }}
       className="space-y-8"
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <StatCard title={t('dashboard.revenue')} value={`${stats.revenue.toLocaleString()} ${currencySymbol}`} change="0%" icon={DollarSign} trend="up" delay={0.1} />
         <StatCard title={t('dashboard.contacts')} value={stats.contacts.toString()} change="0%" icon={Users} trend="up" delay={0.2} />
         <StatCard title={t('dashboard.orders')} value={stats.orders.toString()} change="0%" icon={Package} trend="up" delay={0.3} />
         <StatCard title={t('dashboard.products')} value={stats.products.toString()} change="0%" icon={TrendingUp} trend="up" delay={0.4} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 sm:gap-8">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.5 }}
-          className="lg:col-span-2 bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm"
+          className="lg:col-span-2 bg-white p-4 sm:p-8 rounded-2xl sm:rounded-[2rem] border border-slate-200 shadow-sm"
         >
           <div className="flex items-center justify-between mb-8">
             <h3 className="text-xl font-black text-slate-900 tracking-tight">{t('dashboard.salesPerformance')}</h3>
@@ -179,7 +179,7 @@ export const Dashboard = ({ user }: { user: any }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.6 }}
-          className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm"
+          className="bg-white p-4 sm:p-8 rounded-2xl sm:rounded-[2rem] border border-slate-200 shadow-sm"
         >
           <h3 className="text-xl font-black text-slate-900 tracking-tight mb-8">{t('dashboard.distribution')}</h3>
           <div className="h-64 relative">

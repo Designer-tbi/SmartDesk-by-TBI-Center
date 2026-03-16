@@ -342,8 +342,8 @@ export const Sales = ({ user }: { user: any }) => {
       className="space-y-6"
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+        <div className="flex items-center gap-4 w-full sm:w-auto">
+          <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm overflow-x-auto scrollbar-hide w-full sm:w-auto">
             {(['all', 'Invoice', 'Quote'] as const).map((f) => (
               <button
                 key={f}
@@ -351,7 +351,7 @@ export const Sales = ({ user }: { user: any }) => {
                   setFilter(f);
                   if (f !== 'Quote') setQuoteSubTab('list');
                 }}
-                className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${
+                className={`px-3 sm:px-4 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all whitespace-nowrap flex-1 sm:flex-none ${
                   filter === f 
                     ? "bg-indigo-600 text-white shadow-md" 
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
@@ -363,50 +363,50 @@ export const Sales = ({ user }: { user: any }) => {
           </div>
         </div>
         
-        <div className="flex gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
           {filter === 'Quote' && quoteSubTab === 'templates' ? (
             <button 
               onClick={() => setIsTemplateModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
             >
               <Plus className="w-5 h-5" />
-              {t('sales.newTemplate')}
+              <span className="whitespace-nowrap">{t('sales.newTemplate')}</span>
             </button>
           ) : filter === 'Quote' && quoteSubTab === 'signed' ? (
-            <label className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 active:scale-95 cursor-pointer">
+            <label className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 active:scale-95 cursor-pointer">
               <Plus className="w-5 h-5" />
-              {t('sales.receiveQuote')}
+              <span className="whitespace-nowrap">{t('sales.receiveQuote')}</span>
               <input type="file" className="hidden" onChange={() => alert(t('sales.quoteReceived'))} />
             </label>
           ) : (
             <button 
               onClick={() => { resetForm(); setIsModalOpen(true); }}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
             >
               <Plus className="w-5 h-5" />
-              {t('sales.newDocument')}
+              <span className="whitespace-nowrap">{t('sales.newDocument')}</span>
             </button>
           )}
         </div>
       </div>
 
       {filter === 'Quote' && (
-        <div className="flex gap-4 border-b border-slate-200">
+        <div className="flex gap-4 border-b border-slate-200 overflow-x-auto scrollbar-hide">
           <button 
             onClick={() => setQuoteSubTab('list')}
-            className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'list' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`pb-3 text-sm font-bold transition-all border-b-2 whitespace-nowrap ${quoteSubTab === 'list' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
             {t('hr.contractList')}
           </button>
           <button 
             onClick={() => setQuoteSubTab('templates')}
-            className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'templates' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`pb-3 text-sm font-bold transition-all border-b-2 whitespace-nowrap ${quoteSubTab === 'templates' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
             {t('hr.contractTemplates')}
           </button>
           <button 
             onClick={() => setQuoteSubTab('signed')}
-            className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'signed' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`pb-3 text-sm font-bold transition-all border-b-2 whitespace-nowrap ${quoteSubTab === 'signed' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
             {t('hr.signedContracts')}
           </button>
@@ -452,8 +452,8 @@ export const Sales = ({ user }: { user: any }) => {
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto scrollbar-hide">
+              <table className="w-full text-left border-collapse min-w-[800px]">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
                     <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('sales.typeNo')}</th>

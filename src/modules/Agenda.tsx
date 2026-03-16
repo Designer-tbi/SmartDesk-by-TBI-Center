@@ -393,9 +393,9 @@ export const Agenda = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm self-start">
             <button onClick={handlePrev} className="p-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5 text-slate-600" /></button>
             <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">{t('common.today')}</button>
             <button onClick={handleNext} className="p-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronRight className="w-5 h-5 text-slate-600" /></button>
@@ -408,54 +408,56 @@ export const Agenda = () => {
           </h2>
         </div>
 
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm overflow-x-auto scrollbar-hide">
           <button 
             onClick={() => setView('day')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'day' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${view === 'day' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <CalendarIcon className="w-4 h-4" /> {t('common.day')}
           </button>
           <button 
             onClick={() => setView('week')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'week' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${view === 'week' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <CalendarRange className="w-4 h-4" /> {t('common.week')}
           </button>
           <button 
             onClick={() => setView('month')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'month' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${view === 'month' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <CalendarMonthIcon className="w-4 h-4" /> {t('common.month')}
           </button>
           <button 
             onClick={() => setView('year')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'year' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${view === 'year' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <LayoutGrid className="w-4 h-4" /> {t('common.year')}
           </button>
-          <div className="w-px h-6 bg-slate-200 mx-1" />
+          <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block" />
           <button 
             onClick={() => openAddModal()}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all shadow-md active:scale-95"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all shadow-md active:scale-95 whitespace-nowrap"
           >
             <Plus className="w-4 h-4" /> {t('agenda.newEvent')}
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-        {isLoading ? (
-          <div className="flex items-center justify-center h-96">
-            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : (
-          <>
-            {view === 'month' && renderMonthView()}
-            {view === 'week' && renderWeekView()}
-            {view === 'day' && renderDayView()}
-            {view === 'year' && renderYearView()}
-          </>
-        )}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto scrollbar-hide">
+        <div className="min-w-[800px]">
+          {isLoading ? (
+            <div className="flex items-center justify-center h-96">
+              <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            </div>
+          ) : (
+            <>
+              {view === 'month' && renderMonthView()}
+              {view === 'week' && renderWeekView()}
+              {view === 'day' && renderDayView()}
+              {view === 'year' && renderYearView()}
+            </>
+          )}
+        </div>
       </div>
 
       {/* Event Modal */}

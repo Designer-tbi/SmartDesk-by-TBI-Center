@@ -21,6 +21,8 @@ export const HR = ({ user }: { user: any }) => {
   const [activeTab, setActiveTab] = useState<'directory' | 'leaves' | 'payroll' | 'contracts' | 'stats'>('directory');
   const [contractSubTab, setContractSubTab] = useState<'list' | 'templates' | 'signed'>('list');
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [departmentFilter, setDepartmentFilter] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
   const [leaves, setLeaves] = useState<LeaveRequest[]>([]);
   const [payslips, setPayslips] = useState<Payslip[]>([]);
@@ -302,6 +304,16 @@ export const HR = ({ user }: { user: any }) => {
     alert(t('hr.linkCopied'));
   };
 
+  const filteredEmployees = employees.filter(emp => {
+    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                         emp.role.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         emp.email.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesDept = departmentFilter === 'All' || emp.department === departmentFilter;
+    return matchesSearch && matchesDept;
+  });
+
+  const departments = ['All', ...new Set(employees.map(e => e.department))];
+
   return (
     <div className="space-y-6">
       {/* Tab Navigation */}
@@ -397,54 +409,86 @@ export const HR = ({ user }: { user: any }) => {
 
       {/* Directory View */}
       {activeTab === 'directory' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {isLoading ? (
-            <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
-              <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-              <p className="text-sm font-medium text-slate-500">{t('hr.loadingDirectory')}</p>
-            </div>
-          ) : employees.length > 0 ? employees.map((employee) => (
-            <div key={employee.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-6 group hover:shadow-md transition-all">
-              <div className="w-24 h-24 rounded-2xl bg-indigo-50 flex items-center justify-center text-3xl font-bold text-indigo-600 shrink-0 overflow-hidden border border-indigo-100">
-                {employee.profilePicture ? <img src={employee.profilePicture} alt="Profile" className="w-full h-full object-cover" /> : employee.name.charAt(0)}
+        <div className="space-y-6">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 flex-1">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input 
+                  type="text"
+                  placeholder={t('hr.searchPlaceholder')}
+                  className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between mb-1">
-                  <h3 className="text-lg font-bold text-slate-900 truncate">{employee.name}</h3>
-                  <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                    <button onClick={() => setViewEmployee(employee)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all shadow-sm" title={t('hr.view')}><Eye className="w-4 h-4" /></button>
-                    <button onClick={() => { setEditingEmployee(employee); setNewEmployee(employee); setIsModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all shadow-sm" title={t('hr.edit')}><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => setDeleteConfirmId(employee.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title={t('hr.delete')}><Trash2 className="w-4 h-4" /></button>
-                  </div>
+              <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1 sm:pb-0">
+                {departments.map(dept => (
+                  <button
+                    key={dept}
+                    onClick={() => setDepartmentFilter(dept)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                      departmentFilter === dept 
+                        ? 'bg-indigo-600 text-white shadow-sm' 
+                        : 'bg-white text-slate-600 border border-slate-200 hover:border-indigo-200'
+                    }`}
+                  >
+                    {dept === 'All' ? t('common.all') : dept}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {isLoading ? (
+              <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
+                <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                <p className="text-sm font-medium text-slate-500">{t('hr.loadingDirectory')}</p>
+              </div>
+            ) : filteredEmployees.length > 0 ? filteredEmployees.map((employee) => (
+              <div key={employee.id} className="bg-white p-4 sm:p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-4 sm:gap-6 group hover:shadow-md transition-all relative">
+                <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-indigo-50 flex items-center justify-center text-2xl sm:text-3xl font-bold text-indigo-600 shrink-0 overflow-hidden border border-indigo-100 mx-auto sm:mx-0">
+                  {employee.profilePicture ? <img src={employee.profilePicture} alt="Profile" className="w-full h-full object-cover" /> : employee.name.charAt(0)}
                 </div>
-                <p className="text-sm text-indigo-600 font-semibold mb-4">{employee.role}</p>
                 
-                <div className="grid grid-cols-2 gap-y-3 gap-x-4">
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Mail className="w-3.5 h-3.5 text-slate-400" />
-                    <span className="truncate">{employee.email}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between mb-1">
+                    <h3 className="text-lg font-bold text-slate-900 truncate pr-8 sm:pr-0">{employee.name}</h3>
+                    <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0 absolute top-4 right-4 sm:static">
+                      <button onClick={() => setViewEmployee(employee)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all shadow-sm" title={t('hr.view')}><Eye className="w-4 h-4" /></button>
+                      <button onClick={() => { setEditingEmployee(employee); setNewEmployee(employee); setIsModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all shadow-sm" title={t('hr.edit')}><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => setDeleteConfirmId(employee.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title={t('hr.delete')}><Trash2 className="w-4 h-4" /></button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    {t('hr.joined')}: {employee.joinDate}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Briefcase className="w-3.5 h-3.5 text-slate-400" />
-                    {employee.department}
-                  </div>
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
-                    <DollarSign className="w-3.5 h-3.5 text-emerald-500" />
-                    {employee.salary.toLocaleString()} {currencySymbol}
+                  <p className="text-sm text-indigo-600 font-semibold mb-4 text-center sm:text-left">{employee.role}</p>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{employee.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{t('hr.joined')}: {employee.joinDate}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <Briefcase className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span className="truncate">{employee.department}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-900">
+                      <DollarSign className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                      {employee.salary.toLocaleString()} {currencySymbol}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          )) : (
-            <div className="col-span-full text-center py-20 text-slate-500">
-              {t('hr.noEmployeeFound')}
-            </div>
-          )}
+            )) : (
+              <div className="col-span-full text-center py-20 text-slate-500">
+                {t('hr.noEmployeeFound')}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -480,8 +524,8 @@ export const HR = ({ user }: { user: any }) => {
                   <button className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg"><Filter className="w-4 h-4" /></button>
                 </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+              <div className="overflow-x-auto scrollbar-hide">
+                <table className="w-full text-left border-collapse min-w-[800px]">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">ID / Date</th>
@@ -612,8 +656,8 @@ export const HR = ({ user }: { user: any }) => {
                   {t('hr.receptionDescription')}
                 </p>
                 
-                <div className="w-full overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+                <div className="w-full overflow-x-auto scrollbar-hide">
+                  <table className="w-full text-left border-collapse min-w-[800px]">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
                         <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.contract')}</th>
@@ -666,8 +710,8 @@ export const HR = ({ user }: { user: any }) => {
               </button>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.employee')}</th>
@@ -720,8 +764,8 @@ export const HR = ({ user }: { user: any }) => {
               <Download className="w-4 h-4" /> {t('hr.generatePayslips')}
             </button>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="overflow-x-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
                   <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.employee')}</th>

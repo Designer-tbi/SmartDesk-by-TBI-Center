@@ -385,7 +385,7 @@ export const Accounting = ({ user }: { user?: any }) => {
     switch (activeTab) {
       case 'Dashboard': return (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><TrendingUp /></div>
               <div>
@@ -400,7 +400,7 @@ export const Accounting = ({ user }: { user?: any }) => {
                 <p className="text-xl font-bold">{totalExpenses.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 sm:col-span-2 lg:col-span-1">
               <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl"><DollarSign /></div>
               <div>
                 <p className="text-sm text-slate-500">{t('accounting.netProfit')}</p>
@@ -410,62 +410,66 @@ export const Accounting = ({ user }: { user?: any }) => {
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-80">
             <h3 className="text-lg font-bold mb-4">{t('accounting.performance')}</h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={performanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="income" stroke="#10b981" />
-                <Line type="monotone" dataKey="expense" stroke="#f43f5e" />
-              </LineChart>
-            </ResponsiveContainer>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={performanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="income" stroke="#10b981" />
+                  <Line type="monotone" dataKey="expense" stroke="#f43f5e" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         </div>
       );
       case 'Journal': return (
         <div className="space-y-4">
-          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-sm active:scale-95">
             <Plus className="w-4 h-4" /> {t('accounting.newEntry')}
           </button>
-          <table className="w-full text-left">
-            <thead className="bg-slate-50 border-b">
-              <tr>
-                <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.date')}</th>
-                <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.description')}</th>
-                <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.debit')}</th>
-                <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.credit')}</th>
-                <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.actions')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {journalEntries.map(entry => (
-                <React.Fragment key={entry.id}>
-                  {entry.items.map((item, idx) => (
-                    <tr key={`${entry.id}-${idx}`} className="border-b last:border-0 hover:bg-slate-50">
-                      <td className="p-4 text-sm">{idx === 0 ? entry.date : ''}</td>
-                      <td className="p-4 text-sm">{idx === 0 ? entry.description : ''}</td>
-                      <td className="p-4 text-sm">{item.debit > 0 ? item.debit.toLocaleString() : '-'}</td>
-                      <td className="p-4 text-sm">{item.credit > 0 ? item.credit.toLocaleString() : '-'}</td>
-                      <td className="p-4 text-sm">
-                        {idx === 0 && (
-                          <div className="flex gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                            <button onClick={() => openEdit(entry)} className="p-1 text-slate-400 hover:text-amber-600 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
-                            <button onClick={() => setDeleteConfirmId(entry.id)} className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
+          <div className="overflow-x-auto scrollbar-hide -mx-6 px-6 sm:mx-0 sm:px-0">
+            <table className="w-full text-left min-w-[800px]">
+              <thead className="bg-slate-50 border-b">
+                <tr>
+                  <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.date')}</th>
+                  <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.description')}</th>
+                  <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.debit')}</th>
+                  <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.credit')}</th>
+                  <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.actions')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {journalEntries.map(entry => (
+                  <React.Fragment key={entry.id}>
+                    {entry.items.map((item, idx) => (
+                      <tr key={`${entry.id}-${idx}`} className="border-b last:border-0 hover:bg-slate-50 group">
+                        <td className="p-4 text-sm">{idx === 0 ? entry.date : ''}</td>
+                        <td className="p-4 text-sm">{idx === 0 ? entry.description : ''}</td>
+                        <td className="p-4 text-sm">{item.debit > 0 ? item.debit.toLocaleString() : '-'}</td>
+                        <td className="p-4 text-sm">{item.credit > 0 ? item.credit.toLocaleString() : '-'}</td>
+                        <td className="p-4 text-sm">
+                          {idx === 0 && (
+                            <div className="flex gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
+                              <button onClick={() => openEdit(entry)} className="p-1 text-slate-400 hover:text-amber-600 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
+                              <button onClick={() => setDeleteConfirmId(entry.id)} className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       );
       case 'PCG': return (
-        <div className="overflow-hidden">
-          <table className="w-full text-left">
+        <div className="overflow-x-auto scrollbar-hide -mx-6 px-6 sm:mx-0 sm:px-0">
+          <table className="w-full text-left min-w-[600px]">
             <thead className="bg-slate-50 border-b">
               <tr>
                 <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.code')}</th>
@@ -488,8 +492,8 @@ export const Accounting = ({ user }: { user?: any }) => {
       case 'Bilan': return (
         <div className="space-y-6">
           <h3 className="text-lg font-bold">{t('accounting.bilan')}</h3>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="bg-slate-50 p-4 rounded-lg">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <h4 className="font-bold text-slate-600 mb-2">{t('accounting.actif')}</h4>
               <ul className="space-y-1">
                 {Object.entries(bilanDetails).filter(([_, v]) => v.type === 'Asset').map(([code, v]) => (
@@ -498,7 +502,7 @@ export const Accounting = ({ user }: { user?: any }) => {
               </ul>
               <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200">{t('common.total')}: {bilanTotals.assets.toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-slate-50 p-4 rounded-lg">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <h4 className="font-bold text-slate-600 mb-2">{t('accounting.passif')}</h4>
               <ul className="space-y-1">
                 {Object.entries(bilanDetails).filter(([_, v]) => v.type !== 'Asset').map(([code, v]) => (
@@ -513,8 +517,8 @@ export const Accounting = ({ user }: { user?: any }) => {
       case 'Resultat': return (
         <div className="space-y-6">
           <h3 className="text-lg font-bold">{t('accounting.resultat')}</h3>
-          <div className="grid grid-cols-2 gap-6">
-            <div className="bg-slate-50 p-4 rounded-lg">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <h4 className="font-bold text-slate-600 mb-2">{t('accounting.produits')}</h4>
               <ul className="space-y-1">
                 {Object.entries(resultatDetails).filter(([_, v]) => v.type === 'Revenue').map(([code, v]) => (
@@ -523,7 +527,7 @@ export const Accounting = ({ user }: { user?: any }) => {
               </ul>
               <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200 text-emerald-600">{t('common.total')}: {resultatTotals.revenue.toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-slate-50 p-4 rounded-lg">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <h4 className="font-bold text-slate-600 mb-2">{t('accounting.charges')}</h4>
               <ul className="space-y-1">
                 {Object.entries(resultatDetails).filter(([_, v]) => v.type === 'Expense').map(([code, v]) => (
@@ -533,7 +537,7 @@ export const Accounting = ({ user }: { user?: any }) => {
               <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200 text-rose-600">{t('common.total')}: {resultatTotals.expenses.toLocaleString()} {currencySymbol}</p>
             </div>
           </div>
-          <div className="bg-indigo-50 p-4 rounded-lg">
+          <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
             <h4 className="font-bold text-indigo-900 mb-2">{t('accounting.netProfit')}</h4>
             <p className="text-3xl font-bold text-indigo-700">{(resultatTotals.revenue - resultatTotals.expenses).toLocaleString()} {currencySymbol}</p>
           </div>
@@ -541,7 +545,7 @@ export const Accounting = ({ user }: { user?: any }) => {
       );
       case 'TVA': return (
         <div className="space-y-6">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <h3 className="text-lg font-bold">{t('accounting.tvaDeclaration', { taxLabel })}</h3>
             <button 
               onClick={downloadTVAPDF}
@@ -550,20 +554,20 @@ export const Accounting = ({ user }: { user?: any }) => {
               <Download className="w-4 h-4" /> {t('accounting.downloadPDF')}
             </button>
           </div>
-          <div className="grid grid-cols-4 gap-6">
-            <div className="bg-slate-50 p-4 rounded-lg">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <h4 className="font-bold text-slate-600 mb-2">{t('accounting.tvaCollectedJournal', { taxLabel })}</h4>
               <p className="text-2xl font-bold text-emerald-600">{(tvaData.collected - tvaFromInvoices).toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-slate-50 p-4 rounded-lg">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <h4 className="font-bold text-slate-600 mb-2">{t('accounting.tvaOnPaidInvoices', { taxLabel })}</h4>
               <p className="text-2xl font-bold text-emerald-600">{tvaFromInvoices.toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-slate-50 p-4 rounded-lg">
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
               <h4 className="font-bold text-slate-600 mb-2">{t('accounting.tvaDeductible', { taxLabel })}</h4>
               <p className="text-2xl font-bold text-rose-600">{tvaData.deductible.toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-indigo-50 p-4 rounded-lg">
+            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
               <h4 className="font-bold text-indigo-900 mb-2">{t('accounting.tvaToPay', { taxLabel })}</h4>
               <p className="text-3xl font-bold text-indigo-700">{(tvaData.collected - tvaData.deductible).toLocaleString()} {currencySymbol}</p>
             </div>
@@ -680,22 +684,22 @@ export const Accounting = ({ user }: { user?: any }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <h2 className="text-2xl font-bold text-slate-900">{t('accounting.title')} {isUS ? 'US GAAP' : isFR ? t('accounting.pcgFrance') : 'OHADA'}</h2>
         <button
           onClick={() => setIsResetConfirmOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-100 transition-all"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-100 transition-all active:scale-95"
         >
           <Trash2 className="w-4 h-4" /> {t('accounting.resetDashboard')}
         </button>
       </div>
 
-      <div className="flex gap-2 border-b border-slate-200 pb-4">
+      <div className="flex gap-2 border-b border-slate-200 pb-4 overflow-x-auto scrollbar-hide -mx-6 px-6 sm:mx-0 sm:px-0">
         {['Dashboard', 'Journal', 'Bilan', 'Resultat', 'PCG', 'Liasses', 'TVA'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab as any)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${activeTab === tab ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all ${activeTab === tab ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}
           >
             {tab === 'TVA' ? taxLabel : t(`accounting.tabs.${tab.toLowerCase()}`)}
           </button>

@@ -271,15 +271,15 @@ export const Planning = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden overflow-x-auto scrollbar-hide">
         {isLoading ? (
           <div className="flex items-center justify-center h-96">
             <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
-          <>
+          <div className="min-w-[1000px]">
             {view === 'week' && renderWeekView()}
-          </>
+          </div>
         )}
       </div>
 
