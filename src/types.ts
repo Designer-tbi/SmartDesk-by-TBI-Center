@@ -170,7 +170,13 @@ export interface CompanyInfo {
   taxId: string; // NIF
   rccm: string;
   idNat: string;
+  siren?: string;
+  siret?: string;
+  country?: string;
   logo?: string;
+  language?: string;
+  currency?: string;
+  accountingStandard?: 'OHADA' | 'US_GAAP' | 'FRANCE';
 }
 
 export interface User {

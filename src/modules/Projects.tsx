@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../lib/api';
 import { Plus, Calendar, CheckCircle2, Circle, Clock, MoreHorizontal, X, Pencil, Trash2, Eye, Loader2 } from 'lucide-react';
 import { Project } from '../types';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Projects = () => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -9,6 +10,7 @@ export const Projects = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [viewProject, setViewProject] = useState<Project | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [newProject, setNewProject] = useState<Partial<Project>>({ name: '', client: '', status: 'Planning', deadline: '', progress: 0, description: '', details: '' });
 
   useEffect(() => {
@@ -68,15 +70,16 @@ export const Projects = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
-      try {
-        const response = await apiFetch(`/api/projects/${id}`, {
-          method: 'DELETE',
-        });
-        if (response.ok) fetchProjects();
-      } catch (error) {
-        console.error('Failed to delete project:', error);
+    try {
+      const response = await apiFetch(`/api/projects/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        fetchProjects();
+        setDeleteConfirmId(null);
       }
+    } catch (error) {
+      console.error('Failed to delete project:', error);
     }
   };
 
@@ -103,9 +106,9 @@ export const Projects = () => {
                 {project.status}
               </span>
               <div className="flex gap-2">
-                <button onClick={() => setViewProject(project)} className="text-slate-400 hover:text-indigo-600"><Eye className="w-4 h-4" /></button>
-                <button onClick={() => { setEditingProject(project); setNewProject(project); setIsModalOpen(true); }} className="text-slate-400 hover:text-amber-600"><Pencil className="w-4 h-4" /></button>
-                <button onClick={() => handleDelete(project.id)} className="text-slate-400 hover:text-red-600"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => setViewProject(project)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Voir"><Eye className="w-4 h-4" /></button>
+                <button onClick={() => { setEditingProject(project); setNewProject(project); setIsModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Modifier"><Pencil className="w-4 h-4" /></button>
+                <button onClick={() => setDeleteConfirmId(project.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
             
@@ -186,6 +189,15 @@ export const Projects = () => {
           </div>
         </div>
       )}
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title="Supprimer le projet"
+        message="Êtes-vous sûr de vouloir supprimer ce projet ? Toutes les données associées seront perdues."
+        confirmLabel="Supprimer"
+        onConfirm={() => deleteConfirmId && handleDelete(deleteConfirmId)}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
     </div>
   );
 };

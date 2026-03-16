@@ -143,6 +143,7 @@ export const MOCK_COMPANY = {
   taxId: 'NIF: 1234567A',
   rccm: 'RCCM: CG-BZV-01-2024-B12-00001',
   idNat: 'ID NAT: 01-123-A4567B',
+  country: 'AFRIQUE',
 };
 
 export const MOCK_ROLES: Role[] = [

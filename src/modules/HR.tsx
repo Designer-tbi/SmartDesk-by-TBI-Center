@@ -10,10 +10,12 @@ import { Employee, LeaveRequest, Payslip, Contract, ContractTemplate } from '../
 
 import { useTranslation } from '../lib/i18n';
 
+import { ConfirmModal } from '../components/ConfirmModal';
+
 export const HR = ({ user }: { user: any }) => {
   const { t } = useTranslation();
-  const isUS = user?.country === 'US';
-  const currencySymbol = isUS ? '$' : '€';
+  const isUS = user?.country === 'USA';
+  const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency === 'XAF' ? 'XAF' : (isUS ? '$' : '€');
 
   const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
   const [activeTab, setActiveTab] = useState<'directory' | 'leaves' | 'payroll' | 'contracts' | 'stats'>('directory');
@@ -52,6 +54,9 @@ export const HR = ({ user }: { user: any }) => {
   });
 
   const [isSending, setIsSending] = useState<string | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -80,7 +85,7 @@ export const HR = ({ user }: { user: any }) => {
     }
   };
 
-  const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name || 'Inconnu';
+  const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name || t('hr.unknown');
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'picture' | 'document') => {
     const file = e.target.files?.[0];
@@ -125,13 +130,17 @@ export const HR = ({ user }: { user: any }) => {
   };
 
   const handleDeleteEmployee = async (id: string) => {
-    if (window.confirm('Supprimer cet employé ?')) {
-      try {
-        const response = await apiFetch(`/api/employees/${id}`, { method: 'DELETE' });
-        if (response.ok) fetchData();
-      } catch (error) {
-        console.error('Failed to delete employee:', error);
+    try {
+      const response = await apiFetch(`/api/employees/${id}`, { method: 'DELETE' });
+      if (response.ok) {
+        fetchData();
+        setDeleteConfirmId(null);
+      } else {
+        setError(t('hr.deleteError'));
       }
+    } catch (error) {
+      console.error('Failed to delete employee:', error);
+      setError(t('hr.connectionError'));
     }
   };
 
@@ -290,7 +299,7 @@ export const HR = ({ user }: { user: any }) => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Lien copié dans le presse-papier !');
+    alert(t('hr.linkCopied'));
   };
 
   return (
@@ -305,7 +314,7 @@ export const HR = ({ user }: { user: any }) => {
             }`}
           >
             <Users className="w-4 h-4" />
-            Annuaire
+            {t('hr.directory')}
           </button>
           <button
             onClick={() => setActiveTab('contracts')}
@@ -314,7 +323,7 @@ export const HR = ({ user }: { user: any }) => {
             }`}
           >
             <FileText className="w-4 h-4" />
-            Contrats
+            {t('hr.contracts')}
           </button>
           <button
             onClick={() => setActiveTab('leaves')}
@@ -323,7 +332,7 @@ export const HR = ({ user }: { user: any }) => {
             }`}
           >
             <Coffee className="w-4 h-4" />
-            Congés
+            {t('hr.leaves')}
           </button>
           <button
             onClick={() => setActiveTab('payroll')}
@@ -332,7 +341,7 @@ export const HR = ({ user }: { user: any }) => {
             }`}
           >
             <CreditCard className="w-4 h-4" />
-            Paie
+            {t('hr.payroll')}
           </button>
           <button
             onClick={() => setActiveTab('stats')}
@@ -341,7 +350,7 @@ export const HR = ({ user }: { user: any }) => {
             }`}
           >
             <BarChart3 className="w-4 h-4" />
-            Analyses
+            {t('hr.stats')}
           </button>
         </div>
         
@@ -351,7 +360,7 @@ export const HR = ({ user }: { user: any }) => {
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
           >
             <Plus className="w-5 h-5" />
-            Nouvel Employé
+            {t('hr.newEmployee')}
           </button>
         )}
 
@@ -363,7 +372,7 @@ export const HR = ({ user }: { user: any }) => {
                 className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
               >
                 <Plus className="w-5 h-5" />
-                Nouveau Contrat
+                {t('hr.newContract')}
               </button>
             )}
             {contractSubTab === 'templates' && (
@@ -372,14 +381,14 @@ export const HR = ({ user }: { user: any }) => {
                 className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
               >
                 <Plus className="w-5 h-5" />
-                Nouveau Modèle
+                {t('hr.newTemplate')}
               </button>
             )}
             {contractSubTab === 'signed' && (
               <label className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 active:scale-95 cursor-pointer">
                 <Plus className="w-5 h-5" />
-                Réceptionner un Contrat
-                <input type="file" className="hidden" onChange={(e) => alert('Fichier réceptionné et archivé !')} />
+                {t('hr.receiveContract')}
+                <input type="file" className="hidden" onChange={(e) => alert(t('hr.fileReceived'))} />
               </label>
             )}
           </div>
@@ -392,7 +401,7 @@ export const HR = ({ user }: { user: any }) => {
           {isLoading ? (
             <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-              <p className="text-sm font-medium text-slate-500">Chargement de l'annuaire...</p>
+              <p className="text-sm font-medium text-slate-500">{t('hr.loadingDirectory')}</p>
             </div>
           ) : employees.length > 0 ? employees.map((employee) => (
             <div key={employee.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-6 group hover:shadow-md transition-all">
@@ -403,10 +412,10 @@ export const HR = ({ user }: { user: any }) => {
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between mb-1">
                   <h3 className="text-lg font-bold text-slate-900 truncate">{employee.name}</h3>
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                    <button onClick={() => setViewEmployee(employee)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Eye className="w-4 h-4" /></button>
-                    <button onClick={() => { setEditingEmployee(employee); setNewEmployee(employee); setIsModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => handleDeleteEmployee(employee.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
+                  <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
+                    <button onClick={() => setViewEmployee(employee)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all shadow-sm" title={t('hr.view')}><Eye className="w-4 h-4" /></button>
+                    <button onClick={() => { setEditingEmployee(employee); setNewEmployee(employee); setIsModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all shadow-sm" title={t('hr.edit')}><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => setDeleteConfirmId(employee.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title={t('hr.delete')}><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
                 <p className="text-sm text-indigo-600 font-semibold mb-4">{employee.role}</p>
@@ -418,7 +427,7 @@ export const HR = ({ user }: { user: any }) => {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    Arrivée: {employee.joinDate}
+                    {t('hr.joined')}: {employee.joinDate}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Briefcase className="w-3.5 h-3.5 text-slate-400" />
@@ -433,7 +442,7 @@ export const HR = ({ user }: { user: any }) => {
             </div>
           )) : (
             <div className="col-span-full text-center py-20 text-slate-500">
-              Aucun employé trouvé.
+              {t('hr.noEmployeeFound')}
             </div>
           )}
         </div>
@@ -447,26 +456,26 @@ export const HR = ({ user }: { user: any }) => {
               onClick={() => setContractSubTab('list')}
               className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'list' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
             >
-              Liste des Contrats
+              {t('hr.contractList')}
             </button>
             <button 
               onClick={() => setContractSubTab('templates')}
               className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'templates' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
             >
-              Modèles de Contrats
+              {t('hr.contractTemplates')}
             </button>
             <button 
               onClick={() => setContractSubTab('signed')}
               className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'signed' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
             >
-              Contrats Signés / Réception
+              {t('hr.signedContracts')}
             </button>
           </div>
 
           {contractSubTab === 'list' ? (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-bold text-slate-900">Gestion des Contrats</h3>
+                <h3 className="font-bold text-slate-900">{t('hr.contractManagement')}</h3>
                 <div className="flex gap-2">
                   <button className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg"><Filter className="w-4 h-4" /></button>
                 </div>
@@ -476,11 +485,11 @@ export const HR = ({ user }: { user: any }) => {
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">ID / Date</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Employé</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Type</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Salaire</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Statut</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.employee')}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.contractType')}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.salary')}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.status')}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">{t('inventory.actions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -508,9 +517,9 @@ export const HR = ({ user }: { user: any }) => {
                             {contract.status === 'Active' ? <Check className="w-3 h-3" /> : 
                              contract.status === 'Signed' ? <FileSignature className="w-3 h-3" /> :
                              contract.status === 'Sent' ? <Send className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                            {contract.status === 'Active' ? 'Actif' : 
-                             contract.status === 'Signed' ? 'Signé' :
-                             contract.status === 'Sent' ? 'Envoyé' : 'Brouillon'}
+                            {contract.status === 'Active' ? t('hr.active') : 
+                             contract.status === 'Signed' ? t('hr.signed') :
+                             contract.status === 'Sent' ? t('hr.sent') : t('hr.draft')}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -519,7 +528,7 @@ export const HR = ({ user }: { user: any }) => {
                               <button 
                                 onClick={() => copyToClipboard(contract.signatureLink!)}
                                 className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                title="Copier le lien de signature"
+                                title={t('hr.copyLink')}
                               >
                                 <LinkIcon className="w-4 h-4" />
                               </button>
@@ -528,7 +537,7 @@ export const HR = ({ user }: { user: any }) => {
                               <button 
                                 onClick={() => setSigningContract(contract)}
                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                title="Signer le contrat (Interne)"
+                                title={t('hr.signContract')}
                               >
                                 <FileSignature className="w-4 h-4" />
                               </button>
@@ -537,7 +546,7 @@ export const HR = ({ user }: { user: any }) => {
                               onClick={() => handleSendContract(contract.id)}
                               disabled={isSending === contract.id}
                               className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                              title="Envoyer par mail"
+                              title={t('hr.sendEmail')}
                             >
                               {isSending === contract.id ? (
                                 <div className="w-4 h-4 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
@@ -545,7 +554,7 @@ export const HR = ({ user }: { user: any }) => {
                                 <Send className="w-4 h-4" />
                               )}
                             </button>
-                            <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
+                            <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all" title={t('hr.download')}>
                               <Download className="w-4 h-4" />
                             </button>
                           </div>
@@ -570,14 +579,14 @@ export const HR = ({ user }: { user: any }) => {
                     </div>
                   </div>
                   <h4 className="font-bold text-slate-900 mb-1">{template.name}</h4>
-                  <p className="text-xs text-slate-500 mb-4">Type: <span className="font-bold text-indigo-600">{template.type}</span></p>
+                  <p className="text-xs text-slate-500 mb-4">{t('hr.contractType')}: <span className="font-bold text-indigo-600">{template.type}</span></p>
                   <div className="p-3 bg-slate-50 rounded-xl mb-4">
                     <p className="text-[10px] text-slate-400 line-clamp-3 font-serif leading-relaxed italic">
                       {template.content}
                     </p>
                   </div>
                   <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                    <span>Modifié le {template.lastModified}</span>
+                    <span>{t('hr.modifiedOn')} {template.lastModified}</span>
                     <button 
                       onClick={() => {
                         applyTemplate(template.id);
@@ -586,7 +595,7 @@ export const HR = ({ user }: { user: any }) => {
                       }}
                       className="flex items-center gap-1 text-indigo-600 hover:underline"
                     >
-                      <Copy className="w-3 h-3" /> Utiliser
+                      <Copy className="w-3 h-3" /> {t('hr.useTemplate')}
                     </button>
                   </div>
                 </div>
@@ -598,19 +607,19 @@ export const HR = ({ user }: { user: any }) => {
                 <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-6">
                   <FileSignature className="w-10 h-10" />
                 </div>
-                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Espace de Réception</h3>
+                <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">{t('hr.receptionSpace')}</h3>
                 <p className="text-slate-500 text-sm max-w-md mb-8">
-                  Consultez ici tous les contrats signés numériquement ou téléchargez des contrats signés manuellement pour archivage.
+                  {t('hr.receptionDescription')}
                 </p>
                 
                 <div className="w-full overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-200">
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Contrat</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Employé</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Date Signature</th>
-                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.contract')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.employee')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.signedAt')}</th>
+                        <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">{t('inventory.actions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -632,7 +641,7 @@ export const HR = ({ user }: { user: any }) => {
                       {contracts.filter(c => c.status === 'Signed' || c.status === 'Active').length === 0 && (
                         <tr>
                           <td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic text-sm">
-                            Aucun contrat signé pour le moment.
+                            {t('hr.noSignedContracts')}
                           </td>
                         </tr>
                       )}
@@ -649,11 +658,11 @@ export const HR = ({ user }: { user: any }) => {
       {activeTab === 'leaves' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-bold text-slate-900">Demandes de Congés</h3>
+            <h3 className="font-bold text-slate-900">{t('hr.leaveRequests')}</h3>
             <div className="flex gap-2">
               <button className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg"><Filter className="w-4 h-4" /></button>
               <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all shadow-sm">
-                <Plus className="w-4 h-4" /> Nouvelle Demande
+                <Plus className="w-4 h-4" /> {t('hr.newRequest')}
               </button>
             </div>
           </div>
@@ -661,11 +670,11 @@ export const HR = ({ user }: { user: any }) => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Employé</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Type</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Période</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Statut</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.employee')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.type')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.period')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.status')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">{t('inventory.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -678,8 +687,8 @@ export const HR = ({ user }: { user: any }) => {
                       <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">{leave.type}</span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-xs text-slate-600">Du {leave.startDate}</div>
-                      <div className="text-xs text-slate-600">Au {leave.endDate}</div>
+                      <div className="text-xs text-slate-600">{t('common.from')} {leave.startDate}</div>
+                      <div className="text-xs text-slate-600">{t('common.to')} {leave.endDate}</div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 w-fit ${
@@ -688,11 +697,11 @@ export const HR = ({ user }: { user: any }) => {
                       }`}>
                         {leave.status === 'Approved' ? <CheckCircle className="w-3 h-3" /> : 
                          leave.status === 'Pending' ? <Clock className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                        {leave.status === 'Approved' ? 'Approuvé' : leave.status === 'Pending' ? 'En attente' : 'Refusé'}
+                        {leave.status === 'Approved' ? t('hr.approved') : leave.status === 'Pending' ? t('hr.pending') : t('hr.rejected')}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-xs font-bold text-indigo-600 hover:underline">Gérer</button>
+                      <button className="text-xs font-bold text-indigo-600 hover:underline">{t('common.manage')}</button>
                     </td>
                   </tr>
                 ))}
@@ -706,20 +715,20 @@ export const HR = ({ user }: { user: any }) => {
       {activeTab === 'payroll' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-bold text-slate-900">Gestion de la Paie</h3>
+            <h3 className="font-bold text-slate-900">{t('hr.payrollManagement')}</h3>
             <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-all shadow-sm">
-              <Download className="w-4 h-4" /> Générer les Bulletins
+              <Download className="w-4 h-4" /> {t('hr.generatePayslips')}
             </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Employé</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Période</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Salaire Net</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Statut</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.employee')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.period')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.netSalary')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.status')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">{t('inventory.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -738,11 +747,11 @@ export const HR = ({ user }: { user: any }) => {
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
                         payslip.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
                       }`}>
-                        {payslip.status === 'Paid' ? 'Payé' : 'Brouillon'}
+                        {payslip.status === 'Paid' ? t('hr.paid') : t('hr.draft')}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="p-2 text-slate-400 hover:text-indigo-600"><Download className="w-4 h-4" /></button>
+                      <button className="p-2 text-slate-400 hover:text-indigo-600" title={t('hr.download')}><Download className="w-4 h-4" /></button>
                     </td>
                   </tr>
                 ))}
@@ -758,34 +767,34 @@ export const HR = ({ user }: { user: any }) => {
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Users className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-emerald-600">+2 ce mois</span>
+              <span className="text-xs font-bold text-emerald-600">{t('hr.newThisMonth')}</span>
             </div>
             <div className="text-2xl font-black text-slate-900">{employees.length}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Effectif Total</div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.totalStaff')}</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><Coffee className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-amber-600">3 actifs</span>
+              <span className="text-xs font-bold text-amber-600">{leaves.filter(l => l.status === 'Approved').length} {t('hr.active')}</span>
             </div>
             <div className="text-2xl font-black text-slate-900">{leaves.filter(l => l.status === 'Approved').length}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Congés en cours</div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.activeLeaves')}</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><DollarSign className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-slate-400">Masse salariale</span>
+              <span className="text-xs font-bold text-slate-400">{t('hr.payrollTotal')}</span>
             </div>
             <div className="text-2xl font-black text-slate-900">{(employees.reduce((acc, curr) => acc + curr.salary, 0) / 12).toLocaleString()}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{currencySymbol} / mois</div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{currencySymbol} / {t('common.month')}</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Briefcase className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-slate-400">Départements</span>
+              <span className="text-xs font-bold text-slate-400">{t('hr.departments')}</span>
             </div>
             <div className="text-2xl font-black text-slate-900">{new Set(employees.map(e => e.department)).size}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Unités actives</div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.activeUnits')}</div>
           </div>
         </div>
       )}
@@ -1172,6 +1181,15 @@ export const HR = ({ user }: { user: any }) => {
           </div>
         </div>
       )}
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title="Supprimer l'employé"
+        message="Êtes-vous sûr de vouloir supprimer cet employé ? Cette action est irréversible et supprimera toutes les données associées."
+        confirmLabel="Supprimer"
+        onConfirm={() => deleteConfirmId && handleDeleteEmployee(deleteConfirmId)}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
     </div>
   );
 };

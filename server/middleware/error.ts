@@ -7,9 +7,10 @@ export const errorHandler = (err: any, req: Request, res: Response, next: NextFu
   const message = err.message || 'Internal Server Error';
   
   res.status(status).json({
-    error: {
-      message,
-      ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
-    }
+    error: message,
+    ...(process.env.NODE_ENV === 'development' && { 
+      details: err,
+      stack: err.stack 
+    })
   });
 };

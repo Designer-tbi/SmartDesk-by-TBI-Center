@@ -1,7 +1,9 @@
 import React from 'react';
 import { Search, Bell, HelpCircle, LogOut, PlayCircle } from 'lucide-react';
+import { useTranslation } from '../../lib/i18n';
 
 export const Header = ({ title, onLogout }: { title: string, onLogout?: () => void }) => {
+  const { t } = useTranslation();
   const isDemoMode = localStorage.getItem('demoMode') === 'true';
 
   return (
@@ -11,7 +13,7 @@ export const Header = ({ title, onLogout }: { title: string, onLogout?: () => vo
         {isDemoMode && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs font-bold uppercase tracking-wider border border-indigo-100">
             <PlayCircle className="w-3.5 h-3.5" />
-            Mode Démo
+            {t('header.demoMode')}
           </div>
         )}
       </div>
@@ -21,7 +23,7 @@ export const Header = ({ title, onLogout }: { title: string, onLogout?: () => vo
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input 
             type="text" 
-            placeholder="Rechercher..." 
+            placeholder={t('common.search')} 
             className="pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 w-64 transition-all"
           />
         </div>
@@ -38,7 +40,7 @@ export const Header = ({ title, onLogout }: { title: string, onLogout?: () => vo
             <button 
               onClick={onLogout}
               className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-              title="Déconnexion"
+              title={t('nav.logout')}
             >
               <LogOut className="w-5 h-5" />
             </button>

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { apiFetch } from '../lib/api';
 import { useWebSocket } from '../lib/websocket';
 import { Building2, Users, Activity, Trash2, Edit2, Plus, CheckCircle2, XCircle, X, Search, Clock } from 'lucide-react';
+import { ConfirmModal } from '../components/ConfirmModal';
 
 export const SuperAdmin = () => {
   const [activeTab, setActiveTab] = useState<'companies' | 'users' | 'activity'>('companies');
@@ -17,7 +18,15 @@ export const SuperAdmin = () => {
   // ... existing state ...
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCompany, setEditingCompany] = useState<any>(null);
-  const [formData, setFormData] = useState({ name: '', type: 'real', status: 'active' });
+  const [formData, setFormData] = useState({ 
+    name: '', 
+    type: 'real', 
+    status: 'active',
+    adminName: '',
+    adminEmail: '',
+    adminPassword: '',
+    adminPhone: ''
+  });
 
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState<any>(null);
@@ -149,10 +158,26 @@ export const SuperAdmin = () => {
   const handleOpenModal = (company?: any) => {
     if (company) {
       setEditingCompany(company);
-      setFormData({ name: company.name, type: company.type, status: company.status });
+      setFormData({ 
+        name: company.name, 
+        type: company.type, 
+        status: company.status,
+        adminName: '',
+        adminEmail: '',
+        adminPassword: '',
+        adminPhone: ''
+      });
     } else {
       setEditingCompany(null);
-      setFormData({ name: '', type: 'real', status: 'active' });
+      setFormData({ 
+        name: '', 
+        type: 'real', 
+        status: 'active',
+        adminName: '',
+        adminEmail: '',
+        adminPassword: '',
+        adminPhone: ''
+      });
     }
     setIsModalOpen(true);
   };
@@ -616,42 +641,98 @@ export const SuperAdmin = () => {
               </button>
             </div>
             
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Nom de l'entreprise</label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  placeholder="Ex: Acme Corp"
-                />
+            <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-slate-900 border-b pb-2">Informations de l'entreprise</h3>
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium text-slate-700">Nom de l'entreprise</label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    placeholder="Ex: Acme Corp"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Type</label>
+                    <select
+                      value={formData.type}
+                      onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    >
+                      <option value="real">Réelle</option>
+                      <option value="demo">Démo</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Statut</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    >
+                      <option value="active">Actif</option>
+                      <option value="inactive">Inactif</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Type</label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                >
-                  <option value="real">Réelle</option>
-                  <option value="demo">Démo</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium text-slate-700">Statut</label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                >
-                  <option value="active">Actif</option>
-                  <option value="inactive">Inactif</option>
-                </select>
-              </div>
+              {!editingCompany && (
+                <div className="space-y-4 pt-4">
+                  <h3 className="text-sm font-bold text-slate-900 border-b pb-2">Compte Administrateur</h3>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Nom complet de l'admin</label>
+                    <input
+                      type="text"
+                      required={!editingCompany}
+                      value={formData.adminName}
+                      onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      placeholder="Ex: Jean Dupont"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-slate-700">Email / Identifiant</label>
+                      <input
+                        type="email"
+                        required={!editingCompany}
+                        value={formData.adminEmail}
+                        onChange={(e) => setFormData({ ...formData, adminEmail: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        placeholder="admin@entreprise.com"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-sm font-medium text-slate-700">Téléphone</label>
+                      <input
+                        type="tel"
+                        value={formData.adminPhone}
+                        onChange={(e) => setFormData({ ...formData, adminPhone: e.target.value })}
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        placeholder="+242 ..."
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-slate-700">Mot de passe admin</label>
+                    <input
+                      type="password"
+                      required={!editingCompany}
+                      value={formData.adminPassword}
+                      onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div className="pt-4 flex items-center justify-end gap-3">
                 <button
@@ -672,85 +753,24 @@ export const SuperAdmin = () => {
           </motion.div>
         </div>
       )}
-      {/* User Deletion Modal */}
-      {userToDelete && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
-          >
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Confirmer la suppression</h2>
-              <button 
-                onClick={() => setUserToDelete(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <p className="text-sm text-slate-600">
-                Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible.
-              </p>
-              <div className="mt-6 flex items-center justify-end gap-3">
-                <button
-                  onClick={() => setUserToDelete(null)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={confirmDeleteUser}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-                >
-                  Supprimer
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      {/* Confirm Modals */}
+      <ConfirmModal
+        isOpen={!!userToDelete}
+        title="Supprimer l'utilisateur"
+        message="Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible."
+        confirmLabel="Supprimer"
+        onConfirm={confirmDeleteUser}
+        onCancel={() => setUserToDelete(null)}
+      />
 
-      {/* Company Deletion Modal */}
-      {companyToDelete && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
-          >
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Confirmer la suppression</h2>
-              <button 
-                onClick={() => setCompanyToDelete(null)}
-                className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <p className="text-sm text-slate-600">
-                Êtes-vous sûr de vouloir supprimer cette entreprise et <strong>toutes ses données</strong> ? Cette action est irréversible.
-              </p>
-              <div className="mt-6 flex items-center justify-end gap-3">
-                <button
-                  onClick={() => setCompanyToDelete(null)}
-                  className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-                >
-                  Annuler
-                </button>
-                <button
-                  onClick={confirmDeleteCompany}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-                >
-                  Supprimer définitivement
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
+      <ConfirmModal
+        isOpen={!!companyToDelete}
+        title="Supprimer l'entreprise"
+        message="Êtes-vous sûr de vouloir supprimer cette entreprise et toutes ses données ? Cette action est irréversible."
+        confirmLabel="Supprimer définitivement"
+        onConfirm={confirmDeleteCompany}
+        onCancel={() => setCompanyToDelete(null)}
+      />
     </motion.div>
   );
 };

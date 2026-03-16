@@ -61,13 +61,31 @@ adminRouter.get('/companies', async (req, res, next) => {
 });
 
 adminRouter.post('/companies', async (req, res, next) => {
+  const client = await req.db.connect();
   try {
-    const { id, name, type, status } = req.body;
-    await req.db.query('INSERT INTO companies (id, name, type, status, "createdAt") VALUES ($1, $2, $3, $4, $5)',
-      [id, name, type, status || 'active', new Date().toISOString()]);
+    const { id, name, type, status, adminName, adminEmail, adminPassword, adminPhone } = req.body;
+    
+    await client.query('BEGIN');
+    
+    // Create company
+    await client.query('INSERT INTO companies (id, name, type, status, phone, email, "createdAt") VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      [id, name, type, status || 'active', adminPhone || null, adminEmail || null, new Date().toISOString()]);
+    
+    // Create admin user if details provided
+    if (adminEmail && adminPassword) {
+      const userId = `user_${Date.now()}`;
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+      await client.query('INSERT INTO users (id, "companyId", email, password, role, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [userId, id, adminEmail, hashedPassword, 'admin', adminName || name, 'Active']);
+    }
+    
+    await client.query('COMMIT');
     res.status(201).json({ id, name, type, status: status || 'active' });
   } catch (error) {
+    await client.query('ROLLBACK');
     next(error);
+  } finally {
+    client.release();
   }
 });
 

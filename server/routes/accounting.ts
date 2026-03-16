@@ -111,3 +111,37 @@ accountingRouter.delete('/journal-entries/:id', requireAuth, requireCompany, asy
     client.release();
   }
 });
+
+accountingRouter.post('/reset', requireAuth, requireCompany, async (req, res, next) => {
+  const client = await req.db.connect();
+  try {
+    const companyId = req.user!.companyId;
+    
+    await client.query('BEGIN');
+    
+    // Delete journal items first due to foreign key
+    await client.query(`
+      DELETE FROM journal_items 
+      WHERE "journalEntryId" IN (SELECT id FROM journal_entries WHERE "companyId" = $1)
+    `, [companyId]);
+    
+    await client.query('DELETE FROM journal_entries WHERE "companyId" = $1', [companyId]);
+    await client.query('DELETE FROM transactions WHERE "companyId" = $1', [companyId]);
+    
+    // Delete invoice items first due to foreign key
+    await client.query(`
+      DELETE FROM invoice_items 
+      WHERE "invoiceId" IN (SELECT id FROM invoices WHERE "companyId" = $1)
+    `, [companyId]);
+    
+    await client.query('DELETE FROM invoices WHERE "companyId" = $1', [companyId]);
+    
+    await client.query('COMMIT');
+    res.json({ message: 'Accounting data reset successfully' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    next(error);
+  } finally {
+    client.release();
+  }
+});

@@ -11,6 +11,8 @@ import { HR } from './modules/HR';
 import { Accounting } from './modules/Accounting';
 import { Settings } from './modules/Settings';
 import { Users } from './modules/Users';
+import { Agenda } from './modules/Agenda';
+import { Planning } from './modules/Planning';
 import { Login } from './modules/Login';
 import { SuperAdmin } from './modules/SuperAdmin';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -18,19 +20,22 @@ import { apiFetch } from './lib/api';
 
 const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, onLogout?: () => void, user: any }) => {
   const location = useLocation();
+  const { t } = useTranslation();
   
   const getTitle = (path: string) => {
     switch (path) {
-      case '/': return 'Tableau de Bord';
-      case '/crm': return 'Gestion de la Relation Client';
-      case '/sales': return 'Ventes & Facturation';
-      case '/inventory': return 'Gestion des Stocks';
-      case '/projects': return 'Gestion de Projets';
-      case '/hr': return 'Ressources Humaines';
-      case '/accounting': return 'Comptabilité';
-      case '/users': return 'Utilisateurs & Permissions';
-      case '/settings': return 'Paramètres Système';
-      case '/super-admin': return 'Administration Globale';
+      case '/': return t('header.dashboard');
+      case '/crm': return t('header.crm');
+      case '/sales': return t('header.sales');
+      case '/inventory': return t('header.inventory');
+      case '/projects': return t('header.projects');
+      case '/hr': return t('header.hr');
+      case '/accounting': return t('header.accounting');
+      case '/users': return t('header.users');
+      case '/settings': return t('header.settings');
+      case '/super-admin': return t('header.superAdmin');
+      case '/agenda': return t('header.agenda');
+      case '/planning': return t('header.planning');
       default: return 'SmartDesk';
     }
   };
@@ -38,9 +43,9 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
   return (
     <div className="flex min-h-screen bg-slate-50">
       <Sidebar user={user} />
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         <Header title={getTitle(location.pathname)} onLogout={onLogout} />
-        <main className="p-8 max-w-7xl mx-auto w-full flex-1">
+        <main className="p-8 max-w-7xl mx-auto w-full flex-1 min-w-0">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
@@ -61,25 +66,24 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
   );
 };
 
-import { I18nProvider } from './lib/i18n';
+import { I18nProvider, useTranslation } from './lib/i18n';
 
-export default function App() {
-  const [user, setUser] = React.useState<any>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
+const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
+  const { setLanguage } = useTranslation();
 
   React.useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
-      // Validate token by fetching current user
       apiFetch('/api/auth/me')
         .then(res => {
-          if (res.ok) {
-            return res.json();
-          }
+          if (res.ok) return res.json();
           throw new Error('Invalid token');
         })
-        .then(user => {
-          setUser(user);
+        .then(userData => {
+          setUser(userData);
+          if (userData.language) {
+            setLanguage(userData.language);
+          }
           setIsLoading(false);
         })
         .catch(() => {
@@ -89,38 +93,48 @@ export default function App() {
     } else {
       setIsLoading(false);
     }
-  }, []);
+  }, [setUser, setIsLoading, setLanguage]);
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
   }
 
   if (!user) {
-    return (
-      <I18nProvider>
-        <Login onLogin={setUser} />
-      </I18nProvider>
-    );
+    return <Login onLogin={(u: any) => {
+      setUser(u);
+      if (u.language) setLanguage(u.language);
+    }} />;
   }
 
   return (
+    <Router>
+      <PageWrapper onLogout={() => { localStorage.removeItem('token'); setUser(null); }} user={user}>
+        <Routes>
+          <Route path="/" element={<Dashboard user={user} />} />
+          <Route path="/crm" element={<CRM user={user} />} />
+          <Route path="/sales" element={<Sales user={user} />} />
+          <Route path="/inventory" element={<Inventory user={user} />} />
+          <Route path="/projects" element={<Projects />} />
+          <Route path="/hr" element={<HR user={user} />} />
+          <Route path="/accounting" element={<Accounting user={user} />} />
+          <Route path="/agenda" element={<Agenda />} />
+          <Route path="/planning" element={<Planning />} />
+          <Route path="/users" element={<Users />} />
+          <Route path="/settings" element={<Settings user={user} />} />
+          {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
+        </Routes>
+      </PageWrapper>
+    </Router>
+  );
+};
+
+export default function App() {
+  const [user, setUser] = React.useState<any>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  return (
     <I18nProvider>
-      <Router>
-        <PageWrapper onLogout={() => { localStorage.removeItem('token'); setUser(null); }} user={user}>
-          <Routes>
-            <Route path="/" element={<Dashboard user={user} />} />
-            <Route path="/crm" element={<CRM />} />
-            <Route path="/sales" element={<Sales user={user} />} />
-            <Route path="/inventory" element={<Inventory user={user} />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/hr" element={<HR user={user} />} />
-            <Route path="/accounting" element={<Accounting user={user} />} />
-            <Route path="/users" element={<Users />} />
-            <Route path="/settings" element={<Settings />} />
-            {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
-          </Routes>
-        </PageWrapper>
-      </Router>
+      <AppContent user={user} setUser={setUser} isLoading={isLoading} setIsLoading={setIsLoading} />
     </I18nProvider>
   );
 }

@@ -10,6 +10,8 @@ declare global {
         email: string;
         role: string;
         name: string;
+        language?: string;
+        currency?: string;
       };
     }
   }

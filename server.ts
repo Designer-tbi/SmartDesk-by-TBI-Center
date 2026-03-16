@@ -18,6 +18,8 @@ import { statsRouter } from './server/routes/stats.js';
 import { authRouter } from './server/routes/auth.js';
 import { adminRouter } from './server/routes/admin.js';
 import { companyRouter } from './server/routes/company.js';
+import { eventsRouter } from './server/routes/events.js';
+import { schedulesRouter } from './server/routes/schedules.js';
 
 // Import middlewares
 import { dbMiddleware } from './server/middleware/db.js';
@@ -84,6 +86,8 @@ app.use('/api/stats', statsRouter);
 app.use('/api/auth', authRouter); // auth routes are /api/auth/send-demo-email and /api/auth/login
 app.use('/api/admin', adminRouter);
 app.use('/api/company', companyRouter);
+app.use('/api/events', eventsRouter);
+app.use('/api/schedules', schedulesRouter);
 
 // Global Error Handler for API routes
 app.use('/api', errorHandler);

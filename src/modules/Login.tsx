@@ -65,18 +65,12 @@ export const Login = ({ onLogin }: LoginProps) => {
       });
       
       if (response.ok) {
-        // We don't store the user locally anymore, the backend should create it if needed.
-        // But wait, the backend doesn't create the user on send-demo-email.
-        // Let's just show the success message. The user will use the code to login if we created it.
-        // Wait, the original code stored it in localStorage.
-        // If we want a real demo account, we should create it on the backend.
-        // Let's modify the backend to create the demo user.
-        // For now, let's keep the frontend mostly the same but we will need to update the backend to create the user.
         setSuccessMessage('Un code de connexion a été envoyé à votre adresse email.');
         setIsRegistering(false);
         setEmail(regForm.email);
       } else {
-        setError("Erreur lors de l'envoi de l'email.");
+        const errorData = await response.json();
+        setError(errorData.error || "Erreur lors de l'envoi de l'email.");
       }
     } catch (err) {
       setError("Erreur de connexion au serveur.");
@@ -93,13 +87,27 @@ export const Login = ({ onLogin }: LoginProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* World Map Background */}
+      <div className="absolute inset-0 opacity-50">
+        <img 
+          src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920&auto=format&fit=crop" 
+          alt="World Map" 
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+        />
+        {/* Glowing Points */}
+        <motion.div className="absolute top-[20%] left-[20%] w-3 h-3 bg-indigo-400 rounded-full shadow-[0_0_20px_#818cf8]" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 3, repeat: Infinity }} />
+        <motion.div className="absolute top-[60%] left-[50%] w-4 h-4 bg-emerald-400 rounded-full shadow-[0_0_20px_#34d399]" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 4, repeat: Infinity, delay: 1 }} />
+        <motion.div className="absolute bottom-[30%] right-[30%] w-2 h-2 bg-amber-400 rounded-full shadow-[0_0_20px_#fbbf24]" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: 0.5 }} />
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden"
+          className="bg-white rounded-3xl shadow-2xl shadow-indigo-900/20 border border-slate-100 overflow-hidden"
         >
           <div className="p-8 pb-6 text-center">
             <motion.div 

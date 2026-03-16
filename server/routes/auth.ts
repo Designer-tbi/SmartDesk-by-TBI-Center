@@ -21,6 +21,8 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
       if (!company) {
         return res.status(401).json({ error: 'Company not found' });
       }
+      req.user!.language = company.language || 'fr';
+      req.user!.currency = company.currency || 'XAF';
     }
     res.json(req.user);
   } catch (error) {
@@ -38,12 +40,13 @@ authRouter.post('/login', async (req, res, next) => {
     }
     
     // Find user
-    const userRes = await req.db.query('SELECT * FROM users WHERE email = $1', [email]);
+    console.log('Searching for user with email:', email);
+    const userRes = await req.db.query('SELECT * FROM users WHERE LOWER(email) = LOWER($1)', [email]);
     const user = userRes.rows[0];
     
     if (!user) {
-      console.log('Login failed: User not found');
-      return res.status(401).json({ error: 'Invalid credentials' });
+      console.log('Login failed: User not found in database for email:', email);
+      return res.status(401).json({ error: 'Identifiants incorrects. Utilisateur non trouvé.' });
     }
 
     console.log('Comparing password:', password, 'with hash:', user.password);
@@ -65,23 +68,27 @@ authRouter.post('/login', async (req, res, next) => {
 
     let company: any = null;
     // Check if company is active (if not super admin)
-    if (user.companyId) {
-      const companyRes = await req.db.query('SELECT status, type, country, state FROM companies WHERE id = $1', [user.companyId]);
+    if (user.companyId && user.role !== 'super_admin') {
+      const companyRes = await req.db.query('SELECT status, type, country, state, language, currency FROM companies WHERE id = $1', [user.companyId]);
       company = companyRes.rows[0];
       if (!company || company.status !== 'active') {
         console.log('Login failed: Company inactive');
-        return res.status(403).json({ error: 'Company account is inactive' });
+        return res.status(403).json({ error: 'Compte entreprise inactif.' });
       }
       
       if (demoMode && company.type !== 'demo') {
         console.log('Login failed: Not a demo company');
-        return res.status(403).json({ error: 'Invalid login mode for this account' });
+        return res.status(403).json({ error: 'Cet utilisateur ne peut pas se connecter en mode démo.' });
       }
       
       if (!demoMode && company.type === 'demo') {
         console.log('Login failed: Demo company in production mode');
-        return res.status(403).json({ error: 'Invalid login mode for this account' });
+        return res.status(403).json({ error: 'Cet utilisateur doit se connecter via l\'espace démo.' });
       }
+    } else if (user.companyId && user.role === 'super_admin') {
+      // Still fetch company info for super admin to get country/state
+      const companyRes = await req.db.query('SELECT status, type, country, state, language, currency FROM companies WHERE id = $1', [user.companyId]);
+      company = companyRes.rows[0];
     }
 
     console.log('Login successful for user:', user.id);
@@ -98,7 +105,9 @@ authRouter.post('/login', async (req, res, next) => {
         role: user.role,
         name: user.name,
         country: company?.country || 'FR',
-        state: company?.state || null
+        state: company?.state || null,
+        language: company?.language || 'fr',
+        currency: company?.currency || 'XAF'
       }, 
       JWT_SECRET, 
       { expiresIn: '24h' }
@@ -113,7 +122,9 @@ authRouter.post('/login', async (req, res, next) => {
         role: user.role,
         name: user.name,
         country: company?.country || 'FR',
-        state: company?.state || null
+        state: company?.state || null,
+        language: company?.language || 'fr',
+        currency: company?.currency || 'XAF'
       } 
     });
   } catch (error) {
@@ -223,14 +234,21 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
     };
 
     // Send both emails
-    await Promise.all([
-      transporter.sendMail(userMailOptions),
-      transporter.sendMail(adminMailOptions)
-    ]);
+    console.log('Attempting to send demo emails to:', email, 'and admin');
+    try {
+      await Promise.all([
+        transporter.sendMail(userMailOptions),
+        transporter.sendMail(adminMailOptions)
+      ]);
+      console.log('Demo emails sent successfully');
+    } catch (mailError: any) {
+      console.error('Nodemailer Error:', mailError);
+      throw new Error(`Erreur lors de l'envoi de l'email: ${mailError.message}`);
+    }
 
     res.status(200).json({ success: true, message: 'Emails sent successfully' });
-  } catch (error) {
-    console.error('Error sending demo email:', error);
-    res.status(500).json({ error: 'Failed to send emails' });
+  } catch (error: any) {
+    console.error('Error in send-demo-email route:', error);
+    res.status(500).json({ error: error.message || 'Failed to send emails' });
   }
 });

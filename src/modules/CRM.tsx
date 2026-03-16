@@ -1,18 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Filter, MoreVertical, Mail, Phone, ExternalLink, X, User, Building2, Globe, Tag, Briefcase, Check, Pencil, Trash2, Eye, Calendar, Loader2 } from 'lucide-react';
+import { Plus, Filter, MoreVertical, Mail, Phone, ExternalLink, X, User, Building2, Globe, Tag, Briefcase, Check, Pencil, Trash2, Eye, Calendar, Loader2, AlertCircle, Search, TrendingUp, Users, UserPlus, Target, ArrowRight } from 'lucide-react';
+import { I18nProvider, useTranslation } from '../lib/i18n';
 import { Contact } from '../types';
+import { ConfirmModal } from '../components/ConfirmModal';
 
-export const CRM = () => {
+export const CRM = ({ user }: { user: any }) => {
+  const { t, language } = useTranslation();
+  const isUS = user?.country === 'USA';
+  const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency === 'XAF' ? 'XAF' : (isUS ? '$' : '€');
+  
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<'Tous' | 'Client' | 'Lead'>('Tous');
+  const [searchQuery, setSearchQuery] = useState('');
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'recent' | 'alpha'>('recent');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
   const [viewContact, setViewContact] = useState<Contact | null>(null);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const [newContact, setNewContact] = useState<Partial<Contact>>({
     name: '',
     email: '',
@@ -35,16 +46,25 @@ export const CRM = () => {
       if (response.ok) {
         const data = await response.json();
         setContacts(data);
+      } else {
+        setError(t('crm.error.load'));
       }
     } catch (error) {
       console.error('Failed to fetch contacts:', error);
+      setError(t('crm.error.connection'));
     } finally {
       setIsLoading(false);
     }
   };
 
   const filteredContacts = contacts
-    .filter(contact => filter === 'Tous' ? true : contact.status === filter)
+    .filter(contact => {
+      const matchesFilter = filter === 'Tous' ? true : contact.status === filter;
+      const matchesSearch = contact.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                           contact.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           contact.email.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesFilter && matchesSearch;
+    })
     .sort((a, b) => {
       if (sortBy === 'alpha') {
         return a.name.localeCompare(b.name);
@@ -52,16 +72,27 @@ export const CRM = () => {
       return new Date(b.lastContact).getTime() - new Date(a.lastContact).getTime();
     });
 
+  const stats = {
+    total: contacts.length,
+    leads: contacts.filter(c => c.status === 'Lead').length,
+    clients: contacts.filter(c => c.status === 'Client').length,
+    conversion: contacts.length > 0 ? Math.round((contacts.filter(c => c.status === 'Client').length / contacts.length) * 100) : 0
+  };
+
   const resetForm = () => {
     setNewContact({
       name: '', email: '', phone: '', company: '', role: '', notes: '', status: 'Lead', lastContact: new Date().toISOString().split('T')[0]
     });
     setEditingContactId(null);
     setIsModalOpen(false);
+    setError(null);
   };
 
   const handleAddOrUpdateContact = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+    
     try {
       if (editingContactId) {
         const response = await apiFetch(`/api/contacts/${editingContactId}`, {
@@ -71,9 +102,12 @@ export const CRM = () => {
         });
         if (response.ok) {
           fetchContacts();
+          resetForm();
+        } else {
+          setError(t('crm.error.update'));
         }
       } else {
-        const id = Math.random().toString(36).substr(2, 9);
+        const id = `cnt_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
         const response = await apiFetch('/api/contacts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -81,26 +115,32 @@ export const CRM = () => {
         });
         if (response.ok) {
           fetchContacts();
+          resetForm();
+        } else {
+          setError(t('crm.error.create'));
         }
       }
-      resetForm();
     } catch (error) {
       console.error('Failed to save contact:', error);
+      setError(t('crm.error.connection'));
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDeleteContact = async (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce contact ?')) {
-      try {
-        const response = await apiFetch(`/api/contacts/${id}`, {
-          method: 'DELETE',
-        });
-        if (response.ok) {
-          fetchContacts();
-        }
-      } catch (error) {
-        console.error('Failed to delete contact:', error);
+    try {
+      const response = await apiFetch(`/api/contacts/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        fetchContacts();
+      } else {
+        setError(t('crm.error.delete'));
       }
+    } catch (error) {
+      console.error('Failed to delete contact:', error);
+      setError(t('crm.error.connection'));
     }
   };
 
@@ -112,34 +152,86 @@ export const CRM = () => {
 
   return (
     <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="space-y-6"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="space-y-8"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
+      {/* Stats Header */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {[
+          { label: t('crm.stats.total'), value: stats.total, icon: Users, color: 'bg-blue-500' },
+          { label: t('crm.stats.leads'), value: stats.leads, icon: UserPlus, color: 'bg-amber-500' },
+          { label: t('crm.stats.clients'), value: stats.clients, icon: Check, color: 'bg-emerald-500' },
+          { label: t('crm.stats.conversion'), value: `${stats.conversion}%`, icon: TrendingUp, color: 'bg-indigo-500' },
+        ].map((stat, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all group"
+          >
+            <div className="flex items-center justify-between">
+              <div className={`p-3 rounded-2xl ${stat.color} text-white shadow-lg shadow-current/20 group-hover:scale-110 transition-transform`}>
+                <stat.icon className="w-5 h-5" />
+              </div>
+              <div className="text-right">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
+                <p className="text-2xl font-black text-slate-900">{stat.value}</p>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-100 rounded-2xl flex items-center gap-3 text-red-600 text-sm animate-in fade-in slide-in-from-top-2">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <p className="font-medium">{error}</p>
+          <button onClick={() => setError(null)} className="ml-auto p-1 hover:bg-red-100 rounded-lg transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 flex-1">
+          <div className="relative flex-1 w-full max-w-md">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input 
+              type="text"
+              placeholder={t('crm.searchPlaceholder')}
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
             {(['Tous', 'Client', 'Lead'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${
+                className={`px-4 py-1.5 text-sm font-bold rounded-xl transition-all ${
                   filter === f 
-                    ? "bg-indigo-600 text-white shadow-md" 
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                    ? "bg-slate-900 text-white shadow-md" 
+                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
-                {f === 'Tous' ? 'Tous' : f + 's'}
+                {f === 'Tous' ? t('crm.all') : f === 'Client' ? t('crm.client') + 's' : t('crm.lead') + 's'}
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="flex items-center gap-3">
           <div className="relative">
             <button 
               onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-              className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
             >
               <Filter className="w-4 h-4" />
-              Filtres
+              {t('crm.sort')}
             </button>
             
             <AnimatePresence>
@@ -148,124 +240,136 @@ export const CRM = () => {
                   initial={{ opacity: 0, y: 10, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                  className="absolute top-full left-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-10"
+                  className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-10"
                 >
-                <div className="p-3 border-b border-slate-100">
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-2">Trier par</h4>
-                  <div className="space-y-1">
-                    <button 
-                      onClick={() => { setSortBy('recent'); setIsFilterMenuOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${sortBy === 'recent' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}
-                    >
-                      Plus récent
-                      {sortBy === 'recent' && <Check className="w-4 h-4" />}
-                    </button>
-                    <button 
-                      onClick={() => { setSortBy('alpha'); setIsFilterMenuOpen(false); }}
-                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${sortBy === 'alpha' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}
-                    >
-                      Ordre alphabétique
-                      {sortBy === 'alpha' && <Check className="w-4 h-4" />}
-                    </button>
+                  <div className="p-3">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-2">{t('crm.sortBy')}</h4>
+                    <div className="space-y-1">
+                      <button 
+                        onClick={() => { setSortBy('recent'); setIsFilterMenuOpen(false); }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-bold transition-colors ${sortBy === 'recent' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        {t('crm.recent')}
+                        {sortBy === 'recent' && <Check className="w-4 h-4" />}
+                      </button>
+                      <button 
+                        onClick={() => { setSortBy('alpha'); setIsFilterMenuOpen(false); }}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-bold transition-colors ${sortBy === 'alpha' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}
+                      >
+                        {t('crm.alphabetical')}
+                        {sortBy === 'alpha' && <Check className="w-4 h-4" />}
+                      </button>
+                    </div>
                   </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          
+          <button 
+            onClick={() => { resetForm(); setIsModalOpen(true); }}
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+          >
+            <Plus className="w-5 h-5" />
+            {t('crm.addContact')}
+          </button>
         </div>
-      </div>
-        
-        <button 
-          onClick={() => { resetForm(); setIsModalOpen(true); }}
-          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
-        >
-          <Plus className="w-5 h-5" />
-          Nouveau Contact
-        </button>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-              <p className="text-sm font-medium text-slate-500">Chargement des contacts...</p>
-            </div>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nom / Entreprise</th>
-                  <th className="hidden sm:table-cell px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Statut</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Coordonnées</th>
-                  <th className="hidden md:table-cell px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dernier Contact</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredContacts.length > 0 ? filteredContacts.map((contact) => (
-                  <tr key={contact.id} className="hover:bg-indigo-50/30 transition-colors group">
-                    <td className="px-6 py-5">
-                      <div className="flex items-center gap-4">
-                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold shadow-md shadow-indigo-100">
-                          {contact.name.charAt(0)}
-                        </div>
-                        <div>
-                          <div className="text-sm font-bold text-slate-900">{contact.name}</div>
-                          <div className="text-xs font-medium text-slate-500">{contact.company}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="hidden sm:table-cell px-6 py-5">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                        contact.status === 'Client' ? 'bg-emerald-100 text-emerald-700' : 
-                        contact.status === 'Lead' ? 'bg-amber-100 text-amber-700' : 
-                        'bg-blue-100 text-blue-700'
-                      }`}>
-                        {contact.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-5">
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
-                          <Mail className="w-3.5 h-3.5 text-slate-400" />
-                          {contact.email}
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
-                          <Phone className="w-3.5 h-3.5 text-slate-400" />
-                          {contact.phone}
-                        </div>
-                      </div>
-                    </td>
-                    <td className="hidden md:table-cell px-6 py-5 text-sm font-medium text-slate-600">
-                      {contact.lastContact}
-                    </td>
-                    <td className="px-6 py-5 text-right">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all translate-x-2 group-hover:translate-x-0">
-                        <button onClick={() => setViewContact(contact)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title="Prévisualiser">
-                          <Eye className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => openEdit(contact)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title="Modifier">
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button onClick={() => handleDeleteContact(contact.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title="Supprimer">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+                <p className="text-sm font-medium text-slate-500">{t('crm.loading')}</p>
+              </div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/50 border-b border-slate-200">
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('crm.contact')}</th>
+                    <th className="hidden sm:table-cell px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('common.status')}</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('crm.details')}</th>
+                    <th className="hidden md:table-cell px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('crm.lastActivity')}</th>
+                    <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">{t('common.actions')}</th>
                   </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-10 text-center text-slate-500 text-sm">
-                      Aucun contact trouvé.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {filteredContacts.length > 0 ? filteredContacts.map((contact) => (
+                    <tr key={contact.id} className="hover:bg-slate-50/80 transition-all group">
+                      <td className="px-6 py-6">
+                        <div className="flex items-center gap-4">
+                          <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-600 font-black text-lg group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+                            {contact.name.charAt(0)}
+                          </div>
+                          <div>
+                            <div className="text-sm font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{contact.name}</div>
+                            <div className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-wider mt-0.5">
+                              <Building2 className="w-3 h-3" />
+                              {contact.company}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="hidden sm:table-cell px-6 py-6">
+                        <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                          contact.status === 'Client' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
+                          contact.status === 'Lead' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 
+                          'bg-blue-50 text-blue-600 border border-blue-100'
+                        }`}>
+                          {contact.status === 'Client' ? t('crm.client') : t('crm.lead')}
+                        </span>
+                      </td>
+                      <td className="px-6 py-6">
+                        <div className="space-y-1.5">
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 font-bold tracking-tight">
+                            <Mail className="w-3.5 h-3.5 text-slate-300" />
+                            {contact.email}
+                          </div>
+                          <div className="flex items-center gap-2 text-[11px] text-slate-500 font-bold tracking-tight">
+                            <Phone className="w-3.5 h-3.5 text-slate-300" />
+                            {contact.phone}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="hidden md:table-cell px-6 py-6">
+                        <div className="flex items-center gap-2 text-xs font-black text-slate-600 uppercase tracking-tighter">
+                          <Calendar className="w-4 h-4 text-slate-300" />
+                          {new Date(contact.lastContact).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </div>
+                      </td>
+                      <td className="px-6 py-5 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => setViewContact(contact)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title={t('common.view')}>
+                            <Eye className="w-4.5 h-4.5" />
+                          </button>
+                          <button onClick={() => openEdit(contact)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title={t('common.edit')}>
+                            <Pencil className="w-4.5 h-4.5" />
+                          </button>
+                          <button onClick={() => setDeleteConfirmId(contact.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title={t('common.delete')}>
+                            <Trash2 className="w-4.5 h-4.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-20 text-center">
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
+                            <Search className="w-8 h-8" />
+                          </div>
+                          <p className="text-slate-500 font-bold">{t('crm.noContacts')}</p>
+                          <button onClick={() => { setSearchQuery(''); setFilter('Tous'); }} className="text-indigo-600 text-sm font-bold hover:underline">{t('crm.resetFilters')}</button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
-      </div>
 
       {/* Slide-over Nouveau Contact */}
       <AnimatePresence>
@@ -282,8 +386,8 @@ export const CRM = () => {
             >
             <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">{editingContactId ? 'Modifier le Contact' : 'Nouveau Contact'}</h3>
-                <p className="text-sm text-slate-500">{editingContactId ? 'Mettez à jour les informations du contact.' : 'Ajoutez un nouveau client ou prospect.'}</p>
+                <h3 className="text-xl font-bold text-slate-900">{editingContactId ? t('crm.editContact') : t('crm.newContact')}</h3>
+                <p className="text-sm text-slate-500">{editingContactId ? t('crm.updateInfo') : t('crm.addInfo')}</p>
               </div>
               <button 
                 onClick={resetForm}
@@ -303,13 +407,13 @@ export const CRM = () => {
 
                 <div className="space-y-5">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nom Complet *</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.fullName')} *</label>
                     <div className="relative">
                       <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
                         required
                         type="text" 
-                        placeholder="Ex: Jean Dupont"
+                        placeholder={t('crm.placeholder.name')}
                         className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         value={newContact.name}
                         onChange={(e) => setNewContact({...newContact, name: e.target.value})}
@@ -318,12 +422,12 @@ export const CRM = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fonction</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.jobTitle')}</label>
                     <div className="relative">
                       <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
                         type="text" 
-                        placeholder="Ex: Directeur Marketing"
+                        placeholder={t('crm.placeholder.role')}
                         className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         value={newContact.role || ''}
                         onChange={(e) => setNewContact({...newContact, role: e.target.value})}
@@ -333,13 +437,13 @@ export const CRM = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email *</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.email')} *</label>
                       <div className="relative">
                         <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input 
                           required
                           type="email" 
-                          placeholder="jean@exemple.com"
+                          placeholder={t('crm.placeholder.email')}
                           className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                           value={newContact.email}
                           onChange={(e) => setNewContact({...newContact, email: e.target.value})}
@@ -347,13 +451,13 @@ export const CRM = () => {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Téléphone *</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.phone')} *</label>
                       <div className="relative">
                         <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input 
                           required
                           type="tel" 
-                          placeholder="01 23 45 67 89"
+                          placeholder={t('crm.placeholder.phone')}
                           className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                           value={newContact.phone}
                           onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
@@ -363,13 +467,13 @@ export const CRM = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Entreprise *</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.company')} *</label>
                     <div className="relative">
                       <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
                         required
                         type="text" 
-                        placeholder="Ex: Tech Solutions SARL"
+                        placeholder={t('crm.placeholder.company')}
                         className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         value={newContact.company}
                         onChange={(e) => setNewContact({...newContact, company: e.target.value})}
@@ -378,7 +482,7 @@ export const CRM = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Statut du Contact *</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('common.status')} *</label>
                     <div className="grid grid-cols-2 gap-3">
                       {['Lead', 'Client'].map((s) => (
                         <button
@@ -392,18 +496,18 @@ export const CRM = () => {
                           }`}
                         >
                           <Tag className="w-4 h-4" />
-                          {s}
+                          {s === 'Lead' ? t('crm.lead') : t('crm.client')}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Notes</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.notes')}</label>
                     <div className="relative">
                       <textarea 
                         rows={3} 
-                        placeholder="Informations additionnelles..."
+                        placeholder={t('crm.placeholder.notes')}
                         className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
                         value={newContact.notes || ''}
                         onChange={(e) => setNewContact({...newContact, notes: e.target.value})}
@@ -420,14 +524,15 @@ export const CRM = () => {
                   onClick={resetForm}
                   className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95"
                 >
-                  Annuler
+                  {t('common.cancel')}
                 </button>
                 <button 
                   type="submit"
                   form="new-contact-form"
-                  className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                  disabled={isSubmitting}
+                  className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95 disabled:opacity-70 flex items-center justify-center gap-2"
                 >
-                  {editingContactId ? 'Mettre à jour' : 'Enregistrer'}
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingContactId ? t('crm.update') : t('common.save'))}
                 </button>
               </div>
             </motion.div>
@@ -446,7 +551,7 @@ export const CRM = () => {
               className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
             >
             <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="text-xl font-bold text-slate-900">Détails du Contact</h3>
+              <h3 className="text-xl font-bold text-slate-900">{t('crm.contactDetails')}</h3>
               <button 
                 onClick={() => setViewContact(null)}
                 className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all shadow-sm"
@@ -476,23 +581,29 @@ export const CRM = () => {
               </div>
               
               <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
-                <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
+                <a 
+                  href={`mailto:${viewContact.email}`}
+                  className="flex items-center gap-3 text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors"
+                >
                   <Mail className="w-4 h-4 text-slate-400" />
                   {viewContact.email}
-                </div>
-                <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
+                </a>
+                <a 
+                  href={`tel:${viewContact.phone}`}
+                  className="flex items-center gap-3 text-sm font-medium text-slate-600 hover:text-indigo-600 transition-colors"
+                >
                   <Phone className="w-4 h-4 text-slate-400" />
                   {viewContact.phone}
-                </div>
+                </a>
                 <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
                   <Calendar className="w-4 h-4 text-slate-400" />
-                  Dernier contact : {new Date(viewContact.lastContact).toLocaleDateString('fr-FR')}
+                  {t('crm.lastContact')} : {new Date(viewContact.lastContact).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}
                 </div>
               </div>
               
               {viewContact.notes && (
                 <div>
-                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Notes</h5>
+                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">{t('crm.notes')}</h5>
                   <p className="text-sm text-slate-600 bg-slate-50 p-4 rounded-2xl border border-slate-100 leading-relaxed">
                     {viewContact.notes}
                   </p>
@@ -505,13 +616,22 @@ export const CRM = () => {
                 onClick={() => { setViewContact(null); openEdit(viewContact); }}
                 className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
               >
-                Modifier le Contact
+                {t('crm.editContact')}
               </button>
             </div>
           </motion.div>
         </div>
       )}
       </AnimatePresence>
+
+      <ConfirmModal
+        isOpen={!!deleteConfirmId}
+        title={t('crm.deleteTitle')}
+        message={t('crm.deleteMessage')}
+        confirmLabel={t('common.delete')}
+        onConfirm={() => deleteConfirmId && handleDeleteContact(deleteConfirmId)}
+        onCancel={() => setDeleteConfirmId(null)}
+      />
     </motion.div>
   );
 };

@@ -23,16 +23,21 @@ const initSql = `
     name TEXT NOT NULL,
     type TEXT NOT NULL, -- 'real' or 'demo'
     status TEXT NOT NULL DEFAULT 'active',
-    country TEXT DEFAULT 'FR',
+    country TEXT DEFAULT 'AFRIQUE',
     state TEXT,
     "taxId" TEXT,
     rccm TEXT,
     "idNat" TEXT,
+    siren TEXT,
+    siret TEXT,
     email TEXT,
     phone TEXT,
     website TEXT,
     address TEXT,
     logo TEXT,
+    language TEXT DEFAULT 'fr',
+    currency TEXT DEFAULT 'XAF',
+    "accountingStandard" TEXT DEFAULT 'OHADA', -- 'OHADA', 'US_GAAP', 'FRANCE'
     "createdAt" TEXT NOT NULL
   );
 
@@ -267,6 +272,40 @@ const initSql = `
     FOREIGN KEY ("userId") REFERENCES users(id)
   );
 
+  CREATE TABLE IF NOT EXISTS events (
+    id TEXT PRIMARY KEY,
+    "companyId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "assignedTo" TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    "startDate" TEXT NOT NULL,
+    "endDate" TEXT NOT NULL,
+    category TEXT,
+    "isPrivate" BOOLEAN DEFAULT FALSE,
+    "createdAt" TEXT NOT NULL,
+    FOREIGN KEY ("companyId") REFERENCES companies(id),
+    FOREIGN KEY ("userId") REFERENCES users(id),
+    FOREIGN KEY ("assignedTo") REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS schedules (
+    id TEXT PRIMARY KEY,
+    "companyId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdBy" TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    "startDate" TEXT NOT NULL,
+    "endDate" TEXT NOT NULL,
+    type TEXT,
+    status TEXT DEFAULT 'published',
+    "createdAt" TEXT NOT NULL,
+    FOREIGN KEY ("companyId") REFERENCES companies(id),
+    FOREIGN KEY ("userId") REFERENCES users(id),
+    FOREIGN KEY ("createdBy") REFERENCES users(id)
+  );
+
   ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo TEXT;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
   ALTER TABLE users ADD COLUMN IF NOT EXISTS "lastLogin" TEXT;
@@ -276,15 +315,45 @@ const initSql = `
   ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS description TEXT;
   ALTER TABLE employees ADD COLUMN IF NOT EXISTS "profilePicture" TEXT;
   ALTER TABLE employees ADD COLUMN IF NOT EXISTS documents TEXT;
+  ALTER TABLE companies ADD COLUMN IF NOT EXISTS "accountingStandard" TEXT DEFAULT 'OHADA';
+  ALTER TABLE companies ADD COLUMN IF NOT EXISTS siren TEXT;
+  ALTER TABLE companies ADD COLUMN IF NOT EXISTS siret TEXT;
+  ALTER TABLE companies ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'fr';
+  ALTER TABLE companies ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'XAF';
+  ALTER TABLE events ADD COLUMN IF NOT EXISTS "assignedTo" TEXT;
 `;
 
 // Initialize database
 export async function initializeDatabase() {
   try {
+    console.log("Initializing database...");
     await db.query(initSql);
     console.log("Database initialized successfully");
+    
+    // Verify columns
+    const columnsRes = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'companies' AND column_name = 'accountingStandard'
+    `);
+    if (columnsRes.rows.length === 0) {
+      console.log("Adding missing accountingStandard column...");
+      await db.query('ALTER TABLE companies ADD COLUMN "accountingStandard" TEXT DEFAULT \'OHADA\'');
+      console.log("accountingStandard column added successfully");
+    }
+    // Verify columns for events
+    const eventColumnsRes = await db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'events' AND column_name = 'assignedTo'
+    `);
+    if (eventColumnsRes.rows.length === 0) {
+      console.log("Adding missing assignedTo column to events...");
+      await db.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS "assignedTo" TEXT');
+      console.log("assignedTo column added successfully to events");
+    }
   } catch (err) {
-    console.error("Error initializing database", err);
+    console.error("Error initializing database:", err);
   }
 }
 
@@ -293,20 +362,53 @@ export async function seedDatabase(dbInstance: Pool, data: any) {
   try {
     // Ensure database is initialized before seeding
     await initializeDatabase();
+
+    // Check if any company exists
+    const companyRes = await dbInstance.query('SELECT * FROM companies LIMIT 1');
+    let defaultCompanyId = 'comp_default';
+    if (companyRes.rows.length === 0) {
+      await dbInstance.query(`
+        INSERT INTO companies (id, name, type, status, address, email, phone, website, "taxId", rccm, "idNat", "createdAt")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      `, [
+        defaultCompanyId, 
+        'SmartDesk', 
+        'real', 
+        'active', 
+        'Avenue de la Paix, Brazzaville, République du Congo',
+        'contact@smartdesk.cg',
+        '+242 06 600 00 00',
+        'https://smartdesk.cg',
+        'NIF: 1234567A',
+        'RCCM: CG-BZV-01-2024-B12-00001',
+        'ID NAT: 01-123-A4567B',
+        new Date().toISOString()
+      ]);
+    } else {
+      defaultCompanyId = companyRes.rows[0].id;
+    }
     
     // Check if super admin exists
     const res1 = await dbInstance.query('SELECT * FROM users WHERE email = $1', ['eden@tbi-center.fr']);
     if (res1.rows.length === 0) {
+      console.log('Seeding super admin: eden@tbi-center.fr');
       const hashedPassword = bcrypt.hashSync('loub@ki2014D', 10);
-      await dbInstance.query('INSERT INTO users (id, email, password, role, name) VALUES ($1, $2, $3, $4, $5)', 
-        ['super_admin_1', 'eden@tbi-center.fr', hashedPassword, 'super_admin', 'Super Admin']);
+      await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)', 
+        ['super_admin_1', defaultCompanyId, 'eden@tbi-center.fr', hashedPassword, 'super_admin', 'Super Admin']);
+      console.log('Super admin eden@tbi-center.fr seeded successfully');
+    } else {
+      console.log('Super admin eden@tbi-center.fr already exists');
     }
 
     const res2 = await dbInstance.query('SELECT * FROM users WHERE email = $1', ['missengue07@gmail.com']);
     if (res2.rows.length === 0) {
+      console.log('Seeding super admin: missengue07@gmail.com');
       const hashedPassword = bcrypt.hashSync('loub@ki2014D', 10);
-      await dbInstance.query('INSERT INTO users (id, email, password, role, name) VALUES ($1, $2, $3, $4, $5)', 
-        ['super_admin_2', 'missengue07@gmail.com', hashedPassword, 'super_admin', 'Admin User']);
+      await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)', 
+        ['super_admin_2', defaultCompanyId, 'missengue07@gmail.com', hashedPassword, 'super_admin', 'Admin User']);
+      console.log('Super admin missengue07@gmail.com seeded successfully');
+    } else {
+      console.log('Super admin missengue07@gmail.com already exists');
     }
 
     console.log('Database seeded successfully with admin accounts');

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
+  Calendar,
+  Clock,
   Users, 
   Shield,
   Package, 
@@ -16,49 +18,54 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+import { I18nProvider, useTranslation } from '../../lib/i18n';
+
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const navSections = [
-  {
-    title: 'Principal',
-    items: [
-      { icon: LayoutDashboard, label: 'Tableau de bord', path: '/' },
-    ]
-  },
-  {
-    title: 'Opérations',
-    items: [
-      { icon: Users, label: 'CRM / Clients', path: '/crm' },
-      { icon: FileText, label: 'Ventes / Factures', path: '/sales' },
-      { icon: Package, label: 'Stocks / Produits', path: '/inventory' },
-    ]
-  },
-  {
-    title: 'Management',
-    items: [
-      { icon: Briefcase, label: 'Projets', path: '/projects' },
-      { icon: UserCircle, label: 'RH / Employés', path: '/hr' },
-      { icon: Calculator, label: 'Comptabilité', path: '/accounting' },
-    ]
-  },
-  {
-    title: 'Configuration',
-    items: [
-      { icon: Shield, label: 'Utilisateurs & Rôles', path: '/users' },
-      { icon: Settings, label: 'Paramètres', path: '/settings' },
-    ]
-  }
-];
-
 export const Sidebar = ({ user }: { user?: any }) => {
+  const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const navSections = [
+    {
+      title: t('nav.section.main'),
+      items: [
+        { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/' },
+        { icon: Calendar, label: t('nav.agenda'), path: '/agenda' },
+      ]
+    },
+    {
+      title: t('nav.section.operations'),
+      items: [
+        { icon: Users, label: t('nav.crm'), path: '/crm' },
+        { icon: FileText, label: t('nav.sales'), path: '/sales' },
+        { icon: Package, label: t('nav.inventory'), path: '/inventory' },
+      ]
+    },
+    {
+      title: t('nav.section.management'),
+      items: [
+        { icon: Clock, label: t('nav.planning'), path: '/planning' },
+        { icon: Briefcase, label: t('nav.projects'), path: '/projects' },
+        { icon: UserCircle, label: t('nav.hr'), path: '/hr' },
+        { icon: Calculator, label: t('nav.accounting'), path: '/accounting' },
+      ]
+    },
+    {
+      title: t('nav.section.config'),
+      items: [
+        { icon: Shield, label: t('nav.users'), path: '/users' },
+        { icon: Settings, label: t('nav.settings'), path: '/settings' },
+      ]
+    }
+  ];
+
   const superAdminSection = {
-    title: 'Super Admin',
+    title: t('nav.superAdmin'),
     items: [
-      { icon: Shield, label: 'Tableau de bord SA', path: '/super-admin' },
+      { icon: Shield, label: t('nav.saDashboard'), path: '/super-admin' },
     ]
   };
 
@@ -68,8 +75,8 @@ export const Sidebar = ({ user }: { user?: any }) => {
 
   return (
     <aside className={cn(
-      "bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 transition-all duration-300 z-20 relative",
-      isCollapsed ? "w-20" : "w-64"
+      "bg-white border-r border-slate-200 flex flex-col h-screen sticky top-0 left-0 transition-all duration-300 z-20",
+      isCollapsed ? "w-20 shrink-0" : "w-64 shrink-0"
     )}>
       <button 
         onClick={() => setIsCollapsed(!isCollapsed)}

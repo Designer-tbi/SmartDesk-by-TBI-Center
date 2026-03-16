@@ -29,19 +29,19 @@ const StatCard = ({ title, value, change, icon: Icon, trend, delay }: any) => (
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.4, delay }}
-    className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+    className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all group"
   >
-    <div className="flex items-center justify-between mb-4">
-      <div className="p-2 bg-indigo-50 rounded-xl">
-        <Icon className="w-5 h-5 text-indigo-600" />
+    <div className="flex items-center justify-between mb-6">
+      <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+        <Icon className="w-5 h-5" />
       </div>
-      <div className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${trend === 'up' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600'}`}>
+      <div className={`flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${trend === 'up' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
         {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
         {change}
       </div>
     </div>
-    <h3 className="text-slate-500 text-sm font-medium">{title}</h3>
-    <p className="text-3xl font-black text-slate-900 mt-1 tracking-tight">{value}</p>
+    <h3 className="text-slate-400 text-[10px] font-black uppercase tracking-[0.15em] ml-0.5">{title}</h3>
+    <p className="text-4xl font-black text-slate-900 mt-2 tracking-tighter">{value}</p>
   </motion.div>
 );
 
@@ -49,11 +49,19 @@ import { useTranslation } from '../lib/i18n';
 
 export const Dashboard = ({ user }: { user: any }) => {
   const { t } = useTranslation();
-  const isUS = user?.country === 'US';
-  const currencySymbol = isUS ? '$' : '€';
+  const isUS = user?.country === 'USA';
+  const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency === 'XAF' ? 'XAF' : (isUS ? '$' : '€');
 
   const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
-  const [stats, setStats] = useState({ contacts: 0, revenue: 0, orders: 0, products: 0 });
+  const [stats, setStats] = useState({ 
+    contacts: 0, 
+    revenue: 0, 
+    orders: 0, 
+    products: 0,
+    monthlyData: [],
+    categoryData: [],
+    activities: []
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -77,10 +85,29 @@ export const Dashboard = ({ user }: { user: any }) => {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 h-full">
         <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-        <p className="text-sm font-medium text-slate-500">Chargement du tableau de bord...</p>
+        <p className="text-sm font-medium text-slate-500">{t('dashboard.loading')}</p>
       </div>
     );
   }
+
+  const chartData = stats.monthlyData.length > 0 ? stats.monthlyData : [
+    { name: t('dashboard.months.jan'), sales: 0, expenses: 0 },
+    { name: t('dashboard.months.feb'), sales: 0, expenses: 0 },
+    { name: t('dashboard.months.mar'), sales: 0, expenses: 0 },
+    { name: t('dashboard.months.apr'), sales: 0, expenses: 0 },
+    { name: t('dashboard.months.may'), sales: 0, expenses: 0 },
+    { name: t('dashboard.months.jun'), sales: 0, expenses: 0 },
+  ];
+
+  const pieData = stats.categoryData.length > 0 ? stats.categoryData.map(item => ({
+    ...item,
+    name: item.name === 'Matériel' ? t('dashboard.categories.hardware') :
+          item.name === 'Services' ? t('dashboard.categories.services') :
+          item.name === 'Logiciels' ? t('dashboard.categories.software') :
+          item.name
+  })) : [
+    { name: t('dashboard.noData'), value: 0 }
+  ];
 
   return (
     <motion.div 
@@ -89,10 +116,10 @@ export const Dashboard = ({ user }: { user: any }) => {
       className="space-y-8"
     >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title="Chiffre d'Affaires" value={`${stats.revenue.toLocaleString()} ${currencySymbol}`} change="+12.5%" icon={DollarSign} trend="up" delay={0.1} />
-        <StatCard title="Nouveaux Clients" value={stats.contacts.toString()} change="+3.2%" icon={Users} trend="up" delay={0.2} />
-        <StatCard title="Commandes" value={stats.orders.toString()} change="-2.4%" icon={Package} trend="down" delay={0.3} />
-        <StatCard title="Produits" value={stats.products.toString()} change="+1.1%" icon={TrendingUp} trend="up" delay={0.4} />
+        <StatCard title={t('dashboard.revenue')} value={`${stats.revenue.toLocaleString()} ${currencySymbol}`} change="0%" icon={DollarSign} trend="up" delay={0.1} />
+        <StatCard title={t('dashboard.contacts')} value={stats.contacts.toString()} change="0%" icon={Users} trend="up" delay={0.2} />
+        <StatCard title={t('dashboard.orders')} value={stats.orders.toString()} change="0%" icon={Package} trend="up" delay={0.3} />
+        <StatCard title={t('dashboard.products')} value={stats.products.toString()} change="0%" icon={TrendingUp} trend="up" delay={0.4} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -100,21 +127,49 @@ export const Dashboard = ({ user }: { user: any }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.5 }}
-          className="lg:col-span-2 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"
+          className="lg:col-span-2 bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm"
         >
-          <h3 className="text-lg font-bold text-slate-900 mb-6">Performance des Ventes</h3>
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-xl font-black text-slate-900 tracking-tight">{t('dashboard.salesPerformance')}</h3>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2 h-2 rounded-full bg-indigo-600"></div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.sales')}</span>
+              </div>
+              <div className="flex items-center gap-1.5 ml-4">
+                <div className="w-2 h-2 rounded-full bg-slate-200"></div>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('dashboard.expenses')}</span>
+              </div>
+            </div>
+          </div>
           <div className="h-80">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data}>
+              <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                <XAxis 
+                  dataKey="name" 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} 
+                  dy={10}
+                />
+                <YAxis 
+                  axisLine={false} 
+                  tickLine={false} 
+                  tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }} 
+                />
                 <Tooltip 
-                  contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ 
+                    backgroundColor: '#fff', 
+                    borderRadius: '16px', 
+                    border: '1px solid #f1f5f9', 
+                    boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                    padding: '12px'
+                  }}
                   cursor={{ fill: '#f8fafc' }}
                 />
-                <Bar dataKey="sales" fill="#4f46e5" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="expenses" fill="#e2e8f0" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="sales" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={32} />
+                <Bar dataKey="expenses" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={32} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -124,37 +179,42 @@ export const Dashboard = ({ user }: { user: any }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.6 }}
-          className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"
+          className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm"
         >
-          <h3 className="text-lg font-bold text-slate-900 mb-6">Répartition par Catégorie</h3>
-          <div className="h-64">
+          <h3 className="text-xl font-black text-slate-900 tracking-tight mb-8">{t('dashboard.distribution')}</h3>
+          <div className="h-64 relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={pieData}
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
+                  innerRadius={70}
+                  outerRadius={90}
+                  paddingAngle={8}
                   dataKey="value"
+                  stroke="none"
                 >
                   {pieData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip 
-                  contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                  contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)' }}
                 />
               </PieChart>
             </ResponsiveContainer>
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('common.total')}</span>
+              <span className="text-2xl font-black text-slate-900">{stats.revenue.toLocaleString()} {currencySymbol}</span>
+            </div>
           </div>
-          <div className="space-y-3 mt-4">
+          <div className="space-y-4 mt-8">
             {pieData.map((item, index) => (
-              <div key={item.name} className="flex items-center justify-between text-sm">
+              <div key={item.name} className="flex items-center justify-between group cursor-default">
                 <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: COLORS[index] }}></div>
-                  <span className="text-slate-600 font-medium">{item.name}</span>
+                  <div className="w-2 h-2 rounded-full shadow-sm transition-transform group-hover:scale-150" style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
+                  <span className="text-slate-500 text-xs font-bold uppercase tracking-wider">{item.name}</span>
                 </div>
-                <span className="font-bold text-slate-900">{item.value} {currencySymbol}</span>
+                <span className="font-black text-slate-900 text-sm">{item.value.toLocaleString()} {currencySymbol}</span>
               </div>
             ))}
           </div>
@@ -167,30 +227,39 @@ export const Dashboard = ({ user }: { user: any }) => {
         transition={{ duration: 0.4, delay: 0.7 }}
         className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm"
       >
-        <h3 className="text-lg font-bold text-slate-900 mb-6">Activités Récentes</h3>
+        <h3 className="text-lg font-bold text-slate-900 mb-6">{t('dashboard.recentActivity')}</h3>
         <div className="space-y-4">
-          {[
-            { user: 'Jean Dupont', action: 'a payé la facture', target: 'INV-2024-001', time: 'Il y a 2 heures', amount: '1,200 {currencySymbol}' },
-            { user: 'Alice Bernard', action: 'a mis à jour le projet', target: 'Refonte Site Web', time: 'Il y a 4 heures' },
-            { user: 'Marie Curie', action: 'nouveau lead enregistré', target: 'Labo X', time: 'Il y a 6 heures' },
-          ].map((activity, i) => (
-            <div key={i} className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold shadow-sm">
-                  {activity.user.charAt(0)}
-                </div>
-                <div>
-                  <p className="text-sm">
-                    <span className="font-bold text-slate-900">{activity.user}</span>
-                    <span className="text-slate-500 mx-1.5">{activity.action}</span>
-                    <span className="font-semibold text-indigo-600">{activity.target}</span>
-                  </p>
-                  <p className="text-xs text-slate-400 mt-1 font-medium">{activity.time}</p>
+          {stats.activities.length > 0 ? (
+            stats.activities.map((activity: any, i) => (
+              <div key={i} className="flex items-center justify-between p-4 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-100 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold shadow-sm">
+                    {activity.user_name?.charAt(0) || 'A'}
+                  </div>
+                  <div>
+                    <p className="text-sm">
+                      <span className="font-bold text-slate-900">{activity.user_name || t('common.system')}</span>
+                      <span className="text-slate-500 mx-1.5">{activity.action}</span>
+                      <span className="font-semibold text-indigo-600">{activity.details}</span>
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1 font-medium">
+                      {new Date(activity.createdAt).toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      })}
+                    </p>
+                  </div>
                 </div>
               </div>
-              {activity.amount && <span className="text-sm font-black text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full">+{activity.amount}</span>}
+            ))
+          ) : (
+            <div className="text-center py-10 text-slate-500 italic">
+              {t('dashboard.noRecentActivity')}
             </div>
-          ))}
+          )}
         </div>
       </motion.div>
     </motion.div>
