@@ -7,7 +7,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 
 import { useTranslation } from '../lib/i18n';
 
-export const Settings = ({ user }: { user: any }) => {
+export const Settings = ({ user, setUser }: { user: any, setUser: (user: any) => void }) => {
   const { t, setLanguage } = useTranslation();
   const [company, setCompany] = useState<CompanyInfo>(MOCK_COMPANY);
   const [isSaved, setIsSaved] = useState(false);
@@ -54,9 +54,20 @@ export const Settings = ({ user }: { user: any }) => {
       });
       
       if (response.ok) {
+        const updatedCompany = await response.json();
         setIsSaved(true);
-        if (company.language) {
-          setLanguage(company.language as any);
+        
+        // Update global user state with new company info
+        setUser({
+          ...user,
+          country: updatedCompany.country,
+          state: updatedCompany.state,
+          language: updatedCompany.language,
+          currency: updatedCompany.currency
+        });
+
+        if (updatedCompany.language) {
+          setLanguage(updatedCompany.language as any);
         }
         setTimeout(() => setIsSaved(false), 3000);
       } else {

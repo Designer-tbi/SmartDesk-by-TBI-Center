@@ -120,7 +120,7 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
           <Route path="/agenda" element={<Agenda />} />
           <Route path="/planning" element={<Planning />} />
           <Route path="/users" element={<Users />} />
-          <Route path="/settings" element={<Settings user={user} />} />
+          <Route path="/settings" element={<Settings user={user} setUser={setUser} />} />
           {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
         </Routes>
       </PageWrapper>

@@ -23,7 +23,7 @@ export const Sales = ({ user }: { user: any }) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<'Tous' | 'Invoice' | 'Quote'>('Tous');
+  const [filter, setFilter] = useState<'all' | 'Invoice' | 'Quote'>('all');
   const [quoteSubTab, setQuoteSubTab] = useState<'list' | 'templates' | 'signed'>('list');
   const [templates, setTemplates] = useState<QuoteTemplate[]>([]);
   
@@ -41,6 +41,9 @@ export const Sales = ({ user }: { user: any }) => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const { language } = useTranslation();
+  const dateLocale = language === 'fr' ? 'fr-FR' : 'en-US';
+
   useEffect(() => {
     fetchData();
   }, []);
@@ -80,7 +83,7 @@ export const Sales = ({ user }: { user: any }) => {
     description: ''
   });
 
-  const filteredInvoices = invoices.filter(inv => filter === 'Tous' ? true : inv.type === filter);
+  const filteredInvoices = invoices.filter(inv => filter === 'all' ? true : inv.type === filter);
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -341,7 +344,7 @@ export const Sales = ({ user }: { user: any }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
-            {(['Tous', 'Invoice', 'Quote'] as const).map((f) => (
+            {(['all', 'Invoice', 'Quote'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => {
@@ -354,7 +357,7 @@ export const Sales = ({ user }: { user: any }) => {
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
-                {f === 'Tous' ? t('sales.all') : f === 'Invoice' ? t('sales.invoices') : t('sales.quotes')}
+                {f === 'all' ? t('sales.all') : f === 'Invoice' ? t('sales.invoices') : t('sales.quotes')}
               </button>
             ))}
           </div>
@@ -479,8 +482,8 @@ export const Sales = ({ user }: { user: any }) => {
                         {getContactName(invoice.contactId)}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-slate-900">{new Date(invoice.date).toLocaleDateString('fr-FR')}</div>
-                        <div className="text-xs text-slate-500">{new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</div>
+                        <div className="text-sm text-slate-900">{new Date(invoice.date).toLocaleDateString(dateLocale)}</div>
+                        <div className="text-xs text-slate-500">{new Date(invoice.dueDate).toLocaleDateString(dateLocale)}</div>
                       </td>
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">
                         {invoice.total.toLocaleString()} {currencySymbol}

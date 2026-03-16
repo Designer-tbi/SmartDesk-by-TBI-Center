@@ -13,7 +13,7 @@ export const CRM = ({ user }: { user: any }) => {
   
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<'Tous' | 'Client' | 'Lead'>('Tous');
+  const [filter, setFilter] = useState<'all' | 'Client' | 'Lead'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'recent' | 'alpha'>('recent');
@@ -59,7 +59,7 @@ export const CRM = ({ user }: { user: any }) => {
 
   const filteredContacts = contacts
     .filter(contact => {
-      const matchesFilter = filter === 'Tous' ? true : contact.status === filter;
+      const matchesFilter = filter === 'all' ? true : contact.status === filter;
       const matchesSearch = contact.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                            contact.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
                            contact.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -208,7 +208,7 @@ export const CRM = ({ user }: { user: any }) => {
           </div>
           
           <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
-            {(['Tous', 'Client', 'Lead'] as const).map((f) => (
+            {(['all', 'Client', 'Lead'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -218,7 +218,7 @@ export const CRM = ({ user }: { user: any }) => {
                     : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
-                {f === 'Tous' ? t('crm.all') : f === 'Client' ? t('crm.client') + 's' : t('crm.lead') + 's'}
+                {f === 'all' ? t('crm.all') : f === 'Client' ? t('crm.client') + 's' : t('crm.lead') + 's'}
               </button>
             ))}
           </div>
