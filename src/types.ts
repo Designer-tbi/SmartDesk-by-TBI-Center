@@ -183,9 +183,14 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  roleId: string;
+  role: string;
+  companyId?: string;
   status: 'Active' | 'Inactive';
   lastLogin?: string;
+  companyLogo?: string;
+  companyName?: string;
+  language?: string;
+  currency?: string;
 }
 
 export interface Role {

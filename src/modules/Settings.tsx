@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { MOCK_COMPANY } from '../constants';
-import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen } from 'lucide-react';
+import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, Upload } from 'lucide-react';
 import { CompanyInfo } from '../types';
 import { apiFetch } from '../lib/api';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -118,6 +118,21 @@ export const Settings = ({ user, setUser }: { user: any, setUser: (user: any) =>
     }
   };
 
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Le fichier est trop volumineux (max 5Mo)");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setCompany({ ...company, logo: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
@@ -142,15 +157,41 @@ export const Settings = ({ user, setUser }: { user: any, setUser: (user: any) =>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-1.5">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.logoUrl')}</label>
-              <div className="relative">
-                <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input
-                  type="text"
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                  value={company.logo || ''}
-                  onChange={(e) => setCompany({ ...company, logo: e.target.value })}
-                  placeholder="https://example.com/logo.png"
-                />
+              <div className="flex items-center gap-4">
+                <div className="relative w-24 h-24 bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden flex items-center justify-center group">
+                  {company.logo ? (
+                    <img 
+                      src={company.logo} 
+                      alt="Logo" 
+                      className="w-full h-full object-contain"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <Building2 className="w-8 h-8 text-slate-300" />
+                  )}
+                  <label className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                    <Upload className="w-6 h-6 text-white" />
+                    <input
+                      type="file"
+                      className="hidden"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                    />
+                  </label>
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="relative">
+                    <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                    <input
+                      type="text"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      value={company.logo || ''}
+                      onChange={(e) => setCompany({ ...company, logo: e.target.value })}
+                      placeholder="https://example.com/logo.png"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-400 italic">Glissez une image ou collez une URL</p>
+                </div>
               </div>
             </div>
 

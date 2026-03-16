@@ -101,8 +101,23 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
         <div className="p-6 flex-1 overflow-y-auto overflow-x-hidden">
           <div className={cn("flex items-center justify-between mb-10", isCollapsed ? "lg:justify-center" : "")}>
             <div className={cn("flex items-center gap-3", isCollapsed ? "lg:justify-center" : "")}>
-              <div className="w-8 h-8 shrink-0 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">S</div>
-              {(!isCollapsed || isOpen) && <span className="text-xl font-bold text-slate-900 tracking-tight whitespace-nowrap">SmartDesk</span>}
+              <div className="w-8 h-8 shrink-0 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold overflow-hidden">
+                {user?.companyLogo ? (
+                  <img 
+                    src={user.companyLogo} 
+                    alt="Logo" 
+                    className="w-full h-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  user?.companyName?.charAt(0) || 'S'
+                )}
+              </div>
+              {(!isCollapsed || isOpen) && (
+                <span className="text-xl font-bold text-slate-900 tracking-tight whitespace-nowrap">
+                  {user?.companyName || 'SmartDesk'}
+                </span>
+              )}
             </div>
             {isOpen && (
               <button onClick={onClose} className="lg:hidden p-2 text-slate-400 hover:text-slate-600">

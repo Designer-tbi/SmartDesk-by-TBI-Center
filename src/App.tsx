@@ -46,7 +46,7 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
   }, [location.pathname]);
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
+    <div className="flex min-h-screen bg-indigo-50/30">
       <Sidebar user={user} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex-1 flex flex-col min-w-0">
         <Header title={getTitle(location.pathname)} onLogout={onLogout} onMenuClick={() => setIsSidebarOpen(true)} />

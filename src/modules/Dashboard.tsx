@@ -22,7 +22,7 @@ const pieData = [
   { name: 'Logiciels', value: 300 },
 ];
 
-const COLORS = ['#4f46e5', '#10b981', '#f59e0b'];
+const COLORS = ['#0066ff', '#10b981', '#f59e0b'];
 
 const StatCard = ({ title, value, change, icon: Icon, trend, delay }: any) => (
   <motion.div 
@@ -168,7 +168,7 @@ export const Dashboard = ({ user }: { user: any }) => {
                   }}
                   cursor={{ fill: '#f8fafc' }}
                 />
-                <Bar dataKey="sales" fill="#4f46e5" radius={[4, 4, 0, 0]} barSize={32} />
+                <Bar dataKey="sales" fill="#0066ff" radius={[4, 4, 0, 0]} barSize={32} />
                 <Bar dataKey="expenses" fill="#e2e8f0" radius={[4, 4, 0, 0]} barSize={32} />
               </BarChart>
             </ResponsiveContainer>

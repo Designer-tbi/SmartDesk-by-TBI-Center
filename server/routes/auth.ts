@@ -23,6 +23,8 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
       }
       req.user!.language = company.language || 'fr';
       req.user!.currency = company.currency || 'XAF';
+      req.user!.companyLogo = company.logo;
+      req.user!.companyName = company.name;
     }
     res.json(req.user);
   } catch (error) {
@@ -124,7 +126,9 @@ authRouter.post('/login', async (req, res, next) => {
         country: company?.country || 'FR',
         state: company?.state || null,
         language: company?.language || 'fr',
-        currency: company?.currency || 'XAF'
+        currency: company?.currency || 'XAF',
+        companyLogo: company?.logo || null,
+        companyName: company?.name || 'SmartDesk'
       } 
     });
   } catch (error) {

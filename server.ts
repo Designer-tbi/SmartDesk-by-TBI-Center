@@ -34,7 +34,8 @@ const wss = new WebSocketServer({ server });
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // WebSocket broadcast helper
 export const broadcast = (data: any) => {

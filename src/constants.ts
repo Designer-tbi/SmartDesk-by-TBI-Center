@@ -153,9 +153,9 @@ export const MOCK_ROLES: Role[] = [
 ];
 
 export const MOCK_USERS: User[] = [
-  { id: '1', name: 'Admin User', email: 'admin@smartdesk.cg', roleId: '1', status: 'Active', lastLogin: '2024-03-12 09:00' },
-  { id: '2', name: 'Jean Mvoula', email: 'jean.mvoula@smartdesk.cg', roleId: '2', status: 'Active', lastLogin: '2024-03-11 15:30' },
-  { id: '3', name: 'Marie Oko', email: 'marie.oko@smartdesk.cg', roleId: '3', status: 'Active', lastLogin: '2024-03-12 08:45' },
+  { id: '1', name: 'Admin User', email: 'admin@smartdesk.cg', role: '1', status: 'Active', lastLogin: '2024-03-12 09:00' },
+  { id: '2', name: 'Jean Mvoula', email: 'jean.mvoula@smartdesk.cg', role: '2', status: 'Active', lastLogin: '2024-03-11 15:30' },
+  { id: '3', name: 'Marie Oko', email: 'marie.oko@smartdesk.cg', role: '3', status: 'Active', lastLogin: '2024-03-12 08:45' },
 ];
 
 export const MOCK_PERMISSIONS: Permission[] = [

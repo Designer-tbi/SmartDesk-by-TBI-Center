@@ -7,6 +7,8 @@ import { ConfirmModal } from '../components/ConfirmModal';
 
 export const SuperAdmin = () => {
   const [activeTab, setActiveTab] = useState<'companies' | 'users' | 'activity'>('companies');
+  const [companyFilter, setCompanyFilter] = useState<'all' | 'real' | 'demo'>('all');
+  const [userSearch, setUserSearch] = useState('');
   const [stats, setStats] = useState<any>(null);
   const [companies, setCompanies] = useState<any[]>([]);
   const [allUsers, setAllUsers] = useState<any[]>([]);
@@ -307,11 +309,39 @@ export const SuperAdmin = () => {
             exit={{ opacity: 0, y: -10 }}
             className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
           >
-            <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Liste des Entreprises</h2>
+            <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex flex-col gap-4">
+                <h2 className="text-lg font-bold text-slate-900">Liste des Entreprises</h2>
+                <div className="flex bg-slate-100 p-1 rounded-lg w-fit">
+                  <button 
+                    onClick={() => setCompanyFilter('all')}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                      companyFilter === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Toutes
+                  </button>
+                  <button 
+                    onClick={() => setCompanyFilter('real')}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                      companyFilter === 'real' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Réelles
+                  </button>
+                  <button 
+                    onClick={() => setCompanyFilter('demo')}
+                    className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
+                      companyFilter === 'demo' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Démo
+                  </button>
+                </div>
+              </div>
               <button 
                 onClick={() => handleOpenModal()}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2"
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2 self-start sm:self-center"
               >
                 <Plus className="w-4 h-4" />
                 Nouvelle Entreprise
@@ -329,7 +359,9 @@ export const SuperAdmin = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {companies.map((company) => (
+                  {companies
+                    .filter(c => companyFilter === 'all' || c.type === companyFilter)
+                    .map((company) => (
                     <tr key={company.id} className="hover:bg-slate-50">
                       <td className="px-6 py-4 font-medium text-slate-900">{company.name}</td>
                       <td className="px-6 py-4">
@@ -368,10 +400,11 @@ export const SuperAdmin = () => {
                           </button>
                           <button 
                             onClick={() => handleDeleteCompany(company.id)}
-                            className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
                             title="Supprimer l'entreprise"
                           >
                             <Trash2 className="w-4 h-4" />
+                            <span className="hidden sm:inline">Supprimer</span>
                           </button>
                         </div>
                       </td>
@@ -391,8 +424,18 @@ export const SuperAdmin = () => {
             exit={{ opacity: 0, y: -10 }}
             className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
           >
-            <div className="p-6 border-b border-slate-200">
+            <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <h2 className="text-lg font-bold text-slate-900">Tous les Utilisateurs</h2>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Rechercher un utilisateur..."
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                />
+              </div>
             </div>
             <div className="overflow-x-auto scrollbar-hide">
               <table className="w-full text-left text-sm min-w-[1000px]">
@@ -407,7 +450,13 @@ export const SuperAdmin = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {allUsers.map((user) => (
+                  {allUsers
+                    .filter(u => 
+                      u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
+                      u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+                      (u.companyName && u.companyName.toLowerCase().includes(userSearch.toLowerCase()))
+                    )
+                    .map((user) => (
                     <tr key={user.id} className="hover:bg-slate-50">
                       <td className="px-6 py-4 font-medium text-slate-900">{user.name}</td>
                       <td className="px-6 py-4 text-slate-500">{user.email}</td>
@@ -426,10 +475,11 @@ export const SuperAdmin = () => {
                       <td className="px-6 py-4 text-right">
                         <button 
                           onClick={() => handleDeleteUser(user.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium ml-auto"
                           disabled={user.role === 'super_admin'}
                         >
                           <Trash2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">Supprimer</span>
                         </button>
                       </td>
                     </tr>
@@ -599,9 +649,10 @@ export const SuperAdmin = () => {
                         <td className="px-4 py-3 text-right">
                           <button 
                             onClick={() => handleDeleteUser(u.id)}
-                            className="text-red-500 hover:text-red-700"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium ml-auto"
                           >
                             <Trash2 className="w-4 h-4" />
+                            <span className="hidden sm:inline">Supprimer</span>
                           </button>
                         </td>
                       </tr>

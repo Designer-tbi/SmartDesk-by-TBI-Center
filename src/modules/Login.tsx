@@ -97,7 +97,7 @@ export const Login = ({ onLogin }: LoginProps) => {
           referrerPolicy="no-referrer"
         />
         {/* Glowing Points */}
-        <motion.div className="absolute top-[20%] left-[20%] w-3 h-3 bg-indigo-400 rounded-full shadow-[0_0_20px_#818cf8]" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 3, repeat: Infinity }} />
+        <motion.div className="absolute top-[20%] left-[20%] w-3 h-3 bg-indigo-400 rounded-full shadow-[0_0_20px_#0066ff]" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 3, repeat: Infinity }} />
         <motion.div className="absolute top-[60%] left-[50%] w-4 h-4 bg-emerald-400 rounded-full shadow-[0_0_20px_#34d399]" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 4, repeat: Infinity, delay: 1 }} />
         <motion.div className="absolute bottom-[30%] right-[30%] w-2 h-2 bg-amber-400 rounded-full shadow-[0_0_20px_#fbbf24]" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: 0.5 }} />
       </div>
@@ -107,7 +107,7 @@ export const Login = ({ onLogin }: LoginProps) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="bg-white rounded-3xl shadow-2xl shadow-indigo-900/20 border border-slate-100 overflow-hidden"
+          className="bg-white rounded-3xl shadow-2xl shadow-indigo-600/10 border border-slate-100 overflow-hidden"
         >
           <div className="p-8 pb-6 text-center">
             <motion.div 
