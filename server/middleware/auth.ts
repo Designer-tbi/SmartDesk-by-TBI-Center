@@ -3,12 +3,10 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
 
-export const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
-  console.log('requireAuth: authHeader =', authHeader);
-
+  
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    console.log('requireAuth: Missing or invalid token');
     return res.status(401).json({ error: 'Unauthorized: Missing or invalid token' });
   }
 
@@ -16,6 +14,23 @@ export const requireAuth = (req: Request, res: Response, next: NextFunction) => 
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;
+    
+    // Validate session in database
+    const sessionRes = await req.db.query(
+      'SELECT * FROM sessions WHERE token = $1 AND "userId" = $2 AND "expiresAt" > $3',
+      [token, decoded.id, new Date().toISOString()]
+    );
+
+    if (sessionRes.rows.length === 0) {
+      return res.status(401).json({ error: 'Unauthorized: Session expired or invalid' });
+    }
+
+    // Update last activity
+    await req.db.query(
+      'UPDATE sessions SET "lastActivity" = $1 WHERE token = $2',
+      [new Date().toISOString(), token]
+    );
+
     req.user = decoded;
     next();
   } catch (error) {
@@ -41,6 +56,11 @@ export const requireCompany = async (req: Request, res: Response, next: NextFunc
   }
 
   if (req.user.role === 'super_admin') {
+    const targetCompanyId = (req.query.companyId as string) || (req.body && req.body.companyId);
+    if (targetCompanyId) {
+      req.user.companyId = targetCompanyId;
+      return next();
+    }
     try {
       // For super admins without a companyId, try to find the first company
       const companiesRes = await req.db.query('SELECT id FROM companies LIMIT 1');

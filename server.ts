@@ -34,8 +34,7 @@ const wss = new WebSocketServer({ server });
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(express.json());
 
 // WebSocket broadcast helper
 export const broadcast = (data: any) => {
@@ -61,20 +60,26 @@ export const logActivity = async (userId: string | undefined, companyId: string 
 };
 
 // Seed database with demo data
-seedDatabase(db, mockData);
+await seedDatabase(db, mockData);
 
 // Attach database instance to request
 app.use(dbMiddleware);
 
 // API Routes
 // ... existing routes ...
-app.get('/api/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    environment: process.env.NODE_ENV,
-    vercel: !!process.env.VERCEL,
-    database: connectionString.includes('neon.tech') ? 'neon' : 'custom'
-  });
+app.get('/api/health', async (req, res) => {
+  try {
+    const tablesRes = await db.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
+    res.json({ 
+      status: 'ok', 
+      environment: process.env.NODE_ENV,
+      vercel: !!process.env.VERCEL,
+      database: connectionString.includes('neon.tech') ? 'neon' : 'custom',
+      tables: tablesRes.rows.map(r => r.table_name)
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', error: String(err) });
+  }
 });
 
 app.use('/api/contacts', contactsRouter);

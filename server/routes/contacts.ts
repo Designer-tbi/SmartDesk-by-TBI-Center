@@ -33,7 +33,7 @@ contactsRouter.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, email, phone, company, role, notes, status, lastContact } = req.body;
-    await req.db.query('UPDATE contacts SET name = $1, email = $2, phone = $3, company = $4, role = $5, notes = $6, status = $7, "lastContact" = $8 WHERE id = $9 AND "companyId" = $10',
+    await req.db.query('UPDATE contacts SET name = $1, email = $2, phone = $3, company = $4, role = $5, notes = $6, status = $7, "lastContact" = $8, "updatedAt" = NOW() WHERE id = $9 AND "companyId" = $10',
       [name, email, phone, company, role, notes, status, lastContact, id, req.user!.companyId]);
     
     await logActivity(req.user!.id, req.user!.companyId, 'UPDATE_CONTACT', `Contact mis à jour: ${name}`);

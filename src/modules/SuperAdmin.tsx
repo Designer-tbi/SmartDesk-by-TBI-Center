@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useTranslation } from 'react-i18next';
 import { apiFetch } from '../lib/api';
 import { useWebSocket } from '../lib/websocket';
 import { Building2, Users, Activity, Trash2, Edit2, Plus, CheckCircle2, XCircle, X, Search, Clock } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const SuperAdmin = () => {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'companies' | 'users' | 'activity'>('companies');
   const [companyFilter, setCompanyFilter] = useState<'all' | 'real' | 'demo'>('all');
   const [userSearch, setUserSearch] = useState('');
@@ -108,10 +110,10 @@ export const SuperAdmin = () => {
         fetchCompanyUsers(selectedCompany.id);
         fetchData(); // Update total users count
       } else {
-        alert('Erreur lors de la création de l\'utilisateur.');
+        alert(t('admin.error.createUser'));
       }
     } catch (err) {
-      alert('Erreur de connexion.');
+      alert(t('admin.error.connection'));
     }
   };
 
@@ -128,7 +130,7 @@ export const SuperAdmin = () => {
         fetchData();
       }
     } catch (err) {
-      alert('Erreur de connexion.');
+      alert(t('admin.error.connection'));
     } finally {
       setUserToDelete(null);
     }
@@ -148,10 +150,10 @@ export const SuperAdmin = () => {
       if (res.ok) {
         fetchData();
       } else {
-        alert('Erreur lors de la suppression.');
+        alert(t('admin.error.delete'));
       }
     } catch (err) {
-      alert('Erreur de connexion.');
+      alert(t('admin.error.connection'));
     } finally {
       setCompanyToDelete(null);
     }
@@ -208,15 +210,15 @@ export const SuperAdmin = () => {
         setIsModalOpen(false);
         fetchData();
       } else {
-        alert('Erreur lors de l\'enregistrement.');
+        alert(t('admin.error.save'));
       }
     } catch (err) {
-      alert('Erreur de connexion.');
+      alert(t('admin.error.connection'));
     }
   };
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64">Chargement...</div>;
+    return <div className="flex items-center justify-center h-64">{t('common.loading')}</div>;
   }
 
   if (error) {
@@ -230,7 +232,7 @@ export const SuperAdmin = () => {
       className="space-y-6"
     >
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-slate-900">Tableau de Bord Super Admin</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t('admin.dashboard')}</h1>
         <div className="flex bg-slate-100 p-1 rounded-lg">
           <button 
             onClick={() => setActiveTab('companies')}
@@ -238,7 +240,7 @@ export const SuperAdmin = () => {
               activeTab === 'companies' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Entreprises
+            {t('admin.companies')}
           </button>
           <button 
             onClick={() => setActiveTab('users')}
@@ -246,7 +248,7 @@ export const SuperAdmin = () => {
               activeTab === 'users' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Utilisateurs
+            {t('admin.users')}
           </button>
           <button 
             onClick={() => setActiveTab('activity')}
@@ -254,7 +256,7 @@ export const SuperAdmin = () => {
               activeTab === 'activity' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            Activité
+            {t('admin.activity')}
           </button>
         </div>
       </div>
@@ -268,7 +270,7 @@ export const SuperAdmin = () => {
               <Building2 className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Entreprises Réelles</p>
+              <p className="text-sm font-medium text-slate-500">{t('admin.realCompanies')}</p>
               <h3 className="text-2xl font-bold text-slate-900">{stats?.realCompanies || 0}</h3>
             </div>
           </div>
@@ -280,7 +282,7 @@ export const SuperAdmin = () => {
               <Activity className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Entreprises Démo</p>
+              <p className="text-sm font-medium text-slate-500">{t('admin.demoCompanies')}</p>
               <h3 className="text-2xl font-bold text-slate-900">{stats?.demoCompanies || 0}</h3>
             </div>
           </div>
@@ -292,7 +294,7 @@ export const SuperAdmin = () => {
               <Users className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-sm font-medium text-slate-500">Total Utilisateurs</p>
+              <p className="text-sm font-medium text-slate-500">{t('admin.totalUsers')}</p>
               <h3 className="text-2xl font-bold text-slate-900">{stats?.totalUsers || 0}</h3>
             </div>
           </div>
@@ -311,7 +313,7 @@ export const SuperAdmin = () => {
           >
             <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex flex-col gap-4">
-                <h2 className="text-lg font-bold text-slate-900">Liste des Entreprises</h2>
+                <h2 className="text-lg font-bold text-slate-900">{t('admin.companiesList')}</h2>
                 <div className="flex bg-slate-100 p-1 rounded-lg w-fit">
                   <button 
                     onClick={() => setCompanyFilter('all')}
@@ -319,7 +321,7 @@ export const SuperAdmin = () => {
                       companyFilter === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Toutes
+                    {t('admin.all')}
                   </button>
                   <button 
                     onClick={() => setCompanyFilter('real')}
@@ -327,7 +329,7 @@ export const SuperAdmin = () => {
                       companyFilter === 'real' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Réelles
+                    {t('admin.real')}
                   </button>
                   <button 
                     onClick={() => setCompanyFilter('demo')}
@@ -335,7 +337,7 @@ export const SuperAdmin = () => {
                       companyFilter === 'demo' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Démo
+                    {t('admin.demo')}
                   </button>
                 </div>
               </div>
@@ -344,18 +346,18 @@ export const SuperAdmin = () => {
                 className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2 self-start sm:self-center"
               >
                 <Plus className="w-4 h-4" />
-                Nouvelle Entreprise
+                {t('admin.newCompany')}
               </button>
             </div>
             <div className="overflow-x-auto scrollbar-hide">
               <table className="w-full text-left text-sm min-w-[800px]">
                 <thead className="bg-slate-50 text-slate-500 font-medium">
                   <tr>
-                    <th className="px-6 py-4">Nom</th>
-                    <th className="px-6 py-4">Type</th>
-                    <th className="px-6 py-4">Statut</th>
-                    <th className="px-6 py-4">Création</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
+                    <th className="px-6 py-4">{t('admin.name')}</th>
+                    <th className="px-6 py-4">{t('admin.type')}</th>
+                    <th className="px-6 py-4">{t('admin.status')}</th>
+                    <th className="px-6 py-4">{t('admin.creation')}</th>
+                    <th className="px-6 py-4 text-right">{t('admin.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -368,7 +370,7 @@ export const SuperAdmin = () => {
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                           company.type === 'real' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'
                         }`}>
-                          {company.type === 'real' ? 'Réelle' : 'Démo'}
+                          {company.type === 'real' ? t('admin.real') : t('admin.demo')}
                         </span>
                       </td>
                       <td className="px-6 py-4">
@@ -376,7 +378,7 @@ export const SuperAdmin = () => {
                           company.status === 'active' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-800'
                         }`}>
                           {company.status === 'active' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
-                          {company.status === 'active' ? 'Actif' : 'Inactif'}
+                          {company.status === 'active' ? t('admin.active') : t('admin.inactive')}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-slate-500">
@@ -387,24 +389,24 @@ export const SuperAdmin = () => {
                           <button 
                             onClick={() => handleOpenUserModal(company)}
                             className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
-                            title="Gérer les utilisateurs"
+                            title={t('admin.manageUsers')}
                           >
                             <Users className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleOpenModal(company)}
                             className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
-                            title="Modifier l'entreprise"
+                            title={t('admin.editCompany')}
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleDeleteCompany(company.id)}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium"
-                            title="Supprimer l'entreprise"
+                            title={t('admin.deleteCompany')}
                           >
                             <Trash2 className="w-4 h-4" />
-                            <span className="hidden sm:inline">Supprimer</span>
+                            <span className="hidden sm:inline">{t('common.delete')}</span>
                           </button>
                         </div>
                       </td>
@@ -425,12 +427,12 @@ export const SuperAdmin = () => {
             className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
           >
             <div className="p-6 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <h2 className="text-lg font-bold text-slate-900">Tous les Utilisateurs</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t('admin.allUsers')}</h2>
               <div className="relative w-full sm:w-64">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Rechercher un utilisateur..."
+                  placeholder={t('admin.searchUser')}
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
                   className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
@@ -441,12 +443,12 @@ export const SuperAdmin = () => {
               <table className="w-full text-left text-sm min-w-[1000px]">
                 <thead className="bg-slate-50 text-slate-500 font-medium">
                   <tr>
-                    <th className="px-6 py-4">Nom</th>
-                    <th className="px-6 py-4">Email</th>
-                    <th className="px-6 py-4">Entreprise</th>
-                    <th className="px-6 py-4">Rôle</th>
-                    <th className="px-6 py-4">Dernière Connexion</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
+                    <th className="px-6 py-4">{t('admin.name')}</th>
+                    <th className="px-6 py-4">{t('admin.email')}</th>
+                    <th className="px-6 py-4">{t('admin.company')}</th>
+                    <th className="px-6 py-4">{t('admin.role')}</th>
+                    <th className="px-6 py-4">{t('admin.lastLogin')}</th>
+                    <th className="px-6 py-4 text-right">{t('admin.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
@@ -460,7 +462,7 @@ export const SuperAdmin = () => {
                     <tr key={user.id} className="hover:bg-slate-50">
                       <td className="px-6 py-4 font-medium text-slate-900">{user.name}</td>
                       <td className="px-6 py-4 text-slate-500">{user.email}</td>
-                      <td className="px-6 py-4 text-slate-500">{user.companyName || 'N/A'}</td>
+                      <td className="px-6 py-4 text-slate-500">{user.companyName || t('common.na')}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                           user.role === 'super_admin' ? 'bg-purple-100 text-purple-800' : 
@@ -470,7 +472,7 @@ export const SuperAdmin = () => {
                         </span>
                       </td>
                       <td className="px-6 py-4 text-slate-500">
-                        {user.lastLogin ? new Date(user.lastLogin).toLocaleString('fr-FR') : 'Jamais'}
+                        {user.lastLogin ? new Date(user.lastLogin).toLocaleString('fr-FR') : t('admin.never')}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button 
@@ -479,7 +481,7 @@ export const SuperAdmin = () => {
                           disabled={user.role === 'super_admin'}
                         >
                           <Trash2 className="w-4 h-4" />
-                          <span className="hidden sm:inline">Supprimer</span>
+                          <span className="hidden sm:inline">{t('common.delete')}</span>
                         </button>
                       </td>
                     </tr>
@@ -499,10 +501,10 @@ export const SuperAdmin = () => {
             className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
           >
             <div className="p-6 border-b border-slate-200 flex items-center justify-between">
-              <h2 className="text-lg font-bold text-slate-900">Journal d'Activité en Temps Réel</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t('admin.activityLog')}</h2>
               <div className="flex items-center gap-2 text-xs text-emerald-600 font-medium">
                 <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                Live
+                {t('common.live')}
               </div>
             </div>
             <div className="p-6">
@@ -518,7 +520,7 @@ export const SuperAdmin = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-4">
                         <p className="text-sm font-medium text-slate-900">
-                          {log.userName || 'Système'}
+                          {log.userName || t('admin.system')}
                           <span className="mx-2 text-slate-300">•</span>
                           <span className="text-slate-500 font-normal">{log.action}</span>
                         </p>
@@ -529,7 +531,7 @@ export const SuperAdmin = () => {
                       <p className="text-sm text-slate-500 mt-1">{log.details}</p>
                       <div className="mt-2 flex items-center gap-2">
                         <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-50 text-slate-500 text-[10px] font-medium border border-slate-100">
-                          {log.companyName || 'Global'}
+                          {log.companyName || t('admin.global')}
                         </span>
                       </div>
                     </div>
@@ -537,7 +539,7 @@ export const SuperAdmin = () => {
                 ))}
                 {activityLog.length === 0 && (
                   <div className="text-center py-12 text-slate-500">
-                    Aucune activité récente.
+                    {t('admin.noRecentActivity')}
                   </div>
                 )}
               </div>
@@ -556,7 +558,7 @@ export const SuperAdmin = () => {
           >
             <div className="flex items-center justify-between p-6 border-b border-slate-100 shrink-0">
               <h2 className="text-lg font-bold text-slate-900">
-                Utilisateurs : {selectedCompany.name}
+                {t('admin.users')} : {selectedCompany.name}
               </h2>
               <button 
                 onClick={() => setIsUserModalOpen(false)}
@@ -569,10 +571,10 @@ export const SuperAdmin = () => {
             <div className="p-6 overflow-y-auto flex-1 space-y-6">
               {/* Add User Form */}
               <form onSubmit={handleCreateUser} className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
-                <h3 className="text-sm font-bold text-slate-900">Ajouter un utilisateur</h3>
+                <h3 className="text-sm font-bold text-slate-900">{t('admin.addUser')}</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700">Nom complet</label>
+                    <label className="text-xs font-medium text-slate-700">{t('admin.fullName')}</label>
                     <input
                       type="text"
                       required
@@ -582,7 +584,7 @@ export const SuperAdmin = () => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700">Email</label>
+                    <label className="text-xs font-medium text-slate-700">{t('admin.email')}</label>
                     <input
                       type="email"
                       required
@@ -592,7 +594,7 @@ export const SuperAdmin = () => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700">Mot de passe</label>
+                    <label className="text-xs font-medium text-slate-700">{t('admin.password')}</label>
                     <input
                       type="password"
                       required
@@ -602,14 +604,14 @@ export const SuperAdmin = () => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium text-slate-700">Rôle</label>
+                    <label className="text-xs font-medium text-slate-700">{t('admin.role')}</label>
                     <select
                       value={newUserForm.role}
                       onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     >
-                      <option value="admin">Administrateur</option>
-                      <option value="user">Utilisateur</option>
+                      <option value="admin">{t('admin.admin')}</option>
+                      <option value="user">{t('admin.user')}</option>
                     </select>
                   </div>
                 </div>
@@ -618,7 +620,7 @@ export const SuperAdmin = () => {
                     type="submit"
                     className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
                   >
-                    Ajouter
+                    {t('common.add')}
                   </button>
                 </div>
               </form>
@@ -628,10 +630,10 @@ export const SuperAdmin = () => {
                 <table className="w-full text-left text-sm min-w-[600px]">
                   <thead className="bg-slate-50 text-slate-500 font-medium">
                     <tr>
-                      <th className="px-4 py-3">Nom</th>
-                      <th className="px-4 py-3">Email</th>
-                      <th className="px-4 py-3">Rôle</th>
-                      <th className="px-4 py-3 text-right">Actions</th>
+                      <th className="px-4 py-3">{t('admin.name')}</th>
+                      <th className="px-4 py-3">{t('admin.email')}</th>
+                      <th className="px-4 py-3">{t('admin.role')}</th>
+                      <th className="px-4 py-3 text-right">{t('admin.actions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-200">
@@ -643,7 +645,7 @@ export const SuperAdmin = () => {
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                             u.role === 'admin' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'
                           }`}>
-                            {u.role === 'admin' ? 'Admin' : 'User'}
+                            {u.role === 'admin' ? t('admin.admin') : t('admin.user')}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">
@@ -652,7 +654,7 @@ export const SuperAdmin = () => {
                             className="flex items-center gap-1.5 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium ml-auto"
                           >
                             <Trash2 className="w-4 h-4" />
-                            <span className="hidden sm:inline">Supprimer</span>
+                            <span className="hidden sm:inline">{t('common.delete')}</span>
                           </button>
                         </td>
                       </tr>
@@ -660,7 +662,7 @@ export const SuperAdmin = () => {
                     {companyUsers.length === 0 && (
                       <tr>
                         <td colSpan={4} className="px-4 py-8 text-center text-slate-500">
-                          Aucun utilisateur trouvé.
+                          {t('admin.noUsersFound')}
                         </td>
                       </tr>
                     )}
@@ -682,7 +684,7 @@ export const SuperAdmin = () => {
           >
             <div className="flex items-center justify-between p-6 border-b border-slate-100">
               <h2 className="text-lg font-bold text-slate-900">
-                {editingCompany ? 'Modifier l\'entreprise' : 'Nouvelle entreprise'}
+                {editingCompany ? t('admin.editCompany') : t('admin.newCompany')}
               </h2>
               <button 
                 onClick={() => setIsModalOpen(false)}
@@ -694,41 +696,41 @@ export const SuperAdmin = () => {
             
             <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[80vh] overflow-y-auto">
               <div className="space-y-4">
-                <h3 className="text-sm font-bold text-slate-900 border-b pb-2">Informations de l'entreprise</h3>
+                <h3 className="text-sm font-bold text-slate-900 border-b pb-2">{t('admin.companyInfo')}</h3>
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium text-slate-700">Nom de l'entreprise</label>
+                  <label className="text-sm font-medium text-slate-700">{t('admin.companyName')}</label>
                   <input
                     type="text"
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                    placeholder="Ex: Acme Corp"
+                    placeholder={t('admin.placeholder.companyName')}
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Type</label>
+                    <label className="text-sm font-medium text-slate-700">{t('admin.type')}</label>
                     <select
                       value={formData.type}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     >
-                      <option value="real">Réelle</option>
-                      <option value="demo">Démo</option>
+                      <option value="real">{t('admin.real')}</option>
+                      <option value="demo">{t('admin.demo')}</option>
                     </select>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Statut</label>
+                    <label className="text-sm font-medium text-slate-700">{t('admin.status')}</label>
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     >
-                      <option value="active">Actif</option>
-                      <option value="inactive">Inactif</option>
+                      <option value="active">{t('admin.active')}</option>
+                      <option value="inactive">{t('admin.inactive')}</option>
                     </select>
                   </div>
                 </div>
@@ -736,43 +738,43 @@ export const SuperAdmin = () => {
 
               {!editingCompany && (
                 <div className="space-y-4 pt-4">
-                  <h3 className="text-sm font-bold text-slate-900 border-b pb-2">Compte Administrateur</h3>
+                  <h3 className="text-sm font-bold text-slate-900 border-b pb-2">{t('admin.adminAccount')}</h3>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Nom complet de l'admin</label>
+                    <label className="text-sm font-medium text-slate-700">{t('admin.adminFullName')}</label>
                     <input
                       type="text"
                       required={!editingCompany}
                       value={formData.adminName}
                       onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                      placeholder="Ex: Jean Dupont"
+                      placeholder={t('admin.placeholder.fullName')}
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700">Email / Identifiant</label>
+                      <label className="text-sm font-medium text-slate-700">{t('admin.email')}</label>
                       <input
                         type="email"
                         required={!editingCompany}
                         value={formData.adminEmail}
                         onChange={(e) => setFormData({ ...formData, adminEmail: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                        placeholder="admin@entreprise.com"
+                        placeholder={t('admin.placeholder.email')}
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700">Téléphone</label>
+                      <label className="text-sm font-medium text-slate-700">{t('admin.phone')}</label>
                       <input
                         type="tel"
                         value={formData.adminPhone}
                         onChange={(e) => setFormData({ ...formData, adminPhone: e.target.value })}
                         className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                        placeholder="+242 ..."
+                        placeholder={t('admin.placeholder.phone')}
                       />
                     </div>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700">Mot de passe admin</label>
+                    <label className="text-sm font-medium text-slate-700">{t('admin.adminPassword')}</label>
                     <input
                       type="password"
                       required={!editingCompany}
@@ -807,18 +809,18 @@ export const SuperAdmin = () => {
       {/* Confirm Modals */}
       <ConfirmModal
         isOpen={!!userToDelete}
-        title="Supprimer l'utilisateur"
-        message="Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible."
-        confirmLabel="Supprimer"
+        title={t('admin.deleteUser')}
+        message={t('admin.confirmDeleteUser')}
+        confirmLabel={t('common.delete')}
         onConfirm={confirmDeleteUser}
         onCancel={() => setUserToDelete(null)}
       />
 
       <ConfirmModal
         isOpen={!!companyToDelete}
-        title="Supprimer l'entreprise"
-        message="Êtes-vous sûr de vouloir supprimer cette entreprise et toutes ses données ? Cette action est irréversible."
-        confirmLabel="Supprimer définitivement"
+        title={t('admin.deleteCompany')}
+        message={t('admin.confirmDeleteCompany')}
+        confirmLabel={t('admin.deletePermanently')}
         onConfirm={confirmDeleteCompany}
         onCancel={() => setCompanyToDelete(null)}
       />

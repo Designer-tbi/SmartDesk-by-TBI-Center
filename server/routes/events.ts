@@ -1,9 +1,9 @@
 import { Router } from 'express';
-import { requireAuth, requireCompany } from '../middleware/auth.js';
+import { requireTenant } from '../middleware/auth.js';
 
 export const eventsRouter = Router();
 
-eventsRouter.use(requireAuth, requireCompany);
+eventsRouter.use(...requireTenant);
 
 eventsRouter.get('/', async (req, res, next) => {
   try {
@@ -12,21 +12,20 @@ eventsRouter.get('/', async (req, res, next) => {
     let query = `
       SELECT e.*, u.name as "userName", u.role as "userRole", target.name as "assignedToName"
       FROM events e
-      JOIN users u ON e."userId" = u.id
-      LEFT JOIN users target ON e."assignedTo" = target.id
-      WHERE e."companyId" = $1
+      JOIN public.users u ON e."userId" = u.id
+      LEFT JOIN public.users target ON e."assignedTo" = target.id
     `;
     
-    const params: any[] = [req.user!.companyId];
+    const params: any[] = [];
     
     if (!isAdmin) {
       // Non-admins see:
       // 1. Events they created
       // 2. Events assigned to them
       // 3. Public events NOT created by admins (as per previous requirement)
-      query += ` AND (
-        e."userId" = $2 
-        OR e."assignedTo" = $2 
+      query += ` WHERE (
+        e."userId" = $1 
+        OR e."assignedTo" = $1 
         OR (u.role NOT IN ('admin', 'super_admin') AND e."isPrivate" = FALSE)
       )`;
       params.push(req.user!.id);
@@ -47,9 +46,9 @@ eventsRouter.post('/', async (req, res, next) => {
     const eventId = id || `evt_${Date.now()}`;
     
     await req.db.query(
-      `INSERT INTO events (id, "companyId", "userId", "assignedTo", title, description, "startDate", "endDate", category, "isPrivate", "createdAt")
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-      [eventId, req.user!.companyId, req.user!.id, assignedTo || null, title, description, startDate, endDate, category, isPrivate || false, new Date().toISOString()]
+      `INSERT INTO events (id, "userId", "assignedTo", title, description, "startDate", "endDate", category, "isPrivate", "createdAt")
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [eventId, req.user!.id, assignedTo || null, title, description, startDate, endDate, category, isPrivate || false, new Date().toISOString()]
     );
     
     res.status(201).json({ id: eventId, title, description, startDate, endDate, category, isPrivate, assignedTo });
@@ -76,8 +75,8 @@ eventsRouter.put('/:id', async (req, res, next) => {
     
     await req.db.query(
       `UPDATE events SET title = $1, description = $2, "startDate" = $3, "endDate" = $4, category = $5, "isPrivate" = $6, "assignedTo" = $7
-       WHERE id = $8 AND "companyId" = $9`,
-      [title, description, startDate, endDate, category, isPrivate, assignedTo || null, id, req.user!.companyId]
+       WHERE id = $8`,
+      [title, description, startDate, endDate, category, isPrivate, assignedTo || null, id]
     );
     
     res.json({ id, title, description, startDate, endDate, category, isPrivate, assignedTo });
@@ -101,7 +100,7 @@ eventsRouter.delete('/:id', async (req, res, next) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     
-    await req.db.query('DELETE FROM events WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    await req.db.query('DELETE FROM events WHERE id = $1', [id]);
     res.status(204).send();
   } catch (error) {
     next(error);

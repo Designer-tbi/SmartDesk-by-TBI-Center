@@ -94,7 +94,7 @@ export const Accounting = ({ user }: { user?: any }) => {
     entry.items.forEach(item => {
       const type = getAccountType(item.accountId);
       if (type === 'Asset' || type === 'Liability' || type === 'Equity') {
-        if (!acc[item.accountId]) acc[item.accountId] = { name: getAccountName(item.accountId) || t('accounting.unknownAccount'), balance: 0, type: type || 'Liability' };
+        if (!acc[item.accountId]) acc[item.accountId] = { name: getAccountName(item.accountId) || 'Inconnu', balance: 0, type: type || 'Liability' };
         if (type === 'Asset') acc[item.accountId].balance += (item.debit - item.credit);
         else acc[item.accountId].balance += (item.credit - item.debit);
       }
@@ -106,7 +106,7 @@ export const Accounting = ({ user }: { user?: any }) => {
     entry.items.forEach(item => {
       const type = getAccountType(item.accountId);
       if (type === 'Revenue' || type === 'Expense') {
-        if (!acc[item.accountId]) acc[item.accountId] = { name: getAccountName(item.accountId) || t('accounting.unknownAccount'), balance: 0, type: type || 'Expense' };
+        if (!acc[item.accountId]) acc[item.accountId] = { name: getAccountName(item.accountId) || 'Inconnu', balance: 0, type: type || 'Expense' };
         if (type === 'Revenue') acc[item.accountId].balance += (item.credit - item.debit);
         else acc[item.accountId].balance += (item.debit - item.credit);
       }
@@ -142,12 +142,7 @@ export const Accounting = ({ user }: { user?: any }) => {
   tvaData.collected += tvaFromInvoices;
 
   // Dynamic performance data for the last 6 months
-  const months = [
-    t('dashboard.months.jan'), t('dashboard.months.feb'), t('dashboard.months.mar'), 
-    t('dashboard.months.apr'), t('dashboard.months.may'), t('dashboard.months.jun'), 
-    t('dashboard.months.jul'), t('dashboard.months.aug'), t('dashboard.months.sep'), 
-    t('dashboard.months.oct'), t('dashboard.months.nov'), t('dashboard.months.dec')
-  ];
+  const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
   const currentMonth = new Date().getMonth();
   const performanceData = Array.from({ length: 6 }, (_, i) => {
     const monthIdx = (currentMonth - 5 + i + 12) % 12;
@@ -169,7 +164,7 @@ export const Accounting = ({ user }: { user?: any }) => {
     const totalDebit = newEntry.items.reduce((sum, item) => sum + item.debit, 0);
     const totalCredit = newEntry.items.reduce((sum, item) => sum + item.credit, 0);
     if (totalDebit !== totalCredit || totalDebit === 0) {
-      alert(t('accounting.unbalancedError'));
+      alert('L\'écriture n\'est pas équilibrée ou le montant est nul.');
       return;
     }
     try {
@@ -196,11 +191,11 @@ export const Accounting = ({ user }: { user?: any }) => {
         fetchData();
         setDeleteConfirmId(null);
       } else {
-        setError(t('accounting.resetError'));
+        setError('Erreur lors de la suppression.');
       }
     } catch (error) {
       console.error('Failed to delete entry:', error);
-      setError(t('accounting.connectionError'));
+      setError('Erreur de connexion.');
     }
   };
 
@@ -212,11 +207,11 @@ export const Accounting = ({ user }: { user?: any }) => {
         await fetchData();
         setIsResetConfirmOpen(false);
       } else {
-        alert(t('accounting.resetError'));
+        alert('Erreur lors de la réinitialisation des données.');
       }
     } catch (error) {
       console.error('Failed to reset accounting data:', error);
-      alert(t('accounting.connectionError'));
+      alert('Erreur de connexion.');
     } finally {
       setIsResetting(false);
     }
@@ -234,7 +229,7 @@ export const Accounting = ({ user }: { user?: any }) => {
 
   const handleGenerateEntry = async () => {
     if (!newEntry.description) {
-      alert(t('accounting.descriptionRequired'));
+      alert('Veuillez saisir une description pour générer l\'écriture.');
       return;
     }
     setIsGenerating(true);
@@ -244,7 +239,7 @@ export const Accounting = ({ user }: { user?: any }) => {
       setNewEntry({ ...newEntry, description: suggested.description, items: suggested.items });
     } catch (error) {
       console.error('Erreur lors de la génération:', error);
-      alert(t('accounting.generateError'));
+      alert('Erreur lors de la génération automatique.');
     } finally {
       setIsGenerating(false);
     }
@@ -256,30 +251,30 @@ export const Accounting = ({ user }: { user?: any }) => {
   const downloadTVAPDF = () => {
     const doc = new jsPDF();
     const year = new Date().getFullYear();
-    const month = months[new Date().getMonth()];
+    const month = new Date().toLocaleString('fr-FR', { month: 'long' });
 
     // Header
     doc.setFontSize(18);
-    doc.text(t('accounting.pdf.declaration', { taxLabel: taxLabel.toUpperCase() }), 105, 20, { align: 'center' });
+    doc.text(`DÉCLARATION DE ${taxLabel.toUpperCase()}`, 105, 20, { align: 'center' });
     
     doc.setFontSize(10);
     doc.text(MOCK_COMPANY.name, 20, 35);
     doc.text(MOCK_COMPANY.address, 20, 40);
     doc.text(MOCK_COMPANY.taxId, 20, 45);
     
-    doc.text(t('accounting.pdf.period', { month, year: year.toString() }), 150, 35);
-    doc.text(t('accounting.pdf.generationDate', { date: new Date().toLocaleDateString() }), 150, 40);
+    doc.text(`Période : ${month} ${year}`, 150, 35);
+    doc.text(`Date de génération : ${new Date().toLocaleDateString()}`, 150, 40);
 
     // TVA Data Table
     autoTable(doc, {
       startY: 60,
-      head: [[t('accounting.pdf.label'), t('accounting.pdf.amount') + ' (' + currencySymbol + ')']],
+      head: [['Libellé', 'Montant (' + currencySymbol + ')']],
       body: [
-        [`${taxLabel} ${t('accounting.tvaCollectedJournal', { taxLabel: '' }).replace('()', '').trim()}`, (tvaData.collected - tvaFromInvoices).toLocaleString()],
-        [`${taxLabel} ${t('accounting.tvaOnPaidInvoices', { taxLabel: '' }).replace('()', '').trim()}`, tvaFromInvoices.toLocaleString()],
-        [t('accounting.pdf.totalCollected', { taxLabel }), tvaData.collected.toLocaleString()],
-        [`${taxLabel} ${t('accounting.tvaDeductible', { taxLabel: '' }).replace('()', '').trim()}`, tvaData.deductible.toLocaleString()],
-        [t('accounting.tvaToPay', { taxLabel }), (tvaData.collected - tvaData.deductible).toLocaleString()],
+        [`${taxLabel} Collectée (Journal)`, (tvaData.collected - tvaFromInvoices).toLocaleString()],
+        [`${taxLabel} sur Factures Payées`, tvaFromInvoices.toLocaleString()],
+        [`TOTAL ${taxLabel} COLLECTÉE`, tvaData.collected.toLocaleString()],
+        [`${taxLabel} Déductible`, tvaData.deductible.toLocaleString()],
+        [`${taxLabel} À PAYER / CRÉDIT`, (tvaData.collected - tvaData.deductible).toLocaleString()],
       ],
       theme: 'striped',
       headStyles: { fillColor: [79, 70, 229] },
@@ -291,20 +286,19 @@ export const Accounting = ({ user }: { user?: any }) => {
   const downloadLiassePDF = () => {
     const doc = new jsPDF();
     const year = new Date().getFullYear();
-    const standardName = isUS ? 'US GAAP' : isFR ? 'FRANCE' : 'OHADA';
 
     // Page 1: Page de Garde
     doc.setFontSize(22);
-    doc.text(t('accounting.pdf.liasseTitle', { standard: standardName }), 105, 60, { align: 'center' });
+    doc.text(`LIASSE FISCALE ${isUS ? 'US GAAP' : isFR ? 'FRANCE' : 'OHADA'}`, 105, 60, { align: 'center' });
     doc.setFontSize(16);
-    doc.text(t('accounting.pdf.exerciseClosed', { year: year.toString() }), 105, 75, { align: 'center' });
+    doc.text(`EXERCICE CLOS LE 31 DÉCEMBRE ${year}`, 105, 75, { align: 'center' });
 
     doc.setFontSize(12);
-    doc.text(t('accounting.pdf.companyInfo'), 20, 120);
+    doc.text('INFORMATIONS ENTREPRISE', 20, 120);
     doc.line(20, 122, 80, 122);
     
-    doc.text(`${t('accounting.denomination')} : ${companyInfo?.name || MOCK_COMPANY.name}`, 20, 135);
-    doc.text(`${t('accounting.siege')} : ${companyInfo?.address || MOCK_COMPANY.address}`, 20, 145);
+    doc.text(`Dénomination : ${companyInfo?.name || MOCK_COMPANY.name}`, 20, 135);
+    doc.text(`Siège Social : ${companyInfo?.address || MOCK_COMPANY.address}`, 20, 145);
     
     if (isFR) {
       doc.text(`SIREN : ${companyInfo?.siren || '-'}`, 20, 155);
@@ -313,70 +307,70 @@ export const Accounting = ({ user }: { user?: any }) => {
     } else if (isUS) {
       doc.text(`EIN : ${companyInfo?.taxId || '-'}`, 20, 155);
     } else {
-      doc.text(`${t('accounting.taxId')} : ${companyInfo?.taxId || MOCK_COMPANY.taxId}`, 20, 155);
-      doc.text(`${t('accounting.rccm')} : ${companyInfo?.rccm || MOCK_COMPANY.rccm}`, 20, 165);
-      doc.text(`${t('accounting.idNat')} : ${companyInfo?.idNat || MOCK_COMPANY.idNat}`, 20, 175);
+      doc.text(`NIF : ${companyInfo?.taxId || MOCK_COMPANY.taxId}`, 20, 155);
+      doc.text(`RCCM : ${companyInfo?.rccm || MOCK_COMPANY.rccm}`, 20, 165);
+      doc.text(`ID NAT : ${companyInfo?.idNat || MOCK_COMPANY.idNat}`, 20, 175);
     }
 
     // Page 2: Bilan
     doc.addPage();
     doc.setFontSize(18);
-    doc.text(t('accounting.pdf.bilanConsolidated'), 105, 20, { align: 'center' });
+    doc.text('BILAN CONSOLIDÉ', 105, 20, { align: 'center' });
 
     doc.setFontSize(12);
-    doc.text(t('accounting.actif').toUpperCase(), 20, 40);
+    doc.text('ACTIF', 20, 40);
     const actifRows = Object.entries(bilanDetails)
       .filter(([_, v]) => v.type === 'Asset')
       .map(([code, v]) => [code, v.name, v.balance.toLocaleString()]);
     
     autoTable(doc, {
       startY: 45,
-      head: [[t('accounting.code'), t('accounting.account'), t('accounting.pdf.amount')]],
-      body: [...actifRows, [{ content: t('accounting.pdf.totalActif'), colSpan: 2, styles: { fontStyle: 'bold' } }, { content: bilanTotals.assets.toLocaleString(), styles: { fontStyle: 'bold' } }]],
+      head: [['Code', 'Compte', 'Montant']],
+      body: [...actifRows, [{ content: 'TOTAL ACTIF', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: bilanTotals.assets.toLocaleString(), styles: { fontStyle: 'bold' } }]],
     });
 
-    doc.text(t('accounting.passif').toUpperCase(), 20, (doc as any).lastAutoTable.finalY + 20);
+    doc.text('PASSIF & CAPITAUX', 20, (doc as any).lastAutoTable.finalY + 20);
     const passifRows = Object.entries(bilanDetails)
       .filter(([_, v]) => v.type !== 'Asset')
       .map(([code, v]) => [code, v.name, v.balance.toLocaleString()]);
 
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 25,
-      head: [[t('accounting.code'), t('accounting.account'), t('accounting.pdf.amount')]],
-      body: [...passifRows, [{ content: t('accounting.pdf.totalPassif'), colSpan: 2, styles: { fontStyle: 'bold' } }, { content: bilanTotals.liabilities.toLocaleString(), styles: { fontStyle: 'bold' } }]],
+      head: [['Code', 'Compte', 'Montant']],
+      body: [...passifRows, [{ content: 'TOTAL PASSIF', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: bilanTotals.liabilities.toLocaleString(), styles: { fontStyle: 'bold' } }]],
     });
 
     // Page 3: Compte de Résultat
     doc.addPage();
     doc.setFontSize(18);
-    doc.text(t('accounting.pdf.incomeStatement'), 105, 20, { align: 'center' });
+    doc.text('COMPTE DE RÉSULTAT', 105, 20, { align: 'center' });
 
     doc.setFontSize(12);
-    doc.text(t('accounting.produits').toUpperCase(), 20, 40);
+    doc.text('PRODUITS', 20, 40);
     const produitRows = Object.entries(resultatDetails)
       .filter(([_, v]) => v.type === 'Revenue')
       .map(([code, v]) => [code, v.name, v.balance.toLocaleString()]);
 
     autoTable(doc, {
       startY: 45,
-      head: [[t('accounting.code'), t('accounting.account'), t('accounting.pdf.amount')]],
-      body: [...produitRows, [{ content: t('accounting.pdf.totalProduits'), colSpan: 2, styles: { fontStyle: 'bold' } }, { content: resultatTotals.revenue.toLocaleString(), styles: { fontStyle: 'bold' } }]],
+      head: [['Code', 'Compte', 'Montant']],
+      body: [...produitRows, [{ content: 'TOTAL PRODUITS', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: resultatTotals.revenue.toLocaleString(), styles: { fontStyle: 'bold' } }]],
     });
 
-    doc.text(t('accounting.charges').toUpperCase(), 20, (doc as any).lastAutoTable.finalY + 20);
+    doc.text('CHARGES', 20, (doc as any).lastAutoTable.finalY + 20);
     const chargeRows = Object.entries(resultatDetails)
       .filter(([_, v]) => v.type === 'Expense')
       .map(([code, v]) => [code, v.name, v.balance.toLocaleString()]);
 
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 25,
-      head: [[t('accounting.code'), t('accounting.account'), t('accounting.pdf.amount')]],
-      body: [...chargeRows, [{ content: t('accounting.pdf.totalCharges'), colSpan: 2, styles: { fontStyle: 'bold' } }, { content: resultatTotals.expenses.toLocaleString(), styles: { fontStyle: 'bold' } }]],
+      head: [['Code', 'Compte', 'Montant']],
+      body: [...chargeRows, [{ content: 'TOTAL CHARGES', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: resultatTotals.expenses.toLocaleString(), styles: { fontStyle: 'bold' } }]],
     });
 
     const net = resultatTotals.revenue - resultatTotals.expenses;
     doc.setFontSize(14);
-    doc.text(`${t('accounting.pdf.netResult')} : ${net.toLocaleString()} ${currencySymbol}`, 105, (doc as any).lastAutoTable.finalY + 30, { align: 'center' });
+    doc.text(`RÉSULTAT NET : ${net.toLocaleString()} ${currencySymbol}`, 105, (doc as any).lastAutoTable.finalY + 30, { align: 'center' });
 
     doc.save(`Liasse_Fiscale_${MOCK_COMPANY.name.replace(/\s+/g, '_')}_${year}.pdf`);
   };
@@ -385,96 +379,92 @@ export const Accounting = ({ user }: { user?: any }) => {
     switch (activeTab) {
       case 'Dashboard': return (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><TrendingUp /></div>
               <div>
-                <p className="text-sm text-slate-500">{t('accounting.revenue')}</p>
+                <p className="text-sm text-slate-500">Revenus</p>
                 <p className="text-xl font-bold">{totalIncome.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="p-3 bg-rose-100 text-rose-600 rounded-xl"><TrendingDown /></div>
               <div>
-                <p className="text-sm text-slate-500">{t('accounting.expenses')}</p>
+                <p className="text-sm text-slate-500">Dépenses</p>
                 <p className="text-xl font-bold">{totalExpenses.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
-            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4 sm:col-span-2 lg:col-span-1">
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl"><DollarSign /></div>
               <div>
-                <p className="text-sm text-slate-500">{t('accounting.netProfit')}</p>
+                <p className="text-sm text-slate-500">Bénéfice Net</p>
                 <p className="text-xl font-bold">{netProfit.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm h-80">
-            <h3 className="text-lg font-bold mb-4">{t('accounting.performance')}</h3>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={performanceData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="income" stroke="#10b981" />
-                  <Line type="monotone" dataKey="expense" stroke="#f43f5e" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <h3 className="text-lg font-bold mb-4">Performance Mensuelle</h3>
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={performanceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Line type="monotone" dataKey="income" stroke="#10b981" />
+                <Line type="monotone" dataKey="expense" stroke="#f43f5e" />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
       );
       case 'Journal': return (
         <div className="space-y-4">
-          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-sm active:scale-95">
-            <Plus className="w-4 h-4" /> {t('accounting.newEntry')}
+          <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+            <Plus className="w-4 h-4" /> Nouvelle écriture
           </button>
-          <div className="overflow-x-auto scrollbar-hide -mx-6 px-6 sm:mx-0 sm:px-0">
-            <table className="w-full text-left min-w-[800px]">
-              <thead className="bg-slate-50 border-b">
-                <tr>
-                  <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.date')}</th>
-                  <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.description')}</th>
-                  <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.debit')}</th>
-                  <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.credit')}</th>
-                  <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {journalEntries.map(entry => (
-                  <React.Fragment key={entry.id}>
-                    {entry.items.map((item, idx) => (
-                      <tr key={`${entry.id}-${idx}`} className="border-b last:border-0 hover:bg-slate-50 group">
-                        <td className="p-4 text-sm">{idx === 0 ? entry.date : ''}</td>
-                        <td className="p-4 text-sm">{idx === 0 ? entry.description : ''}</td>
-                        <td className="p-4 text-sm">{item.debit > 0 ? item.debit.toLocaleString() : '-'}</td>
-                        <td className="p-4 text-sm">{item.credit > 0 ? item.credit.toLocaleString() : '-'}</td>
-                        <td className="p-4 text-sm">
-                          {idx === 0 && (
-                            <div className="flex gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                              <button onClick={() => openEdit(entry)} className="p-1 text-slate-400 hover:text-amber-600 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
-                              <button onClick={() => setDeleteConfirmId(entry.id)} className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </React.Fragment>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <table className="w-full text-left">
+            <thead className="bg-slate-50 border-b">
+              <tr>
+                <th className="p-4 text-sm font-bold text-slate-600">Date</th>
+                <th className="p-4 text-sm font-bold text-slate-600">Description</th>
+                <th className="p-4 text-sm font-bold text-slate-600">Débit</th>
+                <th className="p-4 text-sm font-bold text-slate-600">Crédit</th>
+                <th className="p-4 text-sm font-bold text-slate-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {journalEntries.map(entry => (
+                <React.Fragment key={entry.id}>
+                  {entry.items.map((item, idx) => (
+                    <tr key={`${entry.id}-${idx}`} className="border-b last:border-0 hover:bg-slate-50">
+                      <td className="p-4 text-sm">{idx === 0 ? entry.date : ''}</td>
+                      <td className="p-4 text-sm">{idx === 0 ? entry.description : ''}</td>
+                      <td className="p-4 text-sm">{item.debit > 0 ? item.debit.toLocaleString() : '-'}</td>
+                      <td className="p-4 text-sm">{item.credit > 0 ? item.credit.toLocaleString() : '-'}</td>
+                      <td className="p-4 text-sm">
+                        {idx === 0 && (
+                          <div className="flex gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
+                            <button onClick={() => openEdit(entry)} className="p-1 text-slate-400 hover:text-amber-600 hover:bg-white rounded-lg transition-all shadow-sm" title="Modifier"><Pencil className="w-4 h-4" /></button>
+                            <button onClick={() => setDeleteConfirmId(entry.id)} className="p-1 text-slate-400 hover:text-red-600 hover:bg-white rounded-lg transition-all shadow-sm" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </React.Fragment>
+              ))}
+            </tbody>
+          </table>
         </div>
       );
       case 'PCG': return (
-        <div className="overflow-x-auto scrollbar-hide -mx-6 px-6 sm:mx-0 sm:px-0">
-          <table className="w-full text-left min-w-[600px]">
+        <div className="overflow-hidden">
+          <table className="w-full text-left">
             <thead className="bg-slate-50 border-b">
               <tr>
-                <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.code')}</th>
-                <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.name')}</th>
-                <th className="p-4 text-sm font-bold text-slate-600">{t('accounting.type')}</th>
+                <th className="p-4 text-sm font-bold text-slate-600">Code</th>
+                <th className="p-4 text-sm font-bold text-slate-600">Nom</th>
+                <th className="p-4 text-sm font-bold text-slate-600">Type</th>
               </tr>
             </thead>
             <tbody>
@@ -491,84 +481,84 @@ export const Accounting = ({ user }: { user?: any }) => {
       );
       case 'Bilan': return (
         <div className="space-y-6">
-          <h3 className="text-lg font-bold">{t('accounting.bilan')}</h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <h4 className="font-bold text-slate-600 mb-2">{t('accounting.actif')}</h4>
+          <h3 className="text-lg font-bold">Bilan</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <h4 className="font-bold text-slate-600 mb-2">Actif</h4>
               <ul className="space-y-1">
                 {Object.entries(bilanDetails).filter(([_, v]) => v.type === 'Asset').map(([code, v]) => (
                   <li key={code} className="flex justify-between text-sm"><span>{v.name} ({code})</span><span className="font-bold">{v.balance.toLocaleString()}</span></li>
                 ))}
               </ul>
-              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200">{t('common.total')}: {bilanTotals.assets.toLocaleString()} {currencySymbol}</p>
+              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200">Total: {bilanTotals.assets.toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <h4 className="font-bold text-slate-600 mb-2">{t('accounting.passif')}</h4>
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <h4 className="font-bold text-slate-600 mb-2">Passif & Capitaux</h4>
               <ul className="space-y-1">
                 {Object.entries(bilanDetails).filter(([_, v]) => v.type !== 'Asset').map(([code, v]) => (
                   <li key={code} className="flex justify-between text-sm"><span>{v.name} ({code})</span><span className="font-bold">{v.balance.toLocaleString()}</span></li>
                 ))}
               </ul>
-              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200">{t('common.total')}: {bilanTotals.liabilities.toLocaleString()} {currencySymbol}</p>
+              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200">Total: {bilanTotals.liabilities.toLocaleString()} {currencySymbol}</p>
             </div>
           </div>
         </div>
       );
       case 'Resultat': return (
         <div className="space-y-6">
-          <h3 className="text-lg font-bold">{t('accounting.resultat')}</h3>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <h4 className="font-bold text-slate-600 mb-2">{t('accounting.produits')}</h4>
+          <h3 className="text-lg font-bold">Compte de Résultat</h3>
+          <div className="grid grid-cols-2 gap-6">
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <h4 className="font-bold text-slate-600 mb-2">Produits</h4>
               <ul className="space-y-1">
                 {Object.entries(resultatDetails).filter(([_, v]) => v.type === 'Revenue').map(([code, v]) => (
                   <li key={code} className="flex justify-between text-sm text-emerald-600"><span>{v.name} ({code})</span><span className="font-bold">{v.balance.toLocaleString()}</span></li>
                 ))}
               </ul>
-              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200 text-emerald-600">{t('common.total')}: {resultatTotals.revenue.toLocaleString()} {currencySymbol}</p>
+              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200 text-emerald-600">Total: {resultatTotals.revenue.toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <h4 className="font-bold text-slate-600 mb-2">{t('accounting.charges')}</h4>
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <h4 className="font-bold text-slate-600 mb-2">Charges</h4>
               <ul className="space-y-1">
                 {Object.entries(resultatDetails).filter(([_, v]) => v.type === 'Expense').map(([code, v]) => (
                   <li key={code} className="flex justify-between text-sm text-rose-600"><span>{v.name} ({code})</span><span className="font-bold">{v.balance.toLocaleString()}</span></li>
                 ))}
               </ul>
-              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200 text-rose-600">{t('common.total')}: {resultatTotals.expenses.toLocaleString()} {currencySymbol}</p>
+              <p className="text-xl font-bold mt-4 pt-2 border-t border-slate-200 text-rose-600">Total: {resultatTotals.expenses.toLocaleString()} {currencySymbol}</p>
             </div>
           </div>
-          <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100">
-            <h4 className="font-bold text-indigo-900 mb-2">{t('accounting.netProfit')}</h4>
+          <div className="bg-indigo-50 p-4 rounded-lg">
+            <h4 className="font-bold text-indigo-900 mb-2">Résultat Net</h4>
             <p className="text-3xl font-bold text-indigo-700">{(resultatTotals.revenue - resultatTotals.expenses).toLocaleString()} {currencySymbol}</p>
           </div>
         </div>
       );
       case 'TVA': return (
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h3 className="text-lg font-bold">{t('accounting.tvaDeclaration', { taxLabel })}</h3>
+          <div className="flex justify-between items-center">
+            <h3 className="text-lg font-bold">Déclaration de {taxLabel}</h3>
             <button 
               onClick={downloadTVAPDF}
               className="flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-sm active:scale-95"
             >
-              <Download className="w-4 h-4" /> {t('accounting.downloadPDF')}
+              <Download className="w-4 h-4" /> Télécharger PDF
             </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <h4 className="font-bold text-slate-600 mb-2">{t('accounting.tvaCollectedJournal', { taxLabel })}</h4>
+          <div className="grid grid-cols-4 gap-6">
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <h4 className="font-bold text-slate-600 mb-2">{taxLabel} Collectée (Journal)</h4>
               <p className="text-2xl font-bold text-emerald-600">{(tvaData.collected - tvaFromInvoices).toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <h4 className="font-bold text-slate-600 mb-2">{t('accounting.tvaOnPaidInvoices', { taxLabel })}</h4>
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <h4 className="font-bold text-slate-600 mb-2">{taxLabel} sur Factures Payées</h4>
               <p className="text-2xl font-bold text-emerald-600">{tvaFromInvoices.toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100">
-              <h4 className="font-bold text-slate-600 mb-2">{t('accounting.tvaDeductible', { taxLabel })}</h4>
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <h4 className="font-bold text-slate-600 mb-2">{taxLabel} Déductible (445)</h4>
               <p className="text-2xl font-bold text-rose-600">{tvaData.deductible.toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
-              <h4 className="font-bold text-indigo-900 mb-2">{t('accounting.tvaToPay', { taxLabel })}</h4>
+            <div className="bg-indigo-50 p-4 rounded-lg">
+              <h4 className="font-bold text-indigo-900 mb-2">{taxLabel} à payer / Crédit</h4>
               <p className="text-3xl font-bold text-indigo-700">{(tvaData.collected - tvaData.deductible).toLocaleString()} {currencySymbol}</p>
             </div>
           </div>
@@ -578,14 +568,14 @@ export const Accounting = ({ user }: { user?: any }) => {
         <div className="space-y-8">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="text-xl font-bold text-slate-900">{t('accounting.liassesTitle')}</h3>
-              <p className="text-slate-500 text-sm mt-1">{t('accounting.liassesDesc', { standard: isUS ? 'US GAAP' : isFR ? 'France' : 'OHADA' })}</p>
+              <h3 className="text-xl font-bold text-slate-900">Liasses Fiscales & États Financiers</h3>
+              <p className="text-slate-500 text-sm mt-1">Générez et téléchargez votre liasse fiscale {isUS ? 'US GAAP' : isFR ? 'France' : 'OHADA'} complète.</p>
             </div>
             <button 
               onClick={downloadLiassePDF}
               className="flex items-center gap-2 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all active:scale-95"
             >
-              <Download className="w-5 h-5" /> {t('accounting.downloadLiasse')}
+              <Download className="w-5 h-5" /> Télécharger la Liasse en PDF
             </button>
           </div>
 
@@ -593,21 +583,21 @@ export const Accounting = ({ user }: { user?: any }) => {
             <div className="bg-slate-50 p-6 rounded-2xl border border-slate-200">
               <div className="flex items-center gap-3 mb-6">
                 <div className="p-2 bg-white rounded-lg shadow-sm text-indigo-600"><Building2 className="w-5 h-5" /></div>
-                <h4 className="font-bold text-slate-900 uppercase tracking-tight">{t('accounting.companyInfo')}</h4>
+                <h4 className="font-bold text-slate-900 uppercase tracking-tight">Informations de l'Entreprise</h4>
               </div>
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('accounting.denomination')}</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dénomination</label>
                     <p className="text-sm font-bold text-slate-900">{companyInfo?.name || MOCK_COMPANY.name}</p>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isFR ? t('accounting.vatIntracom') : isUS ? t('accounting.ein') : t('accounting.taxId')}</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isFR ? 'TVA Intracom.' : isUS ? 'EIN' : 'NIF'}</label>
                     <p className="text-sm font-bold text-slate-900">{companyInfo?.taxId || MOCK_COMPANY.taxId}</p>
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('accounting.siege')}</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Siège Social</label>
                   <p className="text-sm font-medium text-slate-600">{companyInfo?.address || MOCK_COMPANY.address}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
@@ -624,17 +614,17 @@ export const Accounting = ({ user }: { user?: any }) => {
                     </>
                   ) : isUS ? (
                     <div>
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('accounting.stateOfInc')}</label>
-                      <p className="text-sm font-medium text-slate-600">{companyInfo?.country === 'USA' ? t('accounting.delaware') : '-'}</p>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">State of Inc.</label>
+                      <p className="text-sm font-medium text-slate-600">{companyInfo?.country === 'USA' ? 'Delaware' : '-'}</p>
                     </div>
                   ) : (
                     <>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('accounting.rccm')}</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">RCCM</label>
                         <p className="text-sm font-medium text-slate-600">{companyInfo?.rccm || MOCK_COMPANY.rccm}</p>
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('accounting.idNat')}</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID NAT</label>
                         <p className="text-sm font-medium text-slate-600">{companyInfo?.idNat || MOCK_COMPANY.idNat}</p>
                       </div>
                     </>
@@ -645,16 +635,16 @@ export const Accounting = ({ user }: { user?: any }) => {
 
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
               <h4 className="font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <FileText className="w-5 h-5 text-indigo-600" /> {t('accounting.includedDocs')}
+                <FileText className="w-5 h-5 text-indigo-600" /> Documents Inclus
               </h4>
               <div className="space-y-3">
                 {[
-                  t('accounting.doc.bilan'),
-                  t('accounting.doc.resultat'),
-                  t('accounting.doc.cashflow'),
-                  t('accounting.doc.notes'),
-                  t('accounting.doc.stocks'),
-                  t('accounting.doc.amortization')
+                  'Bilan (Actif / Passif)',
+                  'Compte de Résultat',
+                  'Tableau des Flux de Trésorerie',
+                  'Notes Annexes',
+                  'État des Stocks',
+                  'Tableau des Amortissements'
                 ].map((doc, i) => (
                   <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
                     <span className="text-sm font-medium text-slate-700">{doc}</span>
@@ -670,38 +660,39 @@ export const Accounting = ({ user }: { user?: any }) => {
               <BarChart3 className="w-8 h-8" />
             </div>
             <div>
-              <h4 className="text-lg font-bold text-indigo-900">{t('accounting.readyForDeclaration')}</h4>
+              <h4 className="text-lg font-bold text-indigo-900">Prêt pour la déclaration</h4>
               <p className="text-indigo-700/70 text-sm mt-1">
-                {t('accounting.readyForDeclarationDesc', { standard: isUS ? 'US GAAP' : isFR ? 'PCG France' : 'OHADA' })}
+                Toutes les données financières sont consolidées selon le référentiel {isUS ? 'US GAAP' : isFR ? 'PCG France' : 'OHADA'}. 
+                Votre liasse est prête à être transmise aux autorités fiscales.
               </p>
             </div>
           </div>
         </div>
       );
-      default: return <div>{t('accounting.inDevelopment')}</div>;
+      default: return <div>Module en développement...</div>;
     }
   };
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl font-bold text-slate-900">{t('accounting.title')} {isUS ? 'US GAAP' : isFR ? t('accounting.pcgFrance') : 'OHADA'}</h2>
+      <div className="flex justify-between items-center">
+        <h2 className="text-2xl font-bold text-slate-900">Comptabilité {isUS ? 'US GAAP' : isFR ? 'PCG France' : 'OHADA'}</h2>
         <button
           onClick={() => setIsResetConfirmOpen(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-100 transition-all active:scale-95"
+          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-100 transition-all"
         >
-          <Trash2 className="w-4 h-4" /> {t('accounting.resetDashboard')}
+          <Trash2 className="w-4 h-4" /> Réinitialiser le tableau de bord
         </button>
       </div>
 
-      <div className="flex gap-2 border-b border-slate-200 pb-4 overflow-x-auto scrollbar-hide -mx-6 px-6 sm:mx-0 sm:px-0">
+      <div className="flex gap-2 border-b border-slate-200 pb-4">
         {['Dashboard', 'Journal', 'Bilan', 'Resultat', 'PCG', 'Liasses', 'TVA'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab as any)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition-all ${activeTab === tab ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'}`}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium ${activeTab === tab ? 'bg-indigo-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}
           >
-            {tab === 'TVA' ? taxLabel : t(`accounting.tabs.${tab.toLowerCase()}`)}
+            {tab === 'TVA' ? taxLabel : tab}
           </button>
         ))}
       </div>
@@ -710,7 +701,7 @@ export const Accounting = ({ user }: { user?: any }) => {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-            <p className="text-sm font-medium text-slate-500">{t('accounting.loadingData')}</p>
+            <p className="text-sm font-medium text-slate-500">Chargement des données comptables...</p>
           </div>
         ) : renderContent()}
       </div>
@@ -719,22 +710,22 @@ export const Accounting = ({ user }: { user?: any }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-lg rounded-2xl shadow-xl p-6 space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold">{editingEntryId ? t('accounting.editEntry') : t('accounting.newEntry')}</h3>
+              <h3 className="text-lg font-bold">{editingEntryId ? 'Modifier l\'écriture' : 'Nouvelle écriture'}</h3>
               <div className="flex items-center gap-2">
                 <button type="button" onClick={handleGenerateEntry} className="flex items-center gap-1 text-sm bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg hover:bg-indigo-200" disabled={isGenerating}>
-                  <Sparkles className="w-4 h-4" /> {isGenerating ? t('accounting.generating') : t('accounting.generateIA')}
+                  <Sparkles className="w-4 h-4" /> {isGenerating ? 'Génération...' : 'Générer avec IA'}
                 </button>
                 <button onClick={() => { setIsModalOpen(false); setEditingEntryId(null); }}><X className="w-5 h-5 text-slate-400"/></button>
               </div>
             </div>
             <form onSubmit={handleSaveEntry} className="space-y-4">
-              <input type="text" placeholder={t('accounting.description')} className="w-full p-2 border rounded-lg" value={newEntry.description} onChange={e => setNewEntry({...newEntry, description: e.target.value})} required />
+              <input type="text" placeholder="Description" className="w-full p-2 border rounded-lg" value={newEntry.description || ''} onChange={e => setNewEntry({...newEntry, description: e.target.value})} required />
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-slate-500">
-                    <th className="p-1">{t('accounting.account')}</th>
-                    <th className="p-1">{t('accounting.debit')}</th>
-                    <th className="p-1">{t('accounting.credit')}</th>
+                    <th className="p-1">Compte</th>
+                    <th className="p-1">Débit</th>
+                    <th className="p-1">Crédit</th>
                     <th className="p-1"></th>
                   </tr>
                 </thead>
@@ -742,13 +733,13 @@ export const Accounting = ({ user }: { user?: any }) => {
                   {newEntry.items.map((item, idx) => (
                     <tr key={idx}>
                       <td className="p-1">
-                        <select className="w-full p-1 border rounded-lg" value={item.accountId} onChange={e => { const items = [...newEntry.items]; items[idx].accountId = e.target.value; setNewEntry({...newEntry, items}); }} required>
-                          <option value="">{t('accounting.account')}</option>
+                        <select className="w-full p-1 border rounded-lg" value={item.accountId || ''} onChange={e => { const items = [...newEntry.items]; items[idx].accountId = e.target.value; setNewEntry({...newEntry, items}); }} required>
+                          <option value="">Compte</option>
                           {PCG.map(acc => <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>)}
                         </select>
                       </td>
-                      <td className="p-1"><input type="number" className="w-full p-1 border rounded-lg" value={item.debit} onChange={e => { const items = [...newEntry.items]; items[idx].debit = Number(e.target.value); setNewEntry({...newEntry, items}); }} /></td>
-                      <td className="p-1"><input type="number" className="w-full p-1 border rounded-lg" value={item.credit} onChange={e => { const items = [...newEntry.items]; items[idx].credit = Number(e.target.value); setNewEntry({...newEntry, items}); }} /></td>
+                      <td className="p-1"><input type="number" className="w-full p-1 border rounded-lg" value={item.debit ?? 0} onChange={e => { const items = [...newEntry.items]; items[idx].debit = Number(e.target.value); setNewEntry({...newEntry, items}); }} /></td>
+                      <td className="p-1"><input type="number" className="w-full p-1 border rounded-lg" value={item.credit ?? 0} onChange={e => { const items = [...newEntry.items]; items[idx].credit = Number(e.target.value); setNewEntry({...newEntry, items}); }} /></td>
                       <td className="p-1">
                         <button type="button" onClick={() => setNewEntry({...newEntry, items: newEntry.items.filter((_, i) => i !== idx)})} className="text-rose-500"><X className="w-4 h-4" /></button>
                       </td>
@@ -757,32 +748,32 @@ export const Accounting = ({ user }: { user?: any }) => {
                 </tbody>
                 <tfoot>
                   <tr className="font-bold">
-                    <td className="p-2 text-right">{t('common.total')}</td>
+                    <td className="p-2 text-right">Total</td>
                     <td className="p-2">{totalDebit.toLocaleString()}</td>
                     <td className="p-2">{totalCredit.toLocaleString()}</td>
                     <td></td>
                   </tr>
                 </tfoot>
               </table>
-              <button type="button" onClick={() => setNewEntry({...newEntry, items: [...newEntry.items, { accountId: '', debit: 0, credit: 0 }]})} className="text-sm text-indigo-600">{t('accounting.addLine')}</button>
-              <button type="submit" className={`w-full py-2 rounded-lg font-bold flex items-center justify-center gap-2 ${totalDebit === totalCredit && totalDebit > 0 ? 'bg-indigo-600 text-white' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} disabled={totalDebit !== totalCredit || totalDebit === 0}><Save className="w-4 h-4" /> {t('accounting.save')}</button>
+              <button type="button" onClick={() => setNewEntry({...newEntry, items: [...newEntry.items, { accountId: '', debit: 0, credit: 0 }]})} className="text-sm text-indigo-600">+ Ajouter ligne</button>
+              <button type="submit" className={`w-full py-2 rounded-lg font-bold flex items-center justify-center gap-2 ${totalDebit === totalCredit && totalDebit > 0 ? 'bg-indigo-600 text-white' : 'bg-slate-300 text-slate-500 cursor-not-allowed'}`} disabled={totalDebit !== totalCredit || totalDebit === 0}><Save className="w-4 h-4" /> Enregistrer</button>
             </form>
           </div>
         </div>
       )}
       <ConfirmModal
         isOpen={!!deleteConfirmId}
-        title={t('accounting.confirmDeleteTitle')}
-        message={t('accounting.confirmDeleteMessage')}
-        confirmLabel={t('common.delete')}
+        title="Supprimer l'écriture"
+        message="Êtes-vous sûr de vouloir supprimer cette écriture comptable ? Cette action est irréversible."
+        confirmLabel="Supprimer"
         onConfirm={() => deleteConfirmId && handleDeleteEntry(deleteConfirmId)}
         onCancel={() => setDeleteConfirmId(null)}
       />
       <ConfirmModal
         isOpen={isResetConfirmOpen}
-        title={t('accounting.resetTitle')}
-        message={t('accounting.resetMessage')}
-        confirmLabel={isResetting ? t('accounting.resetting') : t('accounting.deleteAll')}
+        title="Réinitialiser la comptabilité"
+        message="Attention : Cette action va supprimer DÉFINITIVEMENT toutes les écritures du journal, les transactions et les factures de votre entreprise. Cette opération est irréversible. Voulez-vous continuer ?"
+        confirmLabel={isResetting ? "Réinitialisation..." : "Tout supprimer"}
         onConfirm={handleReset}
         onCancel={() => setIsResetConfirmOpen(false)}
       />

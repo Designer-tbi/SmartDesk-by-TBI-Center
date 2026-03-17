@@ -1,13 +1,13 @@
 import { Router } from 'express';
-import { requireAuth, requireCompany } from '../middleware/auth.js';
+import { requireTenant } from '../middleware/auth.js';
 
 export const companyRouter = Router();
 
-companyRouter.use(requireAuth, requireCompany);
+companyRouter.use(...requireTenant);
 
 companyRouter.get('/', async (req, res, next) => {
   try {
-    const companyRes = await req.db.query('SELECT * FROM companies WHERE id = $1', [req.user!.companyId]);
+    const companyRes = await req.db.query('SELECT * FROM public.companies WHERE id = $1', [req.user!.companyId]);
     const company = companyRes.rows[0];
     if (!company) {
       return res.status(404).json({ error: 'Company not found' });
@@ -22,12 +22,12 @@ companyRouter.put('/', async (req, res, next) => {
   try {
     const { name, taxId, rccm, idNat, siren, siret, email, phone, website, address, country, state, logo, accountingStandard, language, currency } = req.body;
     console.log('Updating company for user:', req.user!.id, 'companyId:', req.user!.companyId);
-    const result = await req.db.query('UPDATE companies SET name = $1, "taxId" = $2, rccm = $3, "idNat" = $4, siren = $5, siret = $6, email = $7, phone = $8, website = $9, address = $10, country = $11, state = $12, logo = $13, "accountingStandard" = $14, language = $15, currency = $16 WHERE id = $17',
+    const result = await req.db.query('UPDATE public.companies SET name = $1, "taxId" = $2, rccm = $3, "idNat" = $4, siren = $5, siret = $6, email = $7, phone = $8, website = $9, address = $10, country = $11, state = $12, logo = $13, "accountingStandard" = $14, language = $15, currency = $16 WHERE id = $17',
       [name, taxId, rccm, idNat, siren, siret, email, phone, website, address, country || 'AFRIQUE', state, logo || null, accountingStandard || 'OHADA', language || 'fr', currency || 'XAF', req.user!.companyId]);
     
     console.log('Update result rows affected:', result.rowCount);
 
-    const updatedCompanyRes = await req.db.query('SELECT * FROM companies WHERE id = $1', [req.user!.companyId]);
+    const updatedCompanyRes = await req.db.query('SELECT * FROM public.companies WHERE id = $1', [req.user!.companyId]);
     const updatedCompany = updatedCompanyRes.rows[0];
     if (!updatedCompany) {
       console.error('Company not found after update for id:', req.user!.companyId);
@@ -41,58 +41,46 @@ companyRouter.put('/', async (req, res, next) => {
 });
 
 companyRouter.post('/reset-crm', async (req, res, next) => {
-  const client = await req.db.connect();
   try {
-    const companyId = req.user!.companyId;
-    await client.query('BEGIN');
+    await req.db.query('BEGIN');
     
     // Delete invoice items first
-    await client.query(`
-      DELETE FROM invoice_items 
-      WHERE "invoiceId" IN (SELECT id FROM invoices WHERE "companyId" = $1)
-    `, [companyId]);
+    await req.db.query('DELETE FROM invoice_items');
+    await req.db.query('DELETE FROM invoices');
+    await req.db.query('DELETE FROM contacts');
+    await req.db.query('DELETE FROM products');
+    await req.db.query('DELETE FROM projects');
+    await req.db.query('DELETE FROM events');
+    await req.db.query('DELETE FROM schedules');
+    await req.db.query('DELETE FROM activity_log');
     
-    await client.query('DELETE FROM invoices WHERE "companyId" = $1', [companyId]);
-    await client.query('DELETE FROM contacts WHERE "companyId" = $1', [companyId]);
-    await client.query('DELETE FROM products WHERE "companyId" = $1', [companyId]);
-    await client.query('DELETE FROM projects WHERE "companyId" = $1', [companyId]);
-    await client.query('DELETE FROM events WHERE "companyId" = $1', [companyId]);
-    await client.query('DELETE FROM schedules WHERE "companyId" = $1', [companyId]);
-    await client.query('DELETE FROM activity_log WHERE "companyId" = $1', [companyId]);
-    
-    await client.query('COMMIT');
+    await req.db.query('COMMIT');
     res.json({ message: 'CRM data reset successfully' });
   } catch (error) {
-    await client.query('ROLLBACK');
+    await req.db.query('ROLLBACK');
     next(error);
-  } finally {
-    client.release();
   }
 });
 
 companyRouter.post('/reset-accounting', async (req, res, next) => {
-  const client = await req.db.connect();
   try {
-    const companyId = req.user!.companyId;
-    await client.query('BEGIN');
+    await req.db.query('BEGIN');
     
     // Delete accounting data
-    await client.query('DELETE FROM journal_entries WHERE "companyId" = $1', [companyId]);
-    await client.query('DELETE FROM transactions WHERE "companyId" = $1', [companyId]);
+    await req.db.query('DELETE FROM journal_entries');
+    await req.db.query('DELETE FROM transactions');
     
-    await client.query('COMMIT');
+    await req.db.query('COMMIT');
     res.json({ message: 'Accounting data reset successfully' });
   } catch (error) {
-    await client.query('ROLLBACK');
+    await req.db.query('ROLLBACK');
     next(error);
-  } finally {
-    client.release();
   }
 });
 
 companyRouter.get('/roles', async (req, res, next) => {
   try {
-    const rolesRes = await req.db.query('SELECT * FROM roles WHERE "companyId" = $1', [req.user!.companyId]);
+    const rolesRes = await req.db.query('SELECT * FROM roles');
     const roles = rolesRes.rows;
     
     const rolesWithPermissions = await Promise.all(roles.map(async (role: any) => {
@@ -107,49 +95,43 @@ companyRouter.get('/roles', async (req, res, next) => {
 });
 
 companyRouter.post('/roles', async (req, res, next) => {
-  const client = await req.db.connect();
   try {
     const role = req.body;
-    await client.query('BEGIN');
+    await req.db.query('BEGIN');
     
-    await client.query('INSERT INTO roles (id, "companyId", name) VALUES ($1, $2, $3)', [role.id, req.user!.companyId, role.name]);
+    await req.db.query('INSERT INTO roles (id, name) VALUES ($1, $2)', [role.id, role.name]);
     
     if (Array.isArray(role.permissions)) {
       for (const permId of role.permissions) {
-        await client.query('INSERT INTO role_permissions ("roleId", "permissionId") VALUES ($1, $2)', [role.id, permId]);
+        await req.db.query('INSERT INTO role_permissions ("roleId", "permissionId") VALUES ($1, $2)', [role.id, permId]);
       }
     }
     
-    await client.query('COMMIT');
+    await req.db.query('COMMIT');
     res.status(201).json(role);
   } catch (error) {
-    await client.query('ROLLBACK');
+    await req.db.query('ROLLBACK');
     next(error);
-  } finally {
-    client.release();
   }
 });
 
 companyRouter.delete('/roles/:id', async (req, res, next) => {
-  const client = await req.db.connect();
   try {
     const { id } = req.params;
-    await client.query('BEGIN');
-    await client.query('DELETE FROM role_permissions WHERE "roleId" = $1', [id]);
-    await client.query('DELETE FROM roles WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
-    await client.query('COMMIT');
+    await req.db.query('BEGIN');
+    await req.db.query('DELETE FROM role_permissions WHERE "roleId" = $1', [id]);
+    await req.db.query('DELETE FROM roles WHERE id = $1', [id]);
+    await req.db.query('COMMIT');
     res.status(204).send();
   } catch (error) {
-    await client.query('ROLLBACK');
+    await req.db.query('ROLLBACK');
     next(error);
-  } finally {
-    client.release();
   }
 });
 
 companyRouter.get('/users', async (req, res, next) => {
   try {
-    const usersRes = await req.db.query('SELECT id, email, role, name, status, "lastLogin" FROM users WHERE "companyId" = $1', [req.user!.companyId]);
+    const usersRes = await req.db.query('SELECT id, email, role, name, status, "lastLogin" FROM public.users WHERE "companyId" = $1', [req.user!.companyId]);
     res.json(usersRes.rows);
   } catch (error) {
     next(error);
@@ -161,7 +143,7 @@ companyRouter.post('/users', async (req, res, next) => {
     const { id, email, password, role, name, status } = req.body;
     const bcrypt = await import('bcrypt');
     const hashedPassword = await bcrypt.hash(password, 10);
-    await req.db.query('INSERT INTO users (id, "companyId", email, password, role, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+    await req.db.query('INSERT INTO public.users (id, "companyId", email, password, role, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [id, req.user!.companyId, email, hashedPassword, role, name, status || 'Active']);
     res.status(201).json({ id, companyId: req.user!.companyId, email, role, name, status: status || 'Active' });
   } catch (error) {
@@ -173,7 +155,7 @@ companyRouter.put('/users/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { email, role, name, status } = req.body;
-    await req.db.query('UPDATE users SET email = $1, role = $2, name = $3, status = $4 WHERE id = $5 AND "companyId" = $6',
+    await req.db.query('UPDATE public.users SET email = $1, role = $2, name = $3, status = $4 WHERE id = $5 AND "companyId" = $6',
       [email, role, name, status, id, req.user!.companyId]);
     res.json({ id, companyId: req.user!.companyId, email, role, name, status });
   } catch (error) {
@@ -184,7 +166,7 @@ companyRouter.put('/users/:id', async (req, res, next) => {
 companyRouter.delete('/users/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    await req.db.query('DELETE FROM users WHERE id = $1 AND "companyId" = $2 AND role != $3', [id, req.user!.companyId, 'super_admin']);
+    await req.db.query('DELETE FROM public.users WHERE id = $1 AND "companyId" = $2 AND role != $3', [id, req.user!.companyId, 'super_admin']);
     res.status(204).send();
   } catch (error) {
     next(error);

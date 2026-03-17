@@ -13,10 +13,11 @@ import {
   CalendarDays,
   CalendarRange,
   CalendarDays as CalendarMonthIcon,
-  LayoutGrid
+  LayoutGrid,
+  FileText,
+  Trash2
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
-import { useTranslation } from '../lib/i18n';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addDays, startOfYear, endOfYear, eachMonthOfInterval, addWeeks, subWeeks, addYears, subYears } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
@@ -36,7 +37,6 @@ interface Event {
 }
 
 export const Agenda = () => {
-  const { t, language } = useTranslation();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<ViewType>('month');
   const [events, setEvents] = useState<Event[]>([]);
@@ -130,7 +130,7 @@ export const Agenda = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm(t('agenda.confirmDelete'))) return;
+    if (!window.confirm('Supprimer cet événement ?')) return;
     try {
       const res = await apiFetch(`/api/events/${id}`, { method: 'DELETE' });
       if (res.ok) {
@@ -183,15 +183,7 @@ export const Agenda = () => {
 
     return (
       <div className="grid grid-cols-7 border-t border-l border-slate-200">
-        {[
-          t('common.days.mon'),
-          t('common.days.tue'),
-          t('common.days.wed'),
-          t('common.days.thu'),
-          t('common.days.fri'),
-          t('common.days.sat'),
-          t('common.days.sun')
-        ].map(day => (
+        {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
           <div key={day} className="py-2 text-center text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-b border-slate-200 bg-slate-50">
             {day}
           </div>
@@ -223,7 +215,7 @@ export const Agenda = () => {
                 ))}
                 {dayEvents.length > 3 && (
                   <div className="text-[10px] text-slate-400 font-medium pl-1">
-                    + {dayEvents.length - 3} {t('agenda.more')}
+                    + {dayEvents.length - 3} de plus
                   </div>
                 )}
               </div>
@@ -245,7 +237,7 @@ export const Agenda = () => {
           <div className="p-2 border-r border-slate-200"></div>
           {weekDays.map(day => (
             <div key={day.toString()} className="p-2 text-center border-r border-slate-200 last:border-r-0">
-              <div className="text-[10px] font-bold text-slate-400 uppercase">{format(day, 'EEE', { locale: language === 'fr' ? fr : undefined })}</div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase">{format(day, 'EEE', { locale: fr })}</div>
               <div className={`text-sm font-bold ${isSameDay(day, new Date()) ? 'text-indigo-600' : 'text-slate-700'}`}>{format(day, 'd')}</div>
             </div>
           ))}
@@ -352,17 +344,9 @@ export const Agenda = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {months.map(month => (
           <div key={month.toString()} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-900 mb-3 capitalize">{format(month, 'MMMM', { locale: language === 'fr' ? fr : undefined })}</h3>
+            <h3 className="text-sm font-bold text-slate-900 mb-3 capitalize">{format(month, 'MMMM', { locale: fr })}</h3>
             <div className="grid grid-cols-7 gap-1">
-              {[
-                t('common.days.mon').charAt(0),
-                t('common.days.tue').charAt(0),
-                t('common.days.wed').charAt(0),
-                t('common.days.thu').charAt(0),
-                t('common.days.fri').charAt(0),
-                t('common.days.sat').charAt(0),
-                t('common.days.sun').charAt(0)
-              ].map((d, i) => (
+              {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
                 <div key={i} className="text-[8px] font-bold text-slate-400 text-center">{d}</div>
               ))}
               {eachDayOfInterval({
@@ -393,71 +377,69 @@ export const Agenda = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm self-start">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
             <button onClick={handlePrev} className="p-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5 text-slate-600" /></button>
-            <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">{t('common.today')}</button>
+            <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">Aujourd'hui</button>
             <button onClick={handleNext} className="p-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronRight className="w-5 h-5 text-slate-600" /></button>
           </div>
           <h2 className="text-xl font-black text-slate-900 capitalize">
-            {view === 'day' ? format(currentDate, 'd MMMM yyyy', { locale: language === 'fr' ? fr : undefined }) :
-             view === 'week' ? t('agenda.weekOf', { date: format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMMM', { locale: language === 'fr' ? fr : undefined }) }) :
-             view === 'month' ? format(currentDate, 'MMMM yyyy', { locale: language === 'fr' ? fr : undefined }) :
+            {view === 'day' ? format(currentDate, 'd MMMM yyyy', { locale: fr }) :
+             view === 'week' ? `Semaine du ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMMM', { locale: fr })}` :
+             view === 'month' ? format(currentDate, 'MMMM yyyy', { locale: fr }) :
              format(currentDate, 'yyyy')}
           </h2>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm overflow-x-auto scrollbar-hide">
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
           <button 
             onClick={() => setView('day')}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${view === 'day' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'day' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
-            <CalendarIcon className="w-4 h-4" /> {t('common.day')}
+            <CalendarIcon className="w-4 h-4" /> Jour
           </button>
           <button 
             onClick={() => setView('week')}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${view === 'week' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'week' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
-            <CalendarRange className="w-4 h-4" /> {t('common.week')}
+            <CalendarRange className="w-4 h-4" /> Semaine
           </button>
           <button 
             onClick={() => setView('month')}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${view === 'month' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'month' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
-            <CalendarMonthIcon className="w-4 h-4" /> {t('common.month')}
+            <CalendarMonthIcon className="w-4 h-4" /> Mois
           </button>
           <button 
             onClick={() => setView('year')}
-            className={`flex items-center gap-2 px-3 sm:px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${view === 'year' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'year' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
-            <LayoutGrid className="w-4 h-4" /> {t('common.year')}
+            <LayoutGrid className="w-4 h-4" /> Année
           </button>
-          <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block" />
+          <div className="w-px h-6 bg-slate-200 mx-1" />
           <button 
             onClick={() => openAddModal()}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all shadow-md active:scale-95 whitespace-nowrap"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all shadow-md active:scale-95"
           >
-            <Plus className="w-4 h-4" /> {t('agenda.newEvent')}
+            <Plus className="w-4 h-4" /> Nouvel Événement
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto scrollbar-hide">
-        <div className="min-w-[800px]">
-          {isLoading ? (
-            <div className="flex items-center justify-center h-96">
-              <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : (
-            <>
-              {view === 'month' && renderMonthView()}
-              {view === 'week' && renderWeekView()}
-              {view === 'day' && renderDayView()}
-              {view === 'year' && renderYearView()}
-            </>
-          )}
-        </div>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-96">
+            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          </div>
+        ) : (
+          <>
+            {view === 'month' && renderMonthView()}
+            {view === 'week' && renderWeekView()}
+            {view === 'day' && renderDayView()}
+            {view === 'year' && renderYearView()}
+          </>
+        )}
       </div>
 
       {/* Event Modal */}
@@ -468,133 +450,200 @@ export const Agenda = () => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
             >
-              <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <CalendarIcon className="w-5 h-5 text-indigo-600" />
-                  {selectedEvent ? t('agenda.editEvent') : t('agenda.modal.title')}
-                </h3>
-                <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-white rounded-full transition-colors">
-                  <X className="w-5 h-5 text-slate-400" />
+              <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+                <div className="flex items-center gap-5">
+                  <div className="p-4 bg-indigo-100 rounded-[1.5rem] shadow-sm">
+                    <CalendarIcon className="w-7 h-7 text-indigo-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+                      {selectedEvent ? 'Modifier l\'événement' : 'Nouvel événement'}
+                    </h3>
+                    <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">
+                      {selectedEvent ? 'Mise à jour des détails de l\'activité' : 'Planification d\'une nouvelle session de travail'}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsModalOpen(false)} 
+                  className="p-3 hover:bg-white hover:shadow-md rounded-2xl transition-all text-slate-400 hover:text-slate-600 active:scale-95"
+                >
+                  <X className="w-6 h-6" />
                 </button>
               </div>
 
-              <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('common.title')}</label>
-                  <input
-                    type="text"
-                    required
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                    value={formData.title}
-                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                    placeholder={t('agenda.titlePlaceholder')}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('common.start')}</label>
-                    <input
-                      type="datetime-local"
-                      required
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                      value={formData.startDate}
-                      onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                    />
+              <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar">
+                <div className="p-10 space-y-10">
+                  {/* Section: Informations Générales */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                      <LayoutGrid className="w-4 h-4 text-indigo-500" />
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Informations Générales</h4>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      <div className="md:col-span-2 space-y-2">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Titre de l'événement</label>
+                        <input
+                          type="text"
+                          required
+                          className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
+                          value={formData.title}
+                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                          placeholder="Ex: Réunion d'équipe hebdomadaire"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Catégorie</label>
+                        <div className="relative">
+                          <select
+                            className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer shadow-sm"
+                            value={formData.category}
+                            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                          >
+                            <option value="Réunion">Réunion</option>
+                            <option value="Client">Client</option>
+                            <option value="Interne">Interne</option>
+                            <option value="Privé">Privé</option>
+                            <option value="Autre">Autre</option>
+                          </select>
+                          <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('common.end')}</label>
-                    <input
-                      type="datetime-local"
-                      required
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                      value={formData.endDate}
-                      onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-                    />
+
+                  {/* Section: Temporalité */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                      <Clock className="w-4 h-4 text-emerald-500" />
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Temporalité</h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Date & Heure de début</label>
+                        <div className="relative group">
+                          <input
+                            type="datetime-local"
+                            required
+                            className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
+                            value={formData.startDate}
+                            onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Date & Heure de fin</label>
+                        <div className="relative group">
+                          <input
+                            type="datetime-local"
+                            required
+                            className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
+                            value={formData.endDate}
+                            onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section: Attribution & Confidentialité */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                      <Users className="w-4 h-4 text-amber-500" />
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Attribution & Confidentialité</h4>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin') && (
+                        <div className="space-y-2">
+                          <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Attribuer à</label>
+                          <div className="relative">
+                            <select
+                              className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer shadow-sm"
+                              value={formData.assignedTo}
+                              onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+                            >
+                              <option value="">Moi-même</option>
+                              {users.filter(u => u.id !== currentUser.id).map(u => (
+                                <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
+                              ))}
+                            </select>
+                            <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-4 p-5 bg-slate-50 rounded-2xl border-2 border-transparent hover:border-slate-100 transition-all group cursor-pointer shadow-sm" onClick={() => setFormData({ ...formData, isPrivate: !formData.isPrivate })}>
+                        <div className="relative flex items-center">
+                          <input
+                            type="checkbox"
+                            id="isPrivate"
+                            className="peer w-6 h-6 text-indigo-600 rounded-lg border-2 border-slate-300 focus:ring-indigo-500 transition-all cursor-pointer"
+                            checked={formData.isPrivate}
+                            onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        </div>
+                        <div className="flex flex-col">
+                          <label htmlFor="isPrivate" className="text-sm font-bold text-slate-700 cursor-pointer select-none group-hover:text-indigo-600 transition-colors">
+                            Événement privé
+                          </label>
+                          <span className="text-[10px] font-medium text-slate-400">Visible uniquement par vous et les administrateurs</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section: Description */}
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
+                      <FileText className="w-4 h-4 text-slate-500" />
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Description</h4>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Notes & Détails</label>
+                      <textarea
+                        rows={5}
+                        className="w-full px-8 py-6 bg-slate-50 border-2 border-transparent rounded-[2.5rem] text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all resize-none shadow-sm"
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        placeholder="Décrivez les objectifs, l'ordre du jour ou toute information pertinente pour cet événement..."
+                      />
+                    </div>
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('common.category')}</label>
-                  <select
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  >
-                    <option value="Réunion">{t('agenda.categories.meeting')}</option>
-                    <option value="Client">{t('agenda.categories.client')}</option>
-                    <option value="Interne">{t('agenda.categories.internal')}</option>
-                    <option value="Privé">{t('agenda.categories.private')}</option>
-                    <option value="Autre">{t('agenda.categories.other')}</option>
-                  </select>
-                </div>
-
-                {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin') && (
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('agenda.assignTo')}</label>
-                    <select
-                      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                      value={formData.assignedTo}
-                      onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                    >
-                      <option value="">{t('agenda.myself')}</option>
-                      {users.filter(u => u.id !== currentUser.id).map(u => (
-                        <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('common.description')}</label>
-                  <textarea
-                    rows={3}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder={t('agenda.descriptionPlaceholder')}
-                  />
-                </div>
-
-                <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-200">
-                  <input
-                    type="checkbox"
-                    id="isPrivate"
-                    className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-                    checked={formData.isPrivate}
-                    onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
-                  />
-                  <label htmlFor="isPrivate" className="text-sm font-medium text-slate-700 cursor-pointer">
-                    {t('agenda.privateEventHint')}
-                  </label>
-                </div>
-
-                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                {/* Footer */}
+                <div className="px-10 py-8 bg-slate-50/80 backdrop-blur-md border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-6 shrink-0">
                   {selectedEvent ? (
                     <button
                       type="button"
                       onClick={() => handleDelete(selectedEvent.id)}
-                      className="px-4 py-2 text-sm font-bold text-red-600 hover:bg-red-50 rounded-xl transition-colors"
+                      className="group flex items-center gap-2 px-8 py-4 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-all w-full sm:w-auto justify-center"
                     >
-                      {t('common.delete')}
+                      <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                      Supprimer l'événement
                     </button>
-                  ) : <div />}
-                  <div className="flex gap-3">
+                  ) : <div className="hidden sm:block" />}
+                  
+                  <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                      className="px-10 py-4 text-sm font-bold text-slate-500 hover:bg-slate-200/50 rounded-2xl transition-all w-full sm:w-auto"
                     >
-                      {t('common.cancel')}
+                      Annuler
                     </button>
                     <button
                       type="submit"
-                      className="flex items-center gap-2 px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                      className="flex items-center justify-center gap-3 px-14 py-4 bg-indigo-600 text-white rounded-2xl text-sm font-black hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95 w-full sm:w-auto"
                     >
-                      <Check className="w-4 h-4" />
-                      {selectedEvent ? t('common.update') : t('common.create')}
+                      <Check className="w-5 h-5" />
+                      {selectedEvent ? 'Mettre à jour' : 'Confirmer l\'événement'}
                     </button>
                   </div>
                 </div>

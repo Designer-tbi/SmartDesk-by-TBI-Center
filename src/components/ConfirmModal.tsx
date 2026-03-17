@@ -1,6 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -17,12 +18,17 @@ export const ConfirmModal = ({
   isOpen,
   title,
   message,
-  confirmLabel = 'Confirmer',
-  cancelLabel = 'Annuler',
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
   variant = 'danger'
 }: ConfirmModalProps) => {
+  const { t } = useTranslation();
+  
+  const finalConfirmLabel = confirmLabel || t('common.confirm');
+  const finalCancelLabel = cancelLabel || t('common.cancel');
+
   if (!isOpen) return null;
 
   const variantColors = {
@@ -70,7 +76,7 @@ export const ConfirmModal = ({
                   onClick={onCancel}
                   className="flex-1 py-2.5 bg-slate-50 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-100 transition-all active:scale-95"
                 >
-                  {cancelLabel}
+                  {finalCancelLabel}
                 </button>
                 <button
                   onClick={() => {
@@ -79,7 +85,7 @@ export const ConfirmModal = ({
                   }}
                   className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all shadow-lg active:scale-95 ${variantColors[variant]}`}
                 >
-                  {confirmLabel}
+                  {finalConfirmLabel}
                 </button>
               </div>
             </div>

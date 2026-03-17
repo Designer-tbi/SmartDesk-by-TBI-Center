@@ -49,6 +49,33 @@ export const Login = ({ onLogin }: LoginProps) => {
     }
   };
 
+  const handleQuickDemo = async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: 'admin@smartdesk.cg', password: 'admin', demoMode: true })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('demoMode', 'true');
+        onLogin(data.user);
+      } else {
+        const data = await response.json();
+        setError(data.error || 'Erreur lors de la connexion à la démo.');
+      }
+    } catch (error) {
+      console.error('Demo login failed:', error);
+      setError('Erreur de connexion au serveur.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -87,27 +114,13 @@ export const Login = ({ onLogin }: LoginProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* World Map Background */}
-      <div className="absolute inset-0 opacity-50">
-        <img 
-          src="https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920&auto=format&fit=crop" 
-          alt="World Map" 
-          className="w-full h-full object-cover"
-          referrerPolicy="no-referrer"
-        />
-        {/* Glowing Points */}
-        <motion.div className="absolute top-[20%] left-[20%] w-3 h-3 bg-indigo-400 rounded-full shadow-[0_0_20px_#0066ff]" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 3, repeat: Infinity }} />
-        <motion.div className="absolute top-[60%] left-[50%] w-4 h-4 bg-emerald-400 rounded-full shadow-[0_0_20px_#34d399]" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 4, repeat: Infinity, delay: 1 }} />
-        <motion.div className="absolute bottom-[30%] right-[30%] w-2 h-2 bg-amber-400 rounded-full shadow-[0_0_20px_#fbbf24]" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity, delay: 0.5 }} />
-      </div>
-
-      <div className="w-full max-w-md relative z-10">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="bg-white rounded-3xl shadow-2xl shadow-indigo-600/10 border border-slate-100 overflow-hidden"
+          className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden"
         >
           <div className="p-8 pb-6 text-center">
             <motion.div 
@@ -148,7 +161,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                 Un mot de passe de connexion vous sera envoyé par mail quelques minutes suivant votre inscription.
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Prénom</label>
                   <div className="relative">
@@ -158,7 +171,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                       required
                       className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="Prénom"
-                      value={regForm.prenom}
+                      value={regForm.prenom || ''}
                       onChange={(e) => setRegForm({...regForm, prenom: e.target.value})}
                     />
                   </div>
@@ -172,7 +185,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                       required
                       className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="Nom"
-                      value={regForm.nom}
+                      value={regForm.nom || ''}
                       onChange={(e) => setRegForm({...regForm, nom: e.target.value})}
                     />
                   </div>
@@ -188,13 +201,13 @@ export const Login = ({ onLogin }: LoginProps) => {
                     required
                     className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     placeholder="nom@entreprise.cg"
-                    value={regForm.email}
+                    value={regForm.email || ''}
                     onChange={(e) => setRegForm({...regForm, email: e.target.value})}
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Entreprise</label>
                   <div className="relative">
@@ -204,7 +217,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                       required
                       className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       placeholder="Nom de l'entreprise"
-                      value={regForm.companyName}
+                      value={regForm.companyName || ''}
                       onChange={(e) => setRegForm({...regForm, companyName: e.target.value})}
                     />
                   </div>
@@ -216,7 +229,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                     <select
                       required
                       className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
-                      value={regForm.country}
+                      value={regForm.country || 'FR'}
                       onChange={(e) => setRegForm({...regForm, country: e.target.value, state: ''})}
                     >
                       <option value="FR">France</option>
@@ -243,7 +256,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                     <select
                       required
                       className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all appearance-none"
-                      value={regForm.state}
+                      value={regForm.state || ''}
                       onChange={(e) => setRegForm({...regForm, state: e.target.value})}
                     >
                       <option value="">Sélectionner un état</option>
@@ -273,7 +286,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                     required
                     className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     placeholder="+242 00 000 0000"
-                    value={regForm.telephone}
+                    value={regForm.telephone || ''}
                     onChange={(e) => setRegForm({...regForm, telephone: e.target.value})}
                   />
                 </div>
@@ -340,7 +353,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                     required
                     className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     placeholder="nom@entreprise.cg"
-                    value={email}
+                    value={email || ''}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
@@ -357,7 +370,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                     required
                     className="w-full pl-12 pr-12 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     placeholder="••••••••"
-                    value={password}
+                    value={password || ''}
                     onChange={(e) => setPassword(e.target.value)}
                   />
                   <button
@@ -408,6 +421,15 @@ export const Login = ({ onLogin }: LoginProps) => {
               >
                 <button
                   type="button"
+                  onClick={handleQuickDemo}
+                  disabled={isLoading}
+                  className="w-full py-3 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-2xl font-bold text-sm hover:bg-indigo-100 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-3"
+                >
+                  <PlayCircle className="w-5 h-5" />
+                  Essayer la démo maintenant
+                </button>
+                <button
+                  type="button"
                   onClick={() => {
                     setLoginMode('demo');
                     setIsRegistering(true);
@@ -415,8 +437,8 @@ export const Login = ({ onLogin }: LoginProps) => {
                   disabled={isLoading}
                   className="w-full py-3 bg-white border border-slate-200 text-slate-700 rounded-2xl font-bold text-sm hover:bg-slate-100 hover:border-slate-300 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  <PlayCircle className="w-5 h-5 text-indigo-600" />
-                  Accéder à l'espace démo
+                  <User className="w-5 h-5 text-indigo-600" />
+                  Demander un accès démo
                 </button>
                 <p className="text-center text-[10px] text-slate-400 mt-3">
                   Explorez l'application avec des données fictives

@@ -4,6 +4,7 @@ export interface Contact {
   email: string;
   phone: string;
   company: string;
+  companyId?: string;
   role?: string;
   notes?: string;
   status: 'Lead' | 'Client' | 'Partner';
@@ -66,11 +67,16 @@ export interface Project {
   id: string;
   name: string;
   client: string;
+  contactId?: string;
   status: 'Planning' | 'In Progress' | 'Completed' | 'On Hold';
   deadline: string;
+  startDate?: string;
   progress: number;
   description?: string;
   details?: string;
+  priority?: 'Low' | 'Medium' | 'High';
+  budget?: number;
+  teamIds?: string[];
 }
 
 export interface Employee {
@@ -133,6 +139,18 @@ export interface ContractTemplate {
   lastModified: string;
 }
 
+export interface EmployeeTask {
+  id: string;
+  employeeId: string;
+  title: string;
+  description?: string;
+  date: string;
+  startTime?: string;
+  endTime?: string;
+  status: 'Todo' | 'In Progress' | 'Completed';
+  priority: 'Low' | 'Medium' | 'High';
+}
+
 export interface Transaction {
   id: string;
   date: string;
@@ -161,6 +179,16 @@ export interface JournalEntry {
   items: JournalEntryItem[];
 }
 
+export interface Company {
+  id: string;
+  name: string;
+  type: 'demo' | 'real';
+  logo?: string;
+  industry?: string;
+  status: 'Active' | 'Inactive';
+  createdAt: string;
+}
+
 export interface CompanyInfo {
   name: string;
   address: string;
@@ -183,14 +211,9 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: string;
-  companyId?: string;
+  roleId: string;
   status: 'Active' | 'Inactive';
   lastLogin?: string;
-  companyLogo?: string;
-  companyName?: string;
-  language?: string;
-  currency?: string;
 }
 
 export interface Role {

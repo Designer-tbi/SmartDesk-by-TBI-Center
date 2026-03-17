@@ -23,10 +23,48 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
       }
       req.user!.language = company.language || 'fr';
       req.user!.currency = company.currency || 'XAF';
-      req.user!.companyLogo = company.logo;
-      req.user!.companyName = company.name;
     }
     res.json(req.user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.put('/me', requireAuth, async (req, res, next) => {
+  try {
+    const { name, email } = req.body;
+    if (!name || !email) {
+      return res.status(400).json({ error: 'Name and email are required' });
+    }
+    
+    await req.db.query('UPDATE users SET name = $1, email = $2 WHERE id = $3', [name, email, req.user!.id]);
+    
+    const updatedUserRes = await req.db.query('SELECT id, email, role, name, "companyId" FROM users WHERE id = $1', [req.user!.id]);
+    res.json(updatedUserRes.rows[0]);
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.put('/change-password', requireAuth, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new passwords are required' });
+    }
+    
+    const userRes = await req.db.query('SELECT password FROM users WHERE id = $1', [req.user!.id]);
+    const user = userRes.rows[0];
+    
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Mot de passe actuel incorrect.' });
+    }
+    
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    await req.db.query('UPDATE users SET password = $1 WHERE id = $2', [hashedNewPassword, req.user!.id]);
+    
+    res.json({ success: true, message: 'Mot de passe mis à jour avec succès.' });
   } catch (error) {
     next(error);
   }
@@ -115,6 +153,29 @@ authRouter.post('/login', async (req, res, next) => {
       { expiresIn: '24h' }
     );
 
+    // Create session in database
+    try {
+      const sessionId = `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      await req.db.query(
+        'INSERT INTO sessions (id, "companyId", "userId", token, "expiresAt", "createdAt", "lastActivity", "ipAddress", "userAgent") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+        [
+          sessionId, 
+          user.companyId, 
+          user.id, 
+          token, 
+          expiresAt, 
+          new Date().toISOString(), 
+          new Date().toISOString(),
+          req.ip,
+          req.headers['user-agent'] || null
+        ]
+      );
+    } catch (sessErr) {
+      console.error('Failed to create session record:', sessErr);
+      // Don't block login if session logging fails, but it's good to have
+    }
+
     res.json({ 
       token, 
       user: {
@@ -126,9 +187,7 @@ authRouter.post('/login', async (req, res, next) => {
         country: company?.country || 'FR',
         state: company?.state || null,
         language: company?.language || 'fr',
-        currency: company?.currency || 'XAF',
-        companyLogo: company?.logo || null,
-        companyName: company?.name || 'SmartDesk'
+        currency: company?.currency || 'XAF'
       } 
     });
   } catch (error) {

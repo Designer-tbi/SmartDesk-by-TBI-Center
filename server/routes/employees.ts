@@ -189,6 +189,52 @@ employeesRouter.delete('/contract-templates/:id', async (req, res, next) => {
   }
 });
 
+employeesRouter.get('/tasks', async (req, res, next) => {
+  try {
+    const tasksRes = await req.db.query('SELECT * FROM employee_tasks WHERE "companyId" = $1', [req.user!.companyId]);
+    res.json(tasksRes.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+employeesRouter.post('/tasks', async (req, res, next) => {
+  try {
+    const task = req.body;
+    await req.db.query(
+      'INSERT INTO employee_tasks (id, "companyId", "employeeId", title, description, date, "startTime", "endTime", status, priority) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
+      [task.id, req.user!.companyId, task.employeeId, task.title, task.description || null, task.date, task.startTime || null, task.endTime || null, task.status || 'Todo', task.priority || 'Medium']
+    );
+    res.status(201).json(task);
+  } catch (error) {
+    next(error);
+  }
+});
+
+employeesRouter.put('/tasks/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const task = req.body;
+    await req.db.query(
+      'UPDATE employee_tasks SET "employeeId" = $1, title = $2, description = $3, date = $4, "startTime" = $5, "endTime" = $6, status = $7, priority = $8 WHERE id = $9 AND "companyId" = $10',
+      [task.employeeId, task.title, task.description || null, task.date, task.startTime || null, task.endTime || null, task.status || 'Todo', task.priority || 'Medium', id, req.user!.companyId]
+    );
+    res.json(task);
+  } catch (error) {
+    next(error);
+  }
+});
+
+employeesRouter.delete('/tasks/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await req.db.query('DELETE FROM employee_tasks WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
 employeesRouter.get('/', async (req, res, next) => {
   try {
     const employeesRes = await req.db.query('SELECT * FROM employees WHERE "companyId" = $1', [req.user!.companyId]);

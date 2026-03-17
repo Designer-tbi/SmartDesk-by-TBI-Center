@@ -9,7 +9,11 @@ projectsRouter.use(requireAuth, requireCompany);
 projectsRouter.get('/', async (req, res, next) => {
   try {
     const projects = await req.db.query('SELECT * FROM projects WHERE "companyId" = $1', [req.user!.companyId]);
-    res.json(projects.rows);
+    const parsedProjects = projects.rows.map(p => ({
+      ...p,
+      teamIds: p.teamIds ? JSON.parse(p.teamIds) : []
+    }));
+    res.json(parsedProjects);
   } catch (error) {
     next(error);
   }
@@ -18,8 +22,8 @@ projectsRouter.get('/', async (req, res, next) => {
 projectsRouter.post('/', async (req, res, next) => {
   try {
     const proj = req.body;
-    await req.db.query('INSERT INTO projects (id, "companyId", name, client, status, deadline, progress, description, details) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-      [proj.id, req.user!.companyId, proj.name, proj.client, proj.status, proj.deadline, proj.progress, proj.description, proj.details]);
+    await req.db.query('INSERT INTO projects (id, "companyId", name, client, "contactId", status, deadline, "startDate", progress, description, details, priority, budget, "teamIds") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)',
+      [proj.id, req.user!.companyId, proj.name, proj.client, proj.contactId, proj.status, proj.deadline, proj.startDate, proj.progress, proj.description, proj.details, proj.priority, proj.budget, JSON.stringify(proj.teamIds || [])]);
     
     await logActivity(req.user!.id, req.user!.companyId, 'CREATE_PROJECT', `Nouveau projet créé: ${proj.name}`);
     
@@ -33,8 +37,8 @@ projectsRouter.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const proj = req.body;
-    await req.db.query('UPDATE projects SET name = $1, client = $2, status = $3, deadline = $4, progress = $5, description = $6, details = $7 WHERE id = $8 AND "companyId" = $9',
-      [proj.name, proj.client, proj.status, proj.deadline, proj.progress, proj.description, proj.details, id, req.user!.companyId]);
+    await req.db.query('UPDATE projects SET name = $1, client = $2, "contactId" = $3, status = $4, deadline = $5, "startDate" = $6, progress = $7, description = $8, details = $9, priority = $10, budget = $11, "teamIds" = $12 WHERE id = $13 AND "companyId" = $14',
+      [proj.name, proj.client, proj.contactId, proj.status, proj.deadline, proj.startDate, proj.progress, proj.description, proj.details, proj.priority, proj.budget, JSON.stringify(proj.teamIds || []), id, req.user!.companyId]);
     
     await logActivity(req.user!.id, req.user!.companyId, 'UPDATE_PROJECT', `Projet mis à jour: ${proj.name}`);
     

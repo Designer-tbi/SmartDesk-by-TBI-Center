@@ -1,9 +1,9 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
 
 declare global {
   namespace Express {
     interface Request {
-      db: Pool;
+      db: PoolClient | Pool;
       user?: {
         id: string;
         companyId: string | null;

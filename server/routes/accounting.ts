@@ -43,8 +43,8 @@ accountingRouter.post('/journal-entries', requireAuth, requireCompany, async (re
     if (Array.isArray(entry.items)) {
       for (const item of entry.items) {
         await client.query(
-          'INSERT INTO journal_items ("journalEntryId", "accountId", debit, credit) VALUES ($1, $2, $3, $4)',
-          [entry.id, item.accountId, item.debit, item.credit]
+          'INSERT INTO journal_items ("companyId", "journalEntryId", "accountId", debit, credit) VALUES ($1, $2, $3, $4, $5)',
+          [req.user!.companyId, entry.id, item.accountId, item.debit, item.credit]
         );
       }
     }
@@ -72,13 +72,13 @@ accountingRouter.put('/journal-entries/:id', requireAuth, requireCompany, async 
       [entry.date, entry.description, id, req.user!.companyId]
     );
     
-    await client.query('DELETE FROM journal_items WHERE "journalEntryId" = $1', [id]);
+    await client.query('DELETE FROM journal_items WHERE "journalEntryId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     
     if (Array.isArray(entry.items)) {
       for (const item of entry.items) {
         await client.query(
-          'INSERT INTO journal_items ("journalEntryId", "accountId", debit, credit) VALUES ($1, $2, $3, $4)',
-          [id, item.accountId, item.debit, item.credit]
+          'INSERT INTO journal_items ("companyId", "journalEntryId", "accountId", debit, credit) VALUES ($1, $2, $3, $4, $5)',
+          [req.user!.companyId, id, item.accountId, item.debit, item.credit]
         );
       }
     }
@@ -99,7 +99,7 @@ accountingRouter.delete('/journal-entries/:id', requireAuth, requireCompany, asy
     const { id } = req.params;
     
     await client.query('BEGIN');
-    await client.query('DELETE FROM journal_items WHERE "journalEntryId" = $1', [id]);
+    await client.query('DELETE FROM journal_items WHERE "journalEntryId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     await client.query('DELETE FROM journal_entries WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     await client.query('COMMIT');
     

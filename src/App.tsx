@@ -20,50 +20,46 @@ import { apiFetch } from './lib/api';
 
 const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, onLogout?: () => void, user: any }) => {
   const location = useLocation();
-  const { t } = useTranslation();
-  const [isSidebarOpen, setIsSidebarOpen] = React.useState(false);
   
   const getTitle = (path: string) => {
     switch (path) {
-      case '/': return t('header.dashboard');
-      case '/crm': return t('header.crm');
-      case '/sales': return t('header.sales');
-      case '/inventory': return t('header.inventory');
-      case '/projects': return t('header.projects');
-      case '/hr': return t('header.hr');
-      case '/accounting': return t('header.accounting');
-      case '/users': return t('header.users');
-      case '/settings': return t('header.settings');
-      case '/super-admin': return t('header.superAdmin');
-      case '/agenda': return t('header.agenda');
-      case '/planning': return t('header.planning');
+      case '/': return 'Tableau de Bord';
+      case '/crm': return 'Gestion de la Relation Client';
+      case '/sales': return 'Ventes & Facturation';
+      case '/inventory': return 'Gestion des Stocks';
+      case '/projects': return 'Gestion de Projets';
+      case '/hr': return 'Ressources Humaines';
+      case '/accounting': return 'Comptabilité';
+      case '/users': return 'Utilisateurs & Permissions';
+      case '/settings': return 'Paramètres Système';
+      case '/super-admin': return 'Administration Globale';
+      case '/agenda': return 'Agenda & Calendrier';
+      case '/planning': return 'Planning des Salariés';
       default: return 'SmartDesk';
     }
   };
 
-  React.useEffect(() => {
-    setIsSidebarOpen(false);
-  }, [location.pathname]);
-
   return (
-    <div className="flex min-h-screen bg-indigo-50/30">
-      <Sidebar user={user} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <div className="flex-1 flex flex-col min-w-0">
-        <Header title={getTitle(location.pathname)} onLogout={onLogout} onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="p-4 lg:p-8 max-w-7xl mx-auto w-full flex-1 min-w-0">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={location.pathname}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-            >
-              {children}
-            </motion.div>
-          </AnimatePresence>
+    <div className="flex h-screen bg-slate-50 overflow-hidden">
+      <Sidebar user={user} />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <Header title={getTitle(location.pathname)} onLogout={onLogout} />
+        <main className="flex-1 overflow-auto p-8">
+          <div className="max-w-7xl mx-auto w-full">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {children}
+              </motion.div>
+            </AnimatePresence>
+          </div>
         </main>
-        <footer className="py-4 text-center text-sm text-slate-500 border-t border-slate-200">
+        <footer className="py-4 text-center text-sm text-slate-500 border-t border-slate-200 bg-white">
           SmartDesk by <a href="https://tbi-center.fr" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">TBI Center</a>
         </footer>
       </div>
@@ -119,12 +115,12 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
           <Route path="/crm" element={<CRM user={user} />} />
           <Route path="/sales" element={<Sales user={user} />} />
           <Route path="/inventory" element={<Inventory user={user} />} />
-          <Route path="/projects" element={<Projects />} />
+          <Route path="/projects" element={<Projects user={user} />} />
           <Route path="/hr" element={<HR user={user} />} />
           <Route path="/accounting" element={<Accounting user={user} />} />
-          <Route path="/agenda" element={<Agenda />} />
-          <Route path="/planning" element={<Planning />} />
-          <Route path="/users" element={<Users />} />
+          <Route path="/agenda" element={<Agenda user={user} />} />
+          <Route path="/planning" element={<Planning user={user} />} />
+          <Route path="/users" element={<Users user={user} />} />
           <Route path="/settings" element={<Settings user={user} setUser={setUser} />} />
           {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
         </Routes>

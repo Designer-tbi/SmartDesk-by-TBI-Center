@@ -21,7 +21,7 @@ const initSql = `
   CREATE TABLE IF NOT EXISTS companies (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    type TEXT NOT NULL, -- 'real' or 'demo'
+    type TEXT NOT NULL CHECK (type IN ('real', 'demo')),
     status TEXT NOT NULL DEFAULT 'active',
     country TEXT DEFAULT 'AFRIQUE',
     state TEXT,
@@ -37,8 +37,9 @@ const initSql = `
     logo TEXT,
     language TEXT DEFAULT 'fr',
     currency TEXT DEFAULT 'XAF',
-    "accountingStandard" TEXT DEFAULT 'OHADA', -- 'OHADA', 'US_GAAP', 'FRANCE'
-    "createdAt" TEXT NOT NULL
+    "accountingStandard" TEXT DEFAULT 'OHADA',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS users (
@@ -46,11 +47,13 @@ const initSql = `
     "companyId" TEXT,
     email TEXT UNIQUE NOT NULL,
     password TEXT NOT NULL,
-    role TEXT NOT NULL, -- 'super_admin', 'admin', 'user'
+    role TEXT NOT NULL,
     name TEXT,
     status TEXT DEFAULT 'Active',
-    "lastLogin" TEXT,
-    FOREIGN KEY ("companyId") REFERENCES companies(id)
+    "lastLogin" TIMESTAMPTZ,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE SET NULL
   );
 
   CREATE TABLE IF NOT EXISTS contacts (
@@ -63,8 +66,10 @@ const initSql = `
     role TEXT,
     notes TEXT,
     status TEXT,
-    "lastContact" TEXT,
-    FOREIGN KEY ("companyId") REFERENCES companies(id)
+    "lastContact" TIMESTAMPTZ,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS products (
@@ -72,44 +77,50 @@ const initSql = `
     "companyId" TEXT NOT NULL,
     name TEXT NOT NULL,
     sku TEXT,
-    price REAL,
-    stock INTEGER,
+    price REAL DEFAULT 0,
+    stock INTEGER DEFAULT 0,
     category TEXT,
     description TEXT,
     type TEXT,
-    "tvaRate" REAL,
-    FOREIGN KEY ("companyId") REFERENCES companies(id)
+    "tvaRate" REAL DEFAULT 0,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS invoices (
     id TEXT PRIMARY KEY,
     "companyId" TEXT NOT NULL,
-    type TEXT,
+    type TEXT NOT NULL, -- 'Invoice', 'Quote', 'Credit'
     "contactId" TEXT,
     date TEXT,
     "dueDate" TEXT,
-    "totalHT" REAL,
-    "tvaTotal" REAL,
-    total REAL,
+    "totalHT" REAL DEFAULT 0,
+    "tvaTotal" REAL DEFAULT 0,
+    total REAL DEFAULT 0,
     status TEXT,
     notes TEXT,
     "signatureLink" TEXT,
-    "signedAt" TEXT,
-    FOREIGN KEY ("companyId") REFERENCES companies(id),
-    FOREIGN KEY ("contactId") REFERENCES contacts(id)
+    "signedAt" TIMESTAMPTZ,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("contactId") REFERENCES contacts(id) ON DELETE SET NULL
   );
 
   CREATE TABLE IF NOT EXISTS invoice_items (
     id SERIAL PRIMARY KEY,
-    "invoiceId" TEXT,
+    "companyId" TEXT NOT NULL,
+    "invoiceId" TEXT NOT NULL,
     "productId" TEXT,
-    name TEXT,
+    name TEXT NOT NULL,
     description TEXT,
-    quantity INTEGER,
-    price REAL,
-    "tvaRate" REAL,
-    "tvaAmount" REAL,
-    FOREIGN KEY ("invoiceId") REFERENCES invoices(id)
+    quantity INTEGER DEFAULT 1,
+    price REAL DEFAULT 0,
+    "tvaRate" REAL DEFAULT 0,
+    "tvaAmount" REAL DEFAULT 0,
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("invoiceId") REFERENCES invoices(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS projects (
@@ -117,12 +128,20 @@ const initSql = `
     "companyId" TEXT NOT NULL,
     name TEXT NOT NULL,
     client TEXT,
+    "contactId" TEXT,
     status TEXT,
     deadline TEXT,
-    progress INTEGER,
+    "startDate" TEXT,
+    progress INTEGER DEFAULT 0,
     description TEXT,
     details TEXT,
-    FOREIGN KEY ("companyId") REFERENCES companies(id)
+    priority TEXT DEFAULT 'Medium',
+    budget REAL DEFAULT 0,
+    "teamIds" TEXT,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("contactId") REFERENCES contacts(id) ON DELETE SET NULL
   );
 
   CREATE TABLE IF NOT EXISTS employees (
@@ -137,10 +156,12 @@ const initSql = `
     status TEXT,
     "contractType" TEXT,
     "joinDate" TEXT,
-    salary REAL,
+    salary REAL DEFAULT 0,
     "profilePicture" TEXT,
     documents TEXT,
-    FOREIGN KEY ("companyId") REFERENCES companies(id)
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS transactions (
@@ -149,9 +170,10 @@ const initSql = `
     date TEXT,
     description TEXT,
     category TEXT,
-    amount REAL,
+    amount REAL DEFAULT 0,
     type TEXT,
-    FOREIGN KEY ("companyId") REFERENCES companies(id)
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS journal_entries (
@@ -159,16 +181,19 @@ const initSql = `
     "companyId" TEXT NOT NULL,
     date TEXT,
     description TEXT,
-    FOREIGN KEY ("companyId") REFERENCES companies(id)
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS journal_items (
     id SERIAL PRIMARY KEY,
-    "journalEntryId" TEXT,
-    "accountId" TEXT,
-    debit REAL,
-    credit REAL,
-    FOREIGN KEY ("journalEntryId") REFERENCES journal_entries(id)
+    "companyId" TEXT NOT NULL,
+    "journalEntryId" TEXT NOT NULL,
+    "accountId" TEXT NOT NULL,
+    debit REAL DEFAULT 0,
+    credit REAL DEFAULT 0,
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("journalEntryId") REFERENCES journal_entries(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS quote_templates (
@@ -176,20 +201,23 @@ const initSql = `
     "companyId" TEXT NOT NULL,
     name TEXT NOT NULL,
     notes TEXT,
-    FOREIGN KEY ("companyId") REFERENCES companies(id)
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS quote_template_items (
     id SERIAL PRIMARY KEY,
-    "templateId" TEXT,
+    "companyId" TEXT NOT NULL,
+    "templateId" TEXT NOT NULL,
     "productId" TEXT,
-    name TEXT,
+    name TEXT NOT NULL,
     description TEXT,
-    quantity INTEGER,
-    price REAL,
-    "tvaRate" REAL,
-    "tvaAmount" REAL,
-    FOREIGN KEY ("templateId") REFERENCES quote_templates(id)
+    quantity INTEGER DEFAULT 1,
+    price REAL DEFAULT 0,
+    "tvaRate" REAL DEFAULT 0,
+    "tvaAmount" REAL DEFAULT 0,
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("templateId") REFERENCES quote_templates(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS leave_requests (
@@ -201,8 +229,9 @@ const initSql = `
     "endDate" TEXT NOT NULL,
     status TEXT NOT NULL,
     reason TEXT,
-    FOREIGN KEY ("companyId") REFERENCES companies(id),
-    FOREIGN KEY ("employeeId") REFERENCES employees(id)
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("employeeId") REFERENCES employees(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS payslips (
@@ -212,12 +241,13 @@ const initSql = `
     month TEXT NOT NULL,
     year INTEGER NOT NULL,
     "baseSalary" REAL NOT NULL,
-    bonuses REAL NOT NULL,
-    deductions REAL NOT NULL,
+    bonuses REAL DEFAULT 0,
+    deductions REAL DEFAULT 0,
     "netSalary" REAL NOT NULL,
     status TEXT NOT NULL,
-    FOREIGN KEY ("companyId") REFERENCES companies(id),
-    FOREIGN KEY ("employeeId") REFERENCES employees(id)
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("employeeId") REFERENCES employees(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS contracts (
@@ -230,11 +260,12 @@ const initSql = `
     salary REAL NOT NULL,
     status TEXT NOT NULL,
     content TEXT NOT NULL,
-    "createdAt" TEXT NOT NULL,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "signatureLink" TEXT,
-    "signedAt" TEXT,
-    FOREIGN KEY ("companyId") REFERENCES companies(id),
-    FOREIGN KEY ("employeeId") REFERENCES employees(id)
+    "signedAt" TIMESTAMPTZ,
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("employeeId") REFERENCES employees(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS contract_templates (
@@ -243,22 +274,23 @@ const initSql = `
     name TEXT NOT NULL,
     type TEXT NOT NULL,
     content TEXT NOT NULL,
-    "lastModified" TEXT NOT NULL,
-    FOREIGN KEY ("companyId") REFERENCES companies(id)
+    "lastModified" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS roles (
     id TEXT PRIMARY KEY,
     "companyId" TEXT NOT NULL,
     name TEXT NOT NULL,
-    FOREIGN KEY ("companyId") REFERENCES companies(id)
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS role_permissions (
     "roleId" TEXT NOT NULL,
     "permissionId" TEXT NOT NULL,
     PRIMARY KEY ("roleId", "permissionId"),
-    FOREIGN KEY ("roleId") REFERENCES roles(id)
+    FOREIGN KEY ("roleId") REFERENCES roles(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS activity_log (
@@ -267,9 +299,9 @@ const initSql = `
     "userId" TEXT,
     action TEXT NOT NULL,
     details TEXT,
-    "createdAt" TEXT NOT NULL,
-    FOREIGN KEY ("companyId") REFERENCES companies(id),
-    FOREIGN KEY ("userId") REFERENCES users(id)
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE SET NULL
   );
 
   CREATE TABLE IF NOT EXISTS events (
@@ -283,10 +315,11 @@ const initSql = `
     "endDate" TEXT NOT NULL,
     category TEXT,
     "isPrivate" BOOLEAN DEFAULT FALSE,
-    "createdAt" TEXT NOT NULL,
-    FOREIGN KEY ("companyId") REFERENCES companies(id),
-    FOREIGN KEY ("userId") REFERENCES users(id),
-    FOREIGN KEY ("assignedTo") REFERENCES users(id)
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY ("assignedTo") REFERENCES users(id) ON DELETE SET NULL
   );
 
   CREATE TABLE IF NOT EXISTS schedules (
@@ -300,57 +333,165 @@ const initSql = `
     "endDate" TEXT NOT NULL,
     type TEXT,
     status TEXT DEFAULT 'published',
-    "createdAt" TEXT NOT NULL,
-    FOREIGN KEY ("companyId") REFERENCES companies(id),
-    FOREIGN KEY ("userId") REFERENCES users(id),
-    FOREIGN KEY ("createdBy") REFERENCES users(id)
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY ("createdBy") REFERENCES users(id) ON DELETE CASCADE
   );
 
-  ALTER TABLE companies ADD COLUMN IF NOT EXISTS logo TEXT;
-  ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
-  ALTER TABLE users ADD COLUMN IF NOT EXISTS "lastLogin" TEXT;
-  ALTER TABLE contacts ADD COLUMN IF NOT EXISTS role TEXT;
-  ALTER TABLE contacts ADD COLUMN IF NOT EXISTS notes TEXT;
-  ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "signedAt" TEXT;
-  ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS description TEXT;
-  ALTER TABLE employees ADD COLUMN IF NOT EXISTS "profilePicture" TEXT;
-  ALTER TABLE employees ADD COLUMN IF NOT EXISTS documents TEXT;
-  ALTER TABLE companies ADD COLUMN IF NOT EXISTS "accountingStandard" TEXT DEFAULT 'OHADA';
-  ALTER TABLE companies ADD COLUMN IF NOT EXISTS siren TEXT;
-  ALTER TABLE companies ADD COLUMN IF NOT EXISTS siret TEXT;
-  ALTER TABLE companies ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'fr';
-  ALTER TABLE companies ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'XAF';
-  ALTER TABLE events ADD COLUMN IF NOT EXISTS "assignedTo" TEXT;
+  CREATE TABLE IF NOT EXISTS sessions (
+    id TEXT PRIMARY KEY,
+    "companyId" TEXT,
+    "userId" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "expiresAt" TIMESTAMPTZ NOT NULL,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "lastActivity" TIMESTAMPTZ,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("userId") REFERENCES users(id) ON DELETE CASCADE
+  );
+
+  CREATE TABLE IF NOT EXISTS employee_tasks (
+    id TEXT PRIMARY KEY,
+    "companyId" TEXT NOT NULL,
+    "employeeId" TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    date TEXT NOT NULL,
+    "startTime" TEXT,
+    "endTime" TEXT,
+    status TEXT DEFAULT 'Todo',
+    priority TEXT DEFAULT 'Medium',
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+    FOREIGN KEY ("employeeId") REFERENCES employees(id) ON DELETE CASCADE
+  );
+
+  -- Indexes for multi-company isolation and performance
+  CREATE INDEX IF NOT EXISTS idx_users_company ON users("companyId");
+  CREATE INDEX IF NOT EXISTS idx_contacts_company ON contacts("companyId");
+  CREATE INDEX IF NOT EXISTS idx_products_company ON products("companyId");
+  CREATE INDEX IF NOT EXISTS idx_invoices_company ON invoices("companyId");
+  CREATE INDEX IF NOT EXISTS idx_invoice_items_company ON invoice_items("companyId");
+  CREATE INDEX IF NOT EXISTS idx_projects_company ON projects("companyId");
+  CREATE INDEX IF NOT EXISTS idx_employees_company ON employees("companyId");
+  CREATE INDEX IF NOT EXISTS idx_transactions_company ON transactions("companyId");
+  CREATE INDEX IF NOT EXISTS idx_journal_entries_company ON journal_entries("companyId");
+  CREATE INDEX IF NOT EXISTS idx_journal_items_company ON journal_items("companyId");
+  CREATE INDEX IF NOT EXISTS idx_activity_log_company ON activity_log("companyId");
+  CREATE INDEX IF NOT EXISTS idx_events_company ON events("companyId");
+  CREATE INDEX IF NOT EXISTS idx_schedules_company ON schedules("companyId");
+  CREATE INDEX IF NOT EXISTS idx_sessions_company ON sessions("companyId");
+  CREATE INDEX IF NOT EXISTS idx_companies_type ON companies(type);
+
+  -- Schema updates for existing tables
+  ALTER TABLE companies ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+  -- ... more alter statements can be added if needed, but initializeDatabase handles it.
 `;
 
 // Initialize database
 export async function initializeDatabase() {
   try {
     console.log("Initializing database...");
-    await db.query(initSql);
+    
+    // Split initSql into individual statements to handle potential errors better
+    const statements = initSql.split(';').filter(s => s.trim().length > 0);
+    for (const statement of statements) {
+      try {
+        await db.query(statement);
+      } catch (err) {
+        console.error("Error executing statement:", statement.substring(0, 50) + "...", err);
+      }
+    }
+    
     console.log("Database initialized successfully");
     
-    // Verify columns
-    const columnsRes = await db.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'companies' AND column_name = 'accountingStandard'
+    // Verify employee_tasks exists
+    const checkRes = await db.query(`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'employee_tasks'
+      );
     `);
-    if (columnsRes.rows.length === 0) {
-      console.log("Adding missing accountingStandard column...");
-      await db.query('ALTER TABLE companies ADD COLUMN "accountingStandard" TEXT DEFAULT \'OHADA\'');
-      console.log("accountingStandard column added successfully");
+    console.log("employee_tasks exists:", checkRes.rows[0].exists);
+    
+    if (!checkRes.rows[0].exists) {
+      console.log("Manually creating employee_tasks...");
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS employee_tasks (
+          id TEXT PRIMARY KEY,
+          "companyId" TEXT NOT NULL,
+          "employeeId" TEXT NOT NULL,
+          title TEXT NOT NULL,
+          description TEXT,
+          date TEXT NOT NULL,
+          "startTime" TEXT,
+          "endTime" TEXT,
+          status TEXT DEFAULT 'Todo',
+          priority TEXT DEFAULT 'Medium',
+          "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
+          FOREIGN KEY ("employeeId") REFERENCES employees(id) ON DELETE CASCADE
+        );
+      `);
     }
-    // Verify columns for events
-    const eventColumnsRes = await db.query(`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'events' AND column_name = 'assignedTo'
-    `);
-    if (eventColumnsRes.rows.length === 0) {
-      console.log("Adding missing assignedTo column to events...");
-      await db.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS "assignedTo" TEXT');
-      console.log("assignedTo column added successfully to events");
+    const tablesToUpdate = [
+      'companies', 'users', 'contacts', 'products', 'invoices', 'projects', 
+      'employees', 'transactions', 'journal_entries', 'quote_templates', 
+      'leave_requests', 'payslips', 'contracts', 'contract_templates', 
+      'roles', 'activity_log', 'events', 'schedules', 'sessions', 'employee_tasks'
+    ];
+
+    for (const table of tablesToUpdate) {
+      try {
+        const colRes = await db.query(`
+          SELECT column_name FROM information_schema.columns 
+          WHERE table_name = $1 AND column_name = 'updatedAt'
+        `, [table]);
+        
+        if (colRes.rows.length === 0 && !['transactions', 'journal_entries', 'activity_log', 'leave_requests', 'payslips', 'journal_items', 'invoice_items', 'quote_template_items'].includes(table)) {
+          console.log(`Adding updatedAt to ${table}...`);
+          await db.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW()`);
+        }
+
+        const createdColRes = await db.query(`
+          SELECT column_name FROM information_schema.columns 
+          WHERE table_name = $1 AND column_name = 'createdAt'
+        `, [table]);
+
+        if (createdColRes.rows.length === 0 && table !== 'role_permissions') {
+          console.log(`Adding createdAt to ${table}...`);
+          await db.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW()`);
+        }
+      } catch (err) {
+        console.error(`Error updating columns for table ${table}:`, err);
+      }
+    }
+
+    // Specific fixes
+    await db.query('ALTER TABLE companies ADD COLUMN IF NOT EXISTS "accountingStandard" TEXT DEFAULT \'OHADA\'');
+    await db.query('ALTER TABLE events ADD COLUMN IF NOT EXISTS "assignedTo" TEXT');
+    await db.query('ALTER TABLE sessions ALTER COLUMN "companyId" DROP NOT NULL');
+    await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "startDate" TEXT');
+    await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "priority" TEXT DEFAULT \'Medium\'');
+    await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "budget" REAL DEFAULT 0');
+    await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "contactId" TEXT');
+    await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "teamIds" TEXT');
+    
+    // Ensure companies.type has the check constraint
+    try {
+      await db.query("ALTER TABLE companies ADD CONSTRAINT check_company_type CHECK (type IN ('real', 'demo'))");
+    } catch (e) {
+      // Constraint might already exist
     }
   } catch (err) {
     console.error("Error initializing database:", err);
@@ -411,7 +552,35 @@ export async function seedDatabase(dbInstance: Pool, data: any) {
       console.log('Super admin missengue07@gmail.com already exists');
     }
 
-    console.log('Database seeded successfully with admin accounts');
+    // Seed demo companies
+    const demoCompanies = [
+      { id: 'demo-1', name: 'TechCorp Demo', type: 'demo' },
+      { id: 'demo-2', name: 'GreenEnergy Demo', type: 'demo' }
+    ];
+    for (const dc of demoCompanies) {
+      const res = await dbInstance.query('SELECT * FROM companies WHERE id = $1', [dc.id]);
+      if (res.rows.length === 0) {
+        console.log(`Seeding demo company: ${dc.name}`);
+        await dbInstance.query(`
+          INSERT INTO companies (id, name, type, status, address, email, phone, website, "taxId", rccm, "idNat", "createdAt")
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        `, [
+          dc.id, dc.name, dc.type, 'active', 'Demo Address', 'demo@' + dc.id + '.com', '+242 00 000 00 00', 'https://demo.com', 'NIF: DEMO', 'RCCM: DEMO', 'ID NAT: DEMO', new Date().toISOString()
+        ]);
+      }
+    }
+
+    // Seed demo user
+    const demoUserEmail = 'admin@smartdesk.cg';
+    const res3 = await dbInstance.query('SELECT * FROM users WHERE email = $1', [demoUserEmail]);
+    if (res3.rows.length === 0) {
+      console.log(`Seeding demo user: ${demoUserEmail}`);
+      const hashedPassword = bcrypt.hashSync('admin', 10);
+      await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)', 
+        ['demo_user_1', 'demo-1', demoUserEmail, hashedPassword, 'admin', 'Demo Admin']);
+    }
+
+    console.log('Database seeded successfully with admin and demo accounts');
   } catch (error) {
     console.error('Error seeding database:', error);
   }
