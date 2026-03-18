@@ -680,6 +680,12 @@ export async function seedDatabase(dbInstance: Pool) {
       }
     }
 
+    // Seed default roles for all existing companies
+    const companies = await dbInstance.query('SELECT id FROM companies');
+    for (const company of companies.rows) {
+      await seedDefaultRoles(dbInstance, company.id);
+    }
+
     // Seed demo user
     const demoUserEmail = 'admin@smartdesk.cg';
     const res3 = await dbInstance.query('SELECT * FROM users WHERE email = $1', [demoUserEmail]);
@@ -687,8 +693,9 @@ export async function seedDatabase(dbInstance: Pool) {
     
     if (res3.rows.length === 0) {
       console.log(`Seeding demo user: ${demoUserEmail}`);
+      const adminRoleId = `role_admin_demo-1`;
       await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)', 
-        ['demo_user_1', 'demo-1', demoUserEmail, hashedDemoPassword, 'admin', 'Demo Admin']);
+        ['demo_user_1', 'demo-1', demoUserEmail, hashedDemoPassword, adminRoleId, 'Demo Admin']);
     } else {
       console.log(`Updating demo user password: ${demoUserEmail}`);
       await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedDemoPassword, demoUserEmail]);
@@ -697,5 +704,25 @@ export async function seedDatabase(dbInstance: Pool) {
     console.log('Database seeded successfully with admin and demo accounts');
   } catch (error) {
     console.error('Error seeding database:', error);
+  }
+}
+
+export async function seedDefaultRoles(dbInstance: any, companyId: string) {
+  const roles = [
+    { id: `role_admin_${companyId}`, name: 'Administrateur', permissions: ['all'] },
+    { id: `role_manager_${companyId}`, name: 'Manager', permissions: ['crm.view', 'crm.edit', 'sales.view', 'sales.edit', 'inventory.view', 'hr.view', 'projects.view', 'projects.edit'] },
+    { id: `role_sales_${companyId}`, name: 'Commercial', permissions: ['crm.view', 'crm.edit', 'sales.view', 'sales.edit'] },
+    { id: `role_accountant_${companyId}`, name: 'Comptable', permissions: ['accounting.view', 'accounting.edit', 'sales.view'] },
+    { id: `role_user_${companyId}`, name: 'Utilisateur', permissions: ['crm.view', 'sales.view'] }
+  ];
+
+  for (const role of roles) {
+    const roleExists = await dbInstance.query('SELECT id FROM roles WHERE id = $1', [role.id]);
+    if (roleExists.rows.length === 0) {
+      await dbInstance.query('INSERT INTO roles (id, "companyId", name) VALUES ($1, $2, $3)', [role.id, companyId, role.name]);
+      for (const perm of role.permissions) {
+        await dbInstance.query('INSERT INTO role_permissions ("roleId", "permissionId") VALUES ($1, $2)', [role.id, perm]);
+      }
+    }
   }
 }

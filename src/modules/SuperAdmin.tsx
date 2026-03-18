@@ -96,11 +96,16 @@ export const SuperAdmin = () => {
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const roleId = newUserForm.role === 'admin' 
+        ? `role_admin_${selectedCompany.id}` 
+        : `role_user_${selectedCompany.id}`; // Note: I didn't seed role_user, maybe I should or use a default
+
       const res = await apiFetch(`/api/admin/companies/${selectedCompany.id}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...newUserForm,
+          role: roleId,
           id: `user_${Date.now()}`
         })
       });
@@ -217,6 +222,16 @@ export const SuperAdmin = () => {
     } catch (err) {
       setError(t('admin.error.connection'));
     }
+  };
+
+  const getRoleName = (roleId: string) => {
+    if (roleId === 'super_admin') return 'Super Admin';
+    if (roleId.startsWith('role_admin_')) return 'Administrateur';
+    if (roleId.startsWith('role_manager_')) return 'Manager';
+    if (roleId.startsWith('role_sales_')) return 'Commercial';
+    if (roleId.startsWith('role_accountant_')) return 'Comptable';
+    if (roleId.startsWith('role_user_')) return 'Utilisateur';
+    return roleId;
   };
 
   if (isLoading) {
@@ -468,9 +483,9 @@ export const SuperAdmin = () => {
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
                           user.role === 'super_admin' ? 'bg-purple-100 text-purple-800' : 
-                          user.role === 'admin' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'
+                          user.role.includes('admin') ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'
                         }`}>
-                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                          {getRoleName(user.role)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-slate-500">
@@ -645,9 +660,9 @@ export const SuperAdmin = () => {
                         <td className="px-4 py-3 text-slate-500">{u.email}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                            u.role === 'admin' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'
+                            u.role.includes('admin') ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'
                           }`}>
-                            {u.role === 'admin' ? t('admin.admin') : t('admin.user')}
+                            {getRoleName(u.role)}
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right">

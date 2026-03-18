@@ -79,15 +79,17 @@ adminRouter.post('/companies', async (req, res, next) => {
     // Initialize schema
     await initializeTenantSchema(schemaName);
 
-    // Seed default roles for the new company
+    // Seed default roles
     await seedDefaultRoles(client, id);
 
     // Create admin user if details provided
     if (adminEmail && adminPassword) {
       const userId = `user_${Date.now()}`;
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
+      // Assign the default admin role
+      const adminRoleId = `role_admin_${id}`;
       await client.query('INSERT INTO public.users (id, "companyId", email, password, role, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [userId, id, adminEmail, hashedPassword, 'admin', adminName || name, 'Active']);
+        [userId, id, adminEmail, hashedPassword, adminRoleId, adminName || name, 'Active']);
     }
     
     await client.query('COMMIT');

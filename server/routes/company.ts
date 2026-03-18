@@ -1,6 +1,5 @@
 import { Router } from 'express';
 import { requireTenant } from '../middleware/auth.js';
-import bcrypt from 'bcrypt';
 
 export const companyRouter = Router();
 
@@ -122,50 +121,17 @@ companyRouter.post('/roles', async (req, res, next) => {
   }
 });
 
-companyRouter.put('/roles/:id', async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const role = req.body;
-    await req.db.query('BEGIN');
-    
-    // First check if role belongs to company
-    const roleCheck = await req.db.query('SELECT id FROM roles WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
-    if (roleCheck.rows.length === 0) {
-      await req.db.query('ROLLBACK');
-      return res.status(404).json({ error: 'Role not found' });
-    }
-
-    // Update role name
-    await req.db.query('UPDATE roles SET name = $1 WHERE id = $2 AND "companyId" = $3', [role.name, id, req.user!.companyId]);
-    
-    // Update permissions: delete old and insert new
-    await req.db.query('DELETE FROM role_permissions WHERE "roleId" = $1', [id]);
-    if (Array.isArray(role.permissions)) {
-      for (const permId of role.permissions) {
-        await req.db.query('INSERT INTO role_permissions ("roleId", "permissionId") VALUES ($1, $2)', [id, permId]);
-      }
-    }
-    
-    await req.db.query('COMMIT');
-    res.json(role);
-  } catch (error) {
-    await req.db.query('ROLLBACK');
-    next(error);
-  }
-});
-
 companyRouter.delete('/roles/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     await req.db.query('BEGIN');
-    
-    // First check if role belongs to company
+    // Ensure role belongs to company
     const roleCheck = await req.db.query('SELECT id FROM roles WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     if (roleCheck.rows.length === 0) {
       await req.db.query('ROLLBACK');
       return res.status(404).json({ error: 'Role not found' });
     }
-
+    
     await req.db.query('DELETE FROM role_permissions WHERE "roleId" = $1', [id]);
     await req.db.query('DELETE FROM roles WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     await req.db.query('COMMIT');
@@ -188,6 +154,7 @@ companyRouter.get('/users', async (req, res, next) => {
 companyRouter.post('/users', async (req, res, next) => {
   try {
     const { id, email, password, role, name, status } = req.body;
+    const bcrypt = await import('bcrypt');
     const hashedPassword = await bcrypt.hash(password, 10);
     await req.db.query('INSERT INTO public.users (id, "companyId", email, password, role, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [id, req.user!.companyId, email, hashedPassword, role, name, status || 'Active']);
