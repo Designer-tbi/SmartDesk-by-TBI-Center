@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../lib/i18n';
 import { apiFetch } from '../lib/api';
 import { Plus, Calendar, CheckCircle2, Circle, Clock, MoreHorizontal, X, Pencil, Trash2, Eye, Loader2, DollarSign, Flag, Briefcase, User, AlertCircle, Users, Check } from 'lucide-react';
 import { Project, Contact, Employee } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const Projects = ({ user }: { user?: any }) => {
+  const { t } = useTranslation();
   const [projects, setProjects] = useState<Project[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -86,12 +88,31 @@ export const Projects = ({ user }: { user?: any }) => {
     }
   };
 
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'Completed': return t('projects.completed');
+      case 'In Progress': return t('projects.inProgress');
+      case 'Planning': return t('projects.planning');
+      case 'On Hold': return t('projects.onHold');
+      default: return status;
+    }
+  };
+
   const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'High': return 'text-rose-600 bg-rose-50';
       case 'Medium': return 'text-amber-600 bg-amber-50';
       case 'Low': return 'text-emerald-600 bg-emerald-50';
       default: return 'text-slate-600 bg-slate-50';
+    }
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    switch (priority) {
+      case 'High': return t('projects.priority.high');
+      case 'Medium': return t('projects.priority.medium');
+      case 'Low': return t('projects.priority.low');
+      default: return priority;
     }
   };
 
@@ -162,7 +183,7 @@ export const Projects = ({ user }: { user?: any }) => {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">Projets en cours</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{t('projects.currentProjects')}</h2>
         <button onClick={() => { 
           setEditingProject(null); 
           setNewProject({ 
@@ -183,7 +204,7 @@ export const Projects = ({ user }: { user?: any }) => {
           setFormError(null);
         }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
           <Plus className="w-4 h-4" />
-          Nouveau Projet
+          {t('projects.new')}
         </button>
       </div>
 
@@ -191,26 +212,26 @@ export const Projects = ({ user }: { user?: any }) => {
         {isLoading ? (
           <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-            <p className="text-sm font-medium text-slate-500">Chargement des projets...</p>
+            <p className="text-sm font-medium text-slate-500">{t('projects.loading')}</p>
           </div>
         ) : projects.length > 0 ? projects.map((project) => (
           <div key={project.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-200 transition-all hover:shadow-md group">
             <div className="flex items-start justify-between mb-4">
               <div className="flex flex-wrap gap-2">
                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(project.status)}`}>
-                  {project.status}
+                  {getStatusLabel(project.status)}
                 </span>
                 {project.priority && (
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${getPriorityColor(project.priority)}`}>
                     <Flag className="w-3 h-3" />
-                    {project.priority}
+                    {getPriorityLabel(project.priority)}
                   </span>
                 )}
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => setViewProject(project)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title="Voir"><Eye className="w-4 h-4" /></button>
-                <button onClick={() => { setEditingProject(project); setNewProject(project); setIsModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title="Modifier"><Pencil className="w-4 h-4" /></button>
-                <button onClick={() => setDeleteConfirmId(project.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
+                <button onClick={() => setViewProject(project)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title={t('common.view')}><Eye className="w-4 h-4" /></button>
+                <button onClick={() => { setEditingProject(project); setNewProject(project); setIsModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
+                <button onClick={() => setDeleteConfirmId(project.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
             
@@ -241,13 +262,13 @@ export const Projects = ({ user }: { user?: any }) => {
                     </div>
                   )}
                 </div>
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Équipe</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('projects.teamLabel')}</span>
               </div>
             )}
             
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-500 font-medium">Progression</span>
+                <span className="text-slate-500 font-medium">{t('projects.progress')}</span>
                 <span className="font-bold text-indigo-600">{project.progress}%</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -259,7 +280,7 @@ export const Projects = ({ user }: { user?: any }) => {
               
               <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-50">
                 <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Échéance</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('projects.deadlineLabel')}</p>
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
                     {project.deadline}
@@ -267,7 +288,7 @@ export const Projects = ({ user }: { user?: any }) => {
                 </div>
                 {project.budget !== undefined && (
                   <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Budget</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('projects.budgetLabel')}</p>
                     <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-700">
                       <DollarSign className="w-3.5 h-3.5 text-slate-400" />
                       {formatCurrency(project.budget)}
@@ -279,7 +300,7 @@ export const Projects = ({ user }: { user?: any }) => {
           </div>
         )) : (
           <div className="col-span-full text-center py-20 text-slate-500">
-            Aucun projet trouvé.
+            {t('projects.noProjects')}
           </div>
         )}
       </div>
@@ -290,8 +311,8 @@ export const Projects = ({ user }: { user?: any }) => {
           <div className="bg-white w-full max-w-3xl rounded-2xl shadow-xl my-8 flex flex-col max-h-[90vh]">
             <div className="flex justify-between items-center p-6 border-b border-slate-100 shrink-0">
               <div>
-                <h3 className="text-xl font-black text-slate-900">{editingProject ? 'Modifier' : 'Nouveau'} Projet</h3>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Informations du projet</p>
+                <h3 className="text-xl font-black text-slate-900">{editingProject ? t('common.edit') : t('common.add')} {t('projects.title')}</h3>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('projects.details')}</p>
               </div>
               <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-slate-50 rounded-xl transition-colors">
                 <X className="w-5 h-5 text-slate-400"/>
@@ -310,16 +331,16 @@ export const Projects = ({ user }: { user?: any }) => {
                 <div className="space-y-4 md:col-span-2">
                   <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                     <Briefcase className="w-3 h-3" />
-                    Informations Générales
+                    {t('projects.generalInfo')}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 ml-1">Nom du projet</label>
+                      <label className="text-xs font-bold text-slate-700 ml-1">{t('projects.projectName')}</label>
                       <div className="relative">
                         <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input 
                           type="text" 
-                          placeholder="Ex: Refonte Site Web" 
+                          placeholder={t('projects.placeholder.name')} 
                           className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all" 
                           value={newProject.name || ''} 
                           onChange={e => setNewProject({...newProject, name: e.target.value})} 
@@ -328,7 +349,7 @@ export const Projects = ({ user }: { user?: any }) => {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 ml-1">Client</label>
+                      <label className="text-xs font-bold text-slate-700 ml-1">{t('projects.client')}</label>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <select 
@@ -344,7 +365,7 @@ export const Projects = ({ user }: { user?: any }) => {
                           }} 
                           required 
                         >
-                          <option value="">Sélectionner un client</option>
+                          <option value="">{t('projects.selectClient')}</option>
                           {contacts.map(contact => (
                             <option key={contact.id} value={contact.id}>{contact.name} ({contact.company})</option>
                           ))}
@@ -358,7 +379,7 @@ export const Projects = ({ user }: { user?: any }) => {
                 <div className="md:col-span-2 space-y-4">
                   <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                     <Users className="w-3 h-3" />
-                    Équipe du Projet
+                    {t('projects.team')}
                   </h4>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                     {employees.map(emp => (
@@ -403,25 +424,25 @@ export const Projects = ({ user }: { user?: any }) => {
                 <div className="space-y-4">
                   <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                     <AlertCircle className="w-3 h-3" />
-                    Statut & Priorité
+                    {t('projects.statusPriority')}
                   </h4>
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 ml-1">Statut</label>
+                      <label className="text-xs font-bold text-slate-700 ml-1">{t('projects.status')}</label>
                       <select 
                         className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all" 
                         value={newProject.status || 'Planning'} 
                         onChange={e => setNewProject({...newProject, status: e.target.value as any})} 
                         required
                       >
-                        <option value="Planning">Planning</option>
-                        <option value="In Progress">En Cours</option>
-                        <option value="Completed">Terminé</option>
-                        <option value="On Hold">En Pause</option>
+                        <option value="Planning">{t('projects.planning')}</option>
+                        <option value="In Progress">{t('projects.inProgress')}</option>
+                        <option value="Completed">{t('projects.completed')}</option>
+                        <option value="On Hold">{t('projects.onHold')}</option>
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 ml-1">Priorité</label>
+                      <label className="text-xs font-bold text-slate-700 ml-1">{t('projects.priority')}</label>
                       <div className="flex gap-2">
                         {['Low', 'Medium', 'High'].map((p) => (
                           <button
@@ -434,7 +455,7 @@ export const Projects = ({ user }: { user?: any }) => {
                                 : 'bg-slate-50 text-slate-400 hover:bg-slate-100'
                             }`}
                           >
-                            {p === 'Low' ? 'Basse' : p === 'Medium' ? 'Moyenne' : 'Haute'}
+                            {getPriorityLabel(p)}
                           </button>
                         ))}
                       </div>
@@ -446,12 +467,12 @@ export const Projects = ({ user }: { user?: any }) => {
                 <div className="space-y-4">
                   <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                     <Calendar className="w-3 h-3" />
-                    Calendrier & Budget
+                    {t('projects.timelineBudget')}
                   </h4>
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 ml-1">Début</label>
+                        <label className="text-xs font-bold text-slate-700 ml-1">{t('projects.startDate')}</label>
                         <input 
                           type="date" 
                           className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all" 
@@ -460,7 +481,7 @@ export const Projects = ({ user }: { user?: any }) => {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-slate-700 ml-1">Fin</label>
+                        <label className="text-xs font-bold text-slate-700 ml-1">{t('projects.endDate')}</label>
                         <input 
                           type="date" 
                           className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all" 
@@ -471,7 +492,7 @@ export const Projects = ({ user }: { user?: any }) => {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold text-slate-700 ml-1">Budget ({currencySymbol})</label>
+                      <label className="text-xs font-bold text-slate-700 ml-1">{t('projects.budgetLabel')} ({currencySymbol})</label>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input 
@@ -491,7 +512,7 @@ export const Projects = ({ user }: { user?: any }) => {
                   <div className="flex items-center justify-between">
                     <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
                       <Clock className="w-3 h-3" />
-                      Progression
+                      {t('projects.progress')}
                     </h4>
                     <span className="text-sm font-black text-indigo-600">{newProject.progress || 0}%</span>
                   </div>
@@ -508,9 +529,9 @@ export const Projects = ({ user }: { user?: any }) => {
 
                 {/* Description */}
                 <div className="md:col-span-2 space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 ml-1">Description</label>
+                  <label className="text-xs font-bold text-slate-700 ml-1">{t('projects.description')}</label>
                   <textarea 
-                    placeholder="Brève description du projet..." 
+                    placeholder={t('projects.placeholder.description')} 
                     rows={3}
                     className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all resize-none" 
                     value={newProject.description || ''} 
@@ -525,13 +546,13 @@ export const Projects = ({ user }: { user?: any }) => {
                   onClick={() => setIsModalOpen(false)}
                   className="flex-1 px-4 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-200 transition-colors"
                 >
-                  Annuler
+                  {t('common.cancel')}
                 </button>
                 <button 
                   type="submit" 
                   className="flex-[2] px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
                 >
-                  {editingProject ? 'Mettre à jour' : 'Créer le projet'}
+                  {editingProject ? t('projects.update') : t('projects.create')}
                 </button>
               </div>
             </form>
@@ -546,7 +567,7 @@ export const Projects = ({ user }: { user?: any }) => {
             <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
               <div>
                 <h3 className="text-xl font-black text-slate-900">{viewProject.name}</h3>
-                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Détails du projet</p>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('projects.details')}</p>
               </div>
               <button onClick={() => setViewProject(null)} className="p-2 hover:bg-white rounded-xl transition-colors shadow-sm">
                 <X className="w-5 h-5 text-slate-400"/>
@@ -557,22 +578,22 @@ export const Projects = ({ user }: { user?: any }) => {
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Statut</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('projects.status')}</p>
                     <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(viewProject.status)}`}>
-                      {viewProject.status}
+                      {getStatusLabel(viewProject.status)}
                     </span>
                   </div>
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Priorité</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t('projects.priority')}</p>
                     <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getPriorityColor(viewProject.priority || 'Medium')}`}>
-                      {viewProject.priority || 'Medium'}
+                      {getPriorityLabel(viewProject.priority || 'Medium')}
                     </span>
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Progression</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('projects.progress')}</p>
                     <span className="text-sm font-black text-indigo-600">{viewProject.progress}%</span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
@@ -589,7 +610,7 @@ export const Projects = ({ user }: { user?: any }) => {
                       <User className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Client</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('projects.client')}</p>
                       <p className="font-bold text-slate-700">{viewProject.client}</p>
                     </div>
                   </div>
@@ -598,7 +619,7 @@ export const Projects = ({ user }: { user?: any }) => {
                       <DollarSign className="w-4 h-4" />
                     </div>
                     <div>
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Budget</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('projects.budgetLabel')}</p>
                       <p className="font-bold text-slate-700">
                         {formatCurrency(viewProject.budget || 0)}
                       </p>
@@ -608,7 +629,7 @@ export const Projects = ({ user }: { user?: any }) => {
 
                 {viewProject.teamIds && viewProject.teamIds.length > 0 && (
                   <div className="space-y-3 pt-4">
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Équipe assignée</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('projects.assignedTeam')}</p>
                     <div className="flex flex-wrap gap-2">
                       {viewProject.teamIds.map(id => {
                         const emp = employees.find(e => e.id === id);
@@ -632,24 +653,24 @@ export const Projects = ({ user }: { user?: any }) => {
 
               <div className="space-y-6">
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Dates Clés</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('projects.keyDates')}</p>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                      <span className="text-xs font-bold text-slate-500">Début</span>
+                      <span className="text-xs font-bold text-slate-500">{t('projects.startDate')}</span>
                       <span className="text-xs font-black text-slate-700">{viewProject.startDate || 'N/A'}</span>
                     </div>
                     <div className="flex items-center justify-between p-3 bg-rose-50 rounded-xl border border-rose-100">
-                      <span className="text-xs font-bold text-rose-500">Échéance</span>
+                      <span className="text-xs font-bold text-rose-500">{t('projects.deadlineLabel')}</span>
                       <span className="text-xs font-black text-rose-700">{viewProject.deadline}</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Description</p>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('projects.description')}</p>
                   <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 min-h-[100px]">
                     <p className="text-sm text-slate-600 leading-relaxed italic">
-                      {viewProject.description || 'Aucune description fournie.'}
+                      {viewProject.description || t('projects.noDescription')}
                     </p>
                   </div>
                 </div>
@@ -661,7 +682,7 @@ export const Projects = ({ user }: { user?: any }) => {
                 onClick={() => setViewProject(null)}
                 className="px-6 py-2 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold text-sm hover:bg-slate-50 transition-colors shadow-sm"
               >
-                Fermer
+                {t('common.close')}
               </button>
             </div>
           </div>
@@ -670,9 +691,9 @@ export const Projects = ({ user }: { user?: any }) => {
       {/* Confirm Modal */}
       <ConfirmModal
         isOpen={!!deleteConfirmId}
-        title="Supprimer le projet"
-        message="Êtes-vous sûr de vouloir supprimer ce projet ? Toutes les données associées seront perdues."
-        confirmLabel="Supprimer"
+        title={t('projects.deleteTitle')}
+        message={t('projects.deleteMessage')}
+        confirmLabel={t('common.delete')}
         onConfirm={() => deleteConfirmId && handleDelete(deleteConfirmId)}
         onCancel={() => setDeleteConfirmId(null)}
       />
