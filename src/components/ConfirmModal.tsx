@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AlertTriangle, X } from 'lucide-react';
-import { useTranslation } from 'react-i18next';
+import { useTranslation } from '../lib/i18n';
 
 interface ConfirmModalProps {
   isOpen: boolean;
