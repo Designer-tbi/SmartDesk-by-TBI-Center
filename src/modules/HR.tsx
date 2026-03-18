@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { apiFetch } from '../lib/api';
-import { MOCK_EMPLOYEES, MOCK_LEAVES, MOCK_PAYSLIPS, MOCK_CONTRACTS, MOCK_CONTRACT_TEMPLATES } from '../constants';
 import { 
   Plus, Mail, Phone, MapPin, Briefcase, Calendar, DollarSign, X, Pencil, Trash2, Eye, 
   Users, User, Coffee, CreditCard, BarChart3, Search, Filter, Download, CheckCircle, Clock, AlertCircle,
@@ -1210,7 +1209,7 @@ export const HR = ({ user }: { user: any }) => {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Salaire Mensuel ({currencySymbol})</label>
-                  <input type="number" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newContract.salary ?? 0} onChange={e => setNewContract({...newContract, salary: parseInt(e.target.value)})} required />
+                  <input type="number" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newContract.salary || 0} onChange={e => setNewContract({...newContract, salary: parseInt(e.target.value) || 0})} required />
                 </div>
               </div>
               
@@ -1335,7 +1334,7 @@ export const HR = ({ user }: { user: any }) => {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Salaire Annuel ({currencySymbol})</label>
-                        <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.salary ?? 0} onChange={e => setNewEmployee({...newEmployee, salary: parseInt(e.target.value)})} required />
+                        <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.salary || 0} onChange={e => setNewEmployee({...newEmployee, salary: parseInt(e.target.value) || 0})} required />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Date d'embauche</label>

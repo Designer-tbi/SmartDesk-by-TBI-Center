@@ -51,16 +51,20 @@ export const requireCompany = async (req: Request, res: Response, next: NextFunc
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
+  // Allow super admins to override companyId via header, query or body
+  if (req.user.role === 'super_admin') {
+    const targetCompanyId = (req.headers['x-company-id'] as string) || (req.query.companyId as string) || (req.body && req.body.companyId);
+    if (targetCompanyId) {
+      req.user.companyId = targetCompanyId;
+      return next();
+    }
+  }
+
   if (req.user.companyId) {
     return next();
   }
 
   if (req.user.role === 'super_admin') {
-    const targetCompanyId = (req.query.companyId as string) || (req.body && req.body.companyId);
-    if (targetCompanyId) {
-      req.user.companyId = targetCompanyId;
-      return next();
-    }
     try {
       // For super admins without a companyId, try to find the first company
       const companiesRes = await req.db.query('SELECT id FROM companies LIMIT 1');
@@ -75,3 +79,5 @@ export const requireCompany = async (req: Request, res: Response, next: NextFunc
 
   return res.status(403).json({ error: 'Forbidden: Company access required' });
 };
+
+export const requireTenant = [requireAuth, requireCompany];

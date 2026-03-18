@@ -387,6 +387,14 @@ const initSql = `
   CREATE INDEX IF NOT EXISTS idx_schedules_company ON schedules("companyId");
   CREATE INDEX IF NOT EXISTS idx_sessions_company ON sessions("companyId");
   CREATE INDEX IF NOT EXISTS idx_companies_type ON companies(type);
+  CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(date);
+  CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date);
+  CREATE INDEX IF NOT EXISTS idx_journal_entries_date ON journal_entries(date);
+  CREATE INDEX IF NOT EXISTS idx_activity_log_created_at ON activity_log("createdAt");
+  CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items("invoiceId");
+  CREATE INDEX IF NOT EXISTS idx_journal_items_entry_id ON journal_items("journalEntryId");
+  CREATE INDEX IF NOT EXISTS idx_events_start_date ON events("startDate");
+  CREATE INDEX IF NOT EXISTS idx_schedules_start_date ON schedules("startDate");
 
   -- Schema updates for existing tables
   ALTER TABLE companies ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
@@ -486,6 +494,8 @@ export async function initializeDatabase() {
     await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "budget" REAL DEFAULT 0');
     await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "contactId" TEXT');
     await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "teamIds" TEXT');
+    await db.query('ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS "companyId" TEXT');
+    await db.query('ALTER TABLE quote_template_items ADD COLUMN IF NOT EXISTS "companyId" TEXT');
     
     // Ensure companies.type has the check constraint
     try {
@@ -499,7 +509,96 @@ export async function initializeDatabase() {
 }
 
 // Seeding function
-export async function seedDatabase(dbInstance: Pool, data: any) {
+export async function initializeTenantSchema(schemaName: string) {
+  const client = await db.connect();
+  try {
+    await client.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`);
+    await client.query(`SET search_path TO ${schemaName}`);
+
+    // Create tenant-specific tables
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS activity_log (
+        id TEXT PRIMARY KEY,
+        "userId" TEXT,
+        "companyId" TEXT,
+        action TEXT NOT NULL,
+        details TEXT,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS transactions (
+        id TEXT PRIMARY KEY,
+        "companyId" TEXT NOT NULL,
+        date TEXT NOT NULL,
+        description TEXT NOT NULL,
+        category TEXT,
+        amount REAL NOT NULL,
+        type TEXT NOT NULL CHECK (type IN ('Income', 'Expense')),
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS journal_entries (
+        id TEXT PRIMARY KEY,
+        "companyId" TEXT NOT NULL,
+        date TEXT NOT NULL,
+        description TEXT NOT NULL,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS journal_items (
+        id SERIAL PRIMARY KEY,
+        "companyId" TEXT NOT NULL,
+        "journalEntryId" TEXT NOT NULL REFERENCES journal_entries(id) ON DELETE CASCADE,
+        "accountId" TEXT NOT NULL,
+        debit REAL DEFAULT 0,
+        credit REAL DEFAULT 0,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS quote_templates (
+        id TEXT PRIMARY KEY,
+        "companyId" TEXT NOT NULL,
+        name TEXT NOT NULL,
+        notes TEXT,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS quote_template_items (
+        id SERIAL PRIMARY KEY,
+        "companyId" TEXT NOT NULL,
+        "templateId" TEXT NOT NULL REFERENCES quote_templates(id) ON DELETE CASCADE,
+        "productId" TEXT,
+        name TEXT NOT NULL,
+        description TEXT,
+        quantity INTEGER NOT NULL,
+        price REAL NOT NULL,
+        "tvaRate" REAL DEFAULT 0,
+        "tvaAmount" REAL DEFAULT 0,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS invoice_items (
+        id SERIAL PRIMARY KEY,
+        "companyId" TEXT NOT NULL,
+        "invoiceId" TEXT NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+        "productId" TEXT,
+        name TEXT NOT NULL,
+        description TEXT,
+        quantity INTEGER NOT NULL,
+        price REAL NOT NULL,
+        "tvaRate" REAL DEFAULT 0,
+        "tvaAmount" REAL DEFAULT 0,
+        "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await client.query('SET search_path TO public');
+  } finally {
+    client.release();
+  }
+}
+
+export async function seedDatabase(dbInstance: Pool) {
   try {
     // Ensure database is initialized before seeding
     await initializeDatabase();
@@ -531,25 +630,36 @@ export async function seedDatabase(dbInstance: Pool, data: any) {
     
     // Check if super admin exists
     const res1 = await dbInstance.query('SELECT * FROM users WHERE email = $1', ['eden@tbi-center.fr']);
+    const adminPassword = 'loub@ki2014D';
+    const hashedAdminPassword = bcrypt.hashSync(adminPassword, 10);
+    
     if (res1.rows.length === 0) {
       console.log('Seeding super admin: eden@tbi-center.fr');
-      const hashedPassword = bcrypt.hashSync('loub@ki2014D', 10);
       await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)', 
-        ['super_admin_1', defaultCompanyId, 'eden@tbi-center.fr', hashedPassword, 'super_admin', 'Super Admin']);
-      console.log('Super admin eden@tbi-center.fr seeded successfully');
+        ['super_admin_1', defaultCompanyId, 'eden@tbi-center.fr', hashedAdminPassword, 'super_admin', 'Super Admin']);
     } else {
-      console.log('Super admin eden@tbi-center.fr already exists');
+      console.log('Updating super admin password: eden@tbi-center.fr');
+      await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedAdminPassword, 'eden@tbi-center.fr']);
     }
 
     const res2 = await dbInstance.query('SELECT * FROM users WHERE email = $1', ['missengue07@gmail.com']);
     if (res2.rows.length === 0) {
       console.log('Seeding super admin: missengue07@gmail.com');
-      const hashedPassword = bcrypt.hashSync('loub@ki2014D', 10);
       await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)', 
-        ['super_admin_2', defaultCompanyId, 'missengue07@gmail.com', hashedPassword, 'super_admin', 'Admin User']);
-      console.log('Super admin missengue07@gmail.com seeded successfully');
+        ['super_admin_2', defaultCompanyId, 'missengue07@gmail.com', hashedAdminPassword, 'super_admin', 'Admin User']);
     } else {
-      console.log('Super admin missengue07@gmail.com already exists');
+      console.log('Updating super admin password: missengue07@gmail.com');
+      await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedAdminPassword, 'missengue07@gmail.com']);
+    }
+
+    const res4 = await dbInstance.query('SELECT * FROM users WHERE email = $1', ['contact@tbi-center.fr']);
+    if (res4.rows.length === 0) {
+      console.log('Seeding super admin: contact@tbi-center.fr');
+      await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)', 
+        ['super_admin_3', defaultCompanyId, 'contact@tbi-center.fr', hashedAdminPassword, 'super_admin', 'Contact Admin']);
+    } else {
+      console.log('Updating super admin password: contact@tbi-center.fr');
+      await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedAdminPassword, 'contact@tbi-center.fr']);
     }
 
     // Seed demo companies
@@ -573,11 +683,15 @@ export async function seedDatabase(dbInstance: Pool, data: any) {
     // Seed demo user
     const demoUserEmail = 'admin@smartdesk.cg';
     const res3 = await dbInstance.query('SELECT * FROM users WHERE email = $1', [demoUserEmail]);
+    const hashedDemoPassword = bcrypt.hashSync('admin', 10);
+    
     if (res3.rows.length === 0) {
       console.log(`Seeding demo user: ${demoUserEmail}`);
-      const hashedPassword = bcrypt.hashSync('admin', 10);
       await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)', 
-        ['demo_user_1', 'demo-1', demoUserEmail, hashedPassword, 'admin', 'Demo Admin']);
+        ['demo_user_1', 'demo-1', demoUserEmail, hashedDemoPassword, 'admin', 'Demo Admin']);
+    } else {
+      console.log(`Updating demo user password: ${demoUserEmail}`);
+      await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedDemoPassword, demoUserEmail]);
     }
 
     console.log('Database seeded successfully with admin and demo accounts');

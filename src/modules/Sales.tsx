@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { apiFetch } from '../lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MOCK_INVOICES, MOCK_CONTACTS, MOCK_PRODUCTS, MOCK_COMPANY, MOCK_QUOTE_TEMPLATES } from '../constants';
 import { 
   Plus, Download, FileText, CheckCircle, Clock, AlertCircle, Eye, Pencil, Trash2, Mail, X, 
   FileEdit, User, Calendar, Tag, Building2, PlusCircle, Link as LinkIcon, FileSignature, Eraser,
@@ -26,6 +25,7 @@ export const Sales = ({ user }: { user: any }) => {
   const [filter, setFilter] = useState<'Tous' | 'Invoice' | 'Quote'>('Tous');
   const [quoteSubTab, setQuoteSubTab] = useState<'list' | 'templates' | 'signed'>('list');
   const [templates, setTemplates] = useState<QuoteTemplate[]>([]);
+  const [companyInfo, setCompanyInfo] = useState<any>(null);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
@@ -48,16 +48,18 @@ export const Sales = ({ user }: { user: any }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [invRes, conRes, prodRes, tmplRes] = await Promise.all([
+      const [invRes, conRes, prodRes, tmplRes, compRes] = await Promise.all([
         apiFetch('/api/invoices'),
         apiFetch('/api/contacts'),
         apiFetch('/api/products'),
-        apiFetch('/api/invoices/quote-templates')
+        apiFetch('/api/invoices/quote-templates'),
+        apiFetch('/api/company')
       ]);
       if (invRes.ok) setInvoices(await invRes.json());
       if (conRes.ok) setContacts(await conRes.json());
       if (prodRes.ok) setProducts(await prodRes.json());
       if (tmplRes.ok) setTemplates(await tmplRes.json());
+      if (compRes.ok) setCompanyInfo(await compRes.json());
     } catch (error) {
       console.error('Failed to fetch sales data:', error);
     } finally {
@@ -135,7 +137,7 @@ export const Sales = ({ user }: { user: any }) => {
   const handleAddItem = () => {
     setNewInvoice({
       ...newInvoice,
-      items: [...(newInvoice.items || []), { productId: '', name: '', quantity: 1, price: 0 }]
+      items: [...(newInvoice.items || []), { productId: '', name: '', quantity: 1, price: 0, tvaRate: 0.18, tvaAmount: 0 }]
     });
   };
 
@@ -149,13 +151,14 @@ export const Sales = ({ user }: { user: any }) => {
         updatedItems[index].price = product.price;
         updatedItems[index].name = product.name;
         updatedItems[index].description = product.description;
-        updatedItems[index].tvaRate = product.tvaRate;
+        updatedItems[index].tvaRate = product.tvaRate ?? 0.18;
       }
     }
 
     // Recalculate TVA for this item
-    if (updatedItems[index].price && updatedItems[index].quantity && updatedItems[index].tvaRate !== undefined) {
-      updatedItems[index].tvaAmount = updatedItems[index].price * updatedItems[index].quantity * updatedItems[index].tvaRate;
+    const item = updatedItems[index];
+    if (item.price !== undefined && item.quantity !== undefined && item.tvaRate !== undefined) {
+      updatedItems[index].tvaAmount = (item.price || 0) * (item.quantity || 0) * (item.tvaRate || 0);
     }
     
     const totals = calculateTotals(updatedItems);
@@ -242,36 +245,50 @@ export const Sales = ({ user }: { user: any }) => {
     setIsModalOpen(true);
   };
 
-  const handleSendEmail = (invoice: Invoice) => {
+  const handleSendEmail = async (invoice: Invoice) => {
     setIsSending(invoice.id);
-    setTimeout(() => {
-      const updatedStatus = invoice.status === 'Draft' ? 'Sent' : invoice.status;
-      const signatureLink = invoice.type === 'Quote' ? `${window.location.origin}/sign-quote/${invoice.id}` : undefined;
-      
-      setInvoices(invoices.map(inv => inv.id === invoice.id ? { 
-        ...inv, 
-        status: updatedStatus,
-        signatureLink
-      } : inv));
-      
-      if (viewInvoice?.id === invoice.id) {
-        setViewInvoice({ ...viewInvoice, status: updatedStatus, signatureLink });
+    try {
+      const response = await apiFetch(`/api/invoices/${invoice.id}/send-email`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        fetchData();
+        alert(`Le document ${invoice.id} a été envoyé par email au client.`);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || "Erreur lors de l'envoi de l'email.");
       }
+    } catch (error) {
+      console.error('Failed to send email:', error);
+      setError('Erreur de connexion.');
+    } finally {
       setIsSending(null);
-      alert(`Le document ${invoice.id} a été envoyé par email au client.`);
-    }, 1500);
+    }
   };
 
-  const handleSignQuote = (id: string) => {
-    setInvoices(invoices.map(inv => 
-      inv.id === id ? { 
-        ...inv, 
-        status: 'Signed', 
-        signedAt: new Date().toISOString().split('T')[0] 
-      } : inv
-    ));
-    setSigningQuote(null);
-    setHasSignature(false);
+  const handleSignQuote = async (id: string) => {
+    try {
+      const invoice = invoices.find(inv => inv.id === id);
+      if (!invoice) return;
+
+      const response = await apiFetch(`/api/invoices/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...invoice, status: 'Signed', signedAt: new Date().toISOString().split('T')[0] }),
+      });
+
+      if (response.ok) {
+        fetchData();
+        setSigningQuote(null);
+        setHasSignature(false);
+      } else {
+        setError('Erreur lors de la signature.');
+      }
+    } catch (error) {
+      console.error('Failed to sign quote:', error);
+      setError('Erreur de connexion.');
+    }
   };
 
   const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
@@ -327,6 +344,24 @@ export const Sales = ({ user }: { user: any }) => {
       ...totals
     });
     setIsModalOpen(true);
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce modèle ?')) {
+      try {
+        const response = await apiFetch(`/api/invoices/quote-templates/${id}`, {
+          method: 'DELETE',
+        });
+        if (response.ok) {
+          fetchData();
+        } else {
+          setError('Erreur lors de la suppression du modèle.');
+        }
+      } catch (error) {
+        console.error('Failed to delete template:', error);
+        setError('Erreur de connexion.');
+      }
+    }
   };
 
   const getContactName = (id: string) => contacts.find(c => c.id === id)?.name || 'Client inconnu';
@@ -420,7 +455,7 @@ export const Sales = ({ user }: { user: any }) => {
               <div>
                 <p className="text-xs text-slate-500 font-medium">Factures Payées</p>
                 <p className="text-lg font-bold text-slate-900">
-                  {invoices.filter(i => i.type === 'Invoice' && i.status === 'Paid').reduce((sum, i) => sum + i.total, 0).toLocaleString()} {currencySymbol}
+                  {invoices.filter(i => i.type === 'Invoice' && i.status === 'Paid').reduce((sum, i) => sum + (i.total || 0), 0).toLocaleString()} {currencySymbol}
                 </p>
               </div>
             </div>
@@ -431,7 +466,7 @@ export const Sales = ({ user }: { user: any }) => {
               <div>
                 <p className="text-xs text-slate-500 font-medium">En attente</p>
                 <p className="text-lg font-bold text-slate-900">
-                  {invoices.filter(i => i.status === 'Sent').reduce((sum, i) => sum + i.total, 0).toLocaleString()} {currencySymbol}
+                  {invoices.filter(i => i.status === 'Sent').reduce((sum, i) => sum + (i.total || 0), 0).toLocaleString()} {currencySymbol}
                 </p>
               </div>
             </div>
@@ -442,7 +477,7 @@ export const Sales = ({ user }: { user: any }) => {
               <div>
                 <p className="text-xs text-slate-500 font-medium">En retard</p>
                 <p className="text-lg font-bold text-slate-900">
-                  {invoices.filter(i => i.status === 'Overdue').reduce((sum, i) => sum + i.total, 0).toLocaleString()} {currencySymbol}
+                  {invoices.filter(i => i.status === 'Overdue').reduce((sum, i) => sum + (i.total || 0), 0).toLocaleString()} {currencySymbol}
                 </p>
               </div>
             </div>
@@ -540,7 +575,7 @@ export const Sales = ({ user }: { user: any }) => {
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                   <button className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
-                  <button className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => handleDeleteTemplate(template.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
               <h4 className="font-bold text-slate-900 mb-1">{template.name}</h4>
@@ -641,8 +676,8 @@ export const Sales = ({ user }: { user: any }) => {
                       <p className="text-xs text-slate-500 font-bold">Date: {signingQuote.date}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-slate-900">{MOCK_COMPANY.name}</p>
-                      <p className="text-[10px] text-slate-500">{MOCK_COMPANY.address}</p>
+                      <p className="text-sm font-bold text-slate-900">{companyInfo?.name || 'Entreprise'}</p>
+                      <p className="text-[10px] text-slate-500">{companyInfo?.address || ''}</p>
                     </div>
                   </div>
                   
@@ -898,7 +933,7 @@ export const Sales = ({ user }: { user: any }) => {
                             min="1"
                             placeholder="Qté"
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                            value={item.quantity ?? 0}
+                            value={item.quantity || 0}
                             onChange={(e) => handleUpdateItem(index, 'quantity', parseInt(e.target.value) || 0)}
                           />
                         </div>
@@ -907,15 +942,21 @@ export const Sales = ({ user }: { user: any }) => {
                             type="number" 
                             placeholder="Prix"
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                            value={item.price ?? 0}
+                            value={item.price || 0}
                             onChange={(e) => handleUpdateItem(index, 'price', parseFloat(e.target.value) || 0)}
                           />
                         </div>
-                        <div className="w-20 text-center">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">TVA</div>
-                          <div className="text-sm font-semibold text-slate-700">
-                            {item.tvaRate !== undefined ? `${(item.tvaRate * 100).toFixed(0)}%` : '-'}
-                          </div>
+                        <div className="w-24">
+                          <select 
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            value={item.tvaRate ?? 0.18}
+                            onChange={(e) => handleUpdateItem(index, 'tvaRate', parseFloat(e.target.value))}
+                          >
+                            <option value={0.20}>20%</option>
+                            <option value={0.18}>18%</option>
+                            <option value={0.05}>5%</option>
+                            <option value={0}>0%</option>
+                          </select>
                         </div>
                         <button type="button" onClick={() => handleRemoveItem(index)} className="p-2 text-slate-400 hover:text-red-600 transition-colors">
                           <X className="w-4 h-4" />
@@ -959,6 +1000,132 @@ export const Sales = ({ user }: { user: any }) => {
               </button>
               <button type="submit" form="invoice-form" className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95">
                 {editingInvoiceId ? 'Mettre à jour' : 'Enregistrer'}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+      </AnimatePresence>
+
+      {/* Template Modal */}
+      <AnimatePresence>
+        {isTemplateModalOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm transition-all">
+            <div className="absolute inset-0" onClick={() => setIsTemplateModalOpen(false)}></div>
+            
+            <motion.div 
+              initial={{ x: "100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col"
+            >
+            <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Nouveau Modèle de Devis</h3>
+                <p className="text-sm text-slate-500">Créez un modèle réutilisable.</p>
+              </div>
+              <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all shadow-sm">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <form id="template-form" onSubmit={async (e) => {
+                e.preventDefault();
+                try {
+                  const response = await apiFetch('/api/invoices/quote-templates', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      name: newInvoice.notes || 'Nouveau Modèle', // using notes field temporarily for name
+                      items: newInvoice.items || []
+                    })
+                  });
+                  if (response.ok) {
+                    fetchData();
+                    setIsTemplateModalOpen(false);
+                    resetForm();
+                  }
+                } catch (error) {
+                  console.error('Failed to save template', error);
+                }
+              }} className="space-y-6">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nom du modèle *</label>
+                  <input 
+                    type="text" 
+                    required
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    value={newInvoice.notes || ''}
+                    onChange={(e) => setNewInvoice({...newInvoice, notes: e.target.value})}
+                    placeholder="Ex: Devis Standard Web"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Articles *</label>
+                    <button type="button" onClick={handleAddItem} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                      <PlusCircle className="w-3 h-3" /> Ajouter
+                    </button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    {(newInvoice.items || []).map((item, index) => (
+                      <div key={index} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div className="flex-1">
+                          <select 
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            value={item.productId || ''}
+                            onChange={(e) => handleUpdateItem(index, 'productId', e.target.value)}
+                          >
+                            <option value="">Sélectionner un produit</option>
+                            {products.map(p => (
+                              <option key={p.id} value={p.id}>{p.name} - {p.price} {currencySymbol}</option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="w-24">
+                          <input 
+                            type="number" 
+                            min="1"
+                            placeholder="Qté"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            value={item.quantity || 0}
+                            onChange={(e) => handleUpdateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className="w-32">
+                          <input 
+                            type="number" 
+                            placeholder="Prix"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            value={item.price || 0}
+                            onChange={(e) => handleUpdateItem(index, 'price', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <button type="button" onClick={() => handleRemoveItem(index)} className="p-2 text-slate-400 hover:text-red-600 transition-colors">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                    {(newInvoice.items || []).length === 0 && (
+                      <div className="text-center py-6 bg-slate-50 border border-slate-200 border-dashed rounded-xl text-sm text-slate-500">
+                        Aucun article ajouté. Cliquez sur "Ajouter" pour commencer.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex gap-3">
+              <button type="button" onClick={() => setIsTemplateModalOpen(false)} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95">
+                Annuler
+              </button>
+              <button type="submit" form="template-form" className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95">
+                Enregistrer le modèle
               </button>
             </div>
           </motion.div>
@@ -1012,12 +1179,12 @@ export const Sales = ({ user }: { user: any }) => {
                     <p className="text-sm font-medium text-slate-500 mt-1">{viewInvoice.id}</p>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-slate-900 text-lg">{MOCK_COMPANY.name}</div>
+                    <div className="font-bold text-slate-900 text-lg">{companyInfo?.name || 'Entreprise'}</div>
                     <p className="text-xs text-slate-500 mt-1 whitespace-pre-line">
-                      {MOCK_COMPANY.address}<br/>
-                      {MOCK_COMPANY.email}<br/>
-                      {MOCK_COMPANY.taxId} | {MOCK_COMPANY.rccm}<br/>
-                      {MOCK_COMPANY.idNat}
+                      {companyInfo?.address}<br/>
+                      {companyInfo?.email}<br/>
+                      {companyInfo?.taxId} | {companyInfo?.rccm}<br/>
+                      {companyInfo?.idNat}
                     </p>
                   </div>
                 </div>

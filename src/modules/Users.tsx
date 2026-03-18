@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { MOCK_ROLES, MOCK_PERMISSIONS } from '../constants';
+import React, { useState, useEffect, useCallback } from 'react';
+import { MOCK_PERMISSIONS } from '../constants';
 import { User, Role, Permission } from '../types';
 import { Users as UsersIcon, Shield, Lock, Plus, Search, MoreVertical, Mail, ShieldCheck, UserPlus, X, Check, Trash2, Edit2 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
@@ -19,11 +19,7 @@ export const Users = () => {
   const [newUser, setNewUser] = useState({ name: '', email: '', roleId: '', password: '' });
   const [newRole, setNewRole] = useState({ name: '', permissions: [] as string[] });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const [usersRes, rolesRes] = await Promise.all([
         apiFetch('/api/company/users'),
@@ -33,14 +29,17 @@ export const Users = () => {
       if (rolesRes.ok) {
         const rolesData = await rolesRes.json();
         setRoles(rolesData);
-        if (rolesData.length > 0 && !newUser.roleId) {
-          setNewUser(prev => ({ ...prev, roleId: rolesData[0].id }));
-        }
+        setNewUser(prev => prev.roleId ? prev : { ...prev, roleId: rolesData[0]?.id || '' });
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+  }, [fetchData]);
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -373,7 +372,11 @@ export const Users = () => {
         confirmLabel="Supprimer"
         onConfirm={() => {
           if (deleteConfirmId) {
-            deleteConfirmType === 'user' ? handleDeleteUser(deleteConfirmId) : handleDeleteRole(deleteConfirmId);
+            if (deleteConfirmType === 'user') {
+              handleDeleteUser(deleteConfirmId);
+            } else {
+              handleDeleteRole(deleteConfirmId);
+            }
           }
         }}
         onCancel={() => {

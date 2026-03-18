@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import nodemailer from 'nodemailer';
 import { requireAuth } from '../middleware/auth.js';
+import { seedDefaultRoles } from '../../db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
 
@@ -89,11 +90,11 @@ authRouter.post('/login', async (req, res, next) => {
       return res.status(401).json({ error: 'Identifiants incorrects. Utilisateur non trouvé.' });
     }
 
-    console.log('Comparing password:', password, 'with hash:', user.password);
-    const isMatch = await bcrypt.compare(password.trim(), user.password);
-    console.log('isMatch:', isMatch);
+    console.log('Comparing password length:', password.length, 'with hash length:', user.password.length);
+    const isMatch = await bcrypt.compare(password, user.password);
+    console.log('isMatch result:', isMatch);
     if (!isMatch) {
-      console.log('Login failed: Password mismatch');
+      console.log('Login failed: Password mismatch for email:', email);
       
       // Provide a helpful hint depending on the email
       let hint = 'loub@ki2014D';
@@ -121,17 +122,16 @@ authRouter.post('/login', async (req, res, next) => {
         return res.status(403).json({ error: 'Cet utilisateur ne peut pas se connecter en mode démo.' });
       }
       
-      if (!demoMode && company.type === 'demo') {
-        console.log('Login failed: Demo company in production mode');
-        return res.status(403).json({ error: 'Cet utilisateur doit se connecter via l\'espace démo.' });
-      }
+      // If it's a demo company, we allow login even from the production tab.
+      // We will set isDemo in the response so the frontend can adjust.
     } else if (user.companyId && user.role === 'super_admin') {
       // Still fetch company info for super admin to get country/state
       const companyRes = await req.db.query('SELECT status, type, country, state, language, currency FROM companies WHERE id = $1', [user.companyId]);
       company = companyRes.rows[0];
     }
 
-    console.log('Login successful for user:', user.id);
+    const isDemo = company?.type === 'demo';
+    console.log('Login successful for user:', user.id, 'isDemo:', isDemo);
     
     // Update lastLogin
     await req.db.query('UPDATE users SET "lastLogin" = $1 WHERE id = $2', [new Date().toISOString(), user.id]);
@@ -147,7 +147,8 @@ authRouter.post('/login', async (req, res, next) => {
         country: company?.country || 'FR',
         state: company?.state || null,
         language: company?.language || 'fr',
-        currency: company?.currency || 'XAF'
+        currency: company?.currency || 'XAF',
+        isDemo
       }, 
       JWT_SECRET, 
       { expiresIn: '24h' }
@@ -187,7 +188,8 @@ authRouter.post('/login', async (req, res, next) => {
         country: company?.country || 'FR',
         state: company?.state || null,
         language: company?.language || 'fr',
-        currency: company?.currency || 'XAF'
+        currency: company?.currency || 'XAF',
+        isDemo
       } 
     });
   } catch (error) {
@@ -209,37 +211,30 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
     const companyId = `demo-company-${Date.now()}`;
     const userId = `demo-user-${Date.now()}`;
     
-    const client = await db.connect();
     try {
-      await client.query('BEGIN');
+      await db.query('BEGIN');
       
       // Create company
       const finalCompanyName = companyName ? `${companyName} (${country || 'Démo'})` : `Démo - ${prenom} ${nom}`;
-      await client.query(`
+      await db.query(`
         INSERT INTO companies (id, name, type, status, country, state, "createdAt")
         VALUES ($1, $2, 'demo', 'active', $3, $4, CURRENT_TIMESTAMP)
       `, [companyId, finalCompanyName, country || 'FR', state || null]);
       
+      // Seed default roles for the new demo company
+      await seedDefaultRoles(db, companyId);
+      
       // Create user
       const hashedCode = bcrypt.hashSync(code, 10);
-      await client.query(`
+      await db.query(`
         INSERT INTO users (id, "companyId", email, password, role, name)
         VALUES ($1, $2, $3, $4, 'admin', $5)
       `, [userId, companyId, email, hashedCode, `${prenom} ${nom}`]);
       
-      // Seed some initial data for this demo company
-      const contactId = `contact-${Date.now()}`;
-      await client.query(`
-        INSERT INTO contacts (id, "companyId", name, email, phone, company, status, "lastContact")
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `, [contactId, companyId, `${prenom} ${nom}`, email, telephone || '0123456789', companyName || 'Entreprise Fictive', 'lead', new Date().toISOString()]);
-      
-      await client.query('COMMIT');
+      await db.query('COMMIT');
     } catch (e) {
-      await client.query('ROLLBACK');
+      await db.query('ROLLBACK');
       throw e;
-    } finally {
-      client.release();
     }
 
     // Use provided SMTP credentials

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
 import bcrypt from 'bcrypt';
-import { initializeTenantSchema } from '../../db.js';
+import { initializeTenantSchema, seedDefaultRoles } from '../../db.js';
 
 export const adminRouter = Router();
 
@@ -45,6 +45,7 @@ adminRouter.get('/activity', async (req, res, next) => {
       FROM activity_log a
       LEFT JOIN public.users u ON a."userId" = u.id
       LEFT JOIN public.companies c ON u."companyId" = c.id
+      WHERE u.role != 'super_admin' OR u.role IS NULL
       ORDER BY a."createdAt" DESC
       LIMIT 100
     `);
@@ -77,6 +78,9 @@ adminRouter.post('/companies', async (req, res, next) => {
     
     // Initialize schema
     await initializeTenantSchema(schemaName);
+
+    // Seed default roles for the new company
+    await seedDefaultRoles(client, id);
 
     // Create admin user if details provided
     if (adminEmail && adminPassword) {

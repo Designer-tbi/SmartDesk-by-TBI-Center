@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { DEMO_ACCOUNTS, MOCK_COMPANY } from '../constants';
+import { DEMO_ACCOUNTS } from '../constants';
 import { Lock, Mail, Eye, EyeOff, AlertCircle, PlayCircle, User, Phone, CheckCircle2, Building2, MapPin } from 'lucide-react';
 
 interface LoginProps {
@@ -36,7 +36,9 @@ export const Login = ({ onLogin }: LoginProps) => {
       if (response.ok) {
         const data = await response.json();
         localStorage.setItem('token', data.token);
-        localStorage.setItem('demoMode', loginMode === 'demo' ? 'true' : 'false');
+        localStorage.setItem('demoMode', data.user.isDemo ? 'true' : 'false');
+        // Clear selectedCompanyId to ensure the new user's company is used
+        localStorage.removeItem('selectedCompanyId');
         onLogin(data.user);
       } else {
         const errorData = await response.json();
@@ -63,6 +65,7 @@ export const Login = ({ onLogin }: LoginProps) => {
         const data = await response.json();
         localStorage.setItem('token', data.token);
         localStorage.setItem('demoMode', 'true');
+        localStorage.removeItem('selectedCompanyId');
         onLogin(data.user);
       } else {
         const data = await response.json();
@@ -114,8 +117,19 @@ export const Login = ({ onLogin }: LoginProps) => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen relative flex items-center justify-center p-4 py-12 overflow-hidden">
+      {/* Background Image with Overlay */}
+      <div className="absolute inset-0 z-0">
+        <img 
+          src="https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&q=80&w=2000" 
+          alt="Office Background" 
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-slate-900/20 backdrop-blur-[1px]"></div>
+      </div>
+
+      <div className={`w-full relative z-10 transition-all duration-500 ${loginMode === 'demo' && isRegistering ? 'max-w-2xl' : 'max-w-sm'}`}>
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -132,7 +146,7 @@ export const Login = ({ onLogin }: LoginProps) => {
               S
             </motion.div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight uppercase mb-2">
-              {MOCK_COMPANY.name}
+              SmartDesk
             </h1>
             <p className="text-slate-500 text-sm font-medium">
               {renderHeader()}
@@ -192,22 +206,38 @@ export const Login = ({ onLogin }: LoginProps) => {
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email professionnel</label>
-                <div className="relative">
-                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input
-                    type="email"
-                    required
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                    placeholder="nom@entreprise.cg"
-                    value={regForm.email || ''}
-                    onChange={(e) => setRegForm({...regForm, email: e.target.value})}
-                  />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email professionnel</label>
+                  <div className="relative">
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                      type="email"
+                      required
+                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      placeholder="nom@entreprise.cg"
+                      value={regForm.email || ''}
+                      onChange={(e) => setRegForm({...regForm, email: e.target.value})}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Numéro de téléphone</label>
+                  <div className="relative">
+                    <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+                    <input
+                      type="tel"
+                      required
+                      className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      placeholder="+242 00 000 0000"
+                      value={regForm.telephone || ''}
+                      onChange={(e) => setRegForm({...regForm, telephone: e.target.value})}
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Entreprise</label>
                   <div className="relative">
@@ -276,21 +306,6 @@ export const Login = ({ onLogin }: LoginProps) => {
                   </div>
                 </div>
               )}
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Numéro de téléphone</label>
-                <div className="relative">
-                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                  <input
-                    type="tel"
-                    required
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                    placeholder="+242 00 000 0000"
-                    value={regForm.telephone || ''}
-                    onChange={(e) => setRegForm({...regForm, telephone: e.target.value})}
-                  />
-                </div>
-              </div>
 
               <button
                 type="submit"
@@ -383,6 +398,19 @@ export const Login = ({ onLogin }: LoginProps) => {
                 </div>
               </div>
 
+              <div className="flex items-center justify-between px-1">
+                <label className="flex items-center gap-2 cursor-pointer group">
+                  <div className="relative flex items-center justify-center w-4 h-4 rounded border border-slate-300 bg-white group-hover:border-indigo-500 transition-colors">
+                    <input type="checkbox" className="peer absolute opacity-0 w-full h-full cursor-pointer" />
+                    <CheckCircle2 className="w-3 h-3 text-indigo-600 opacity-0 peer-checked:opacity-100 transition-opacity" />
+                  </div>
+                  <span className="text-xs text-slate-500 font-medium group-hover:text-slate-700 transition-colors">Se souvenir de moi</span>
+                </label>
+                <button type="button" className="text-xs text-indigo-600 font-bold hover:text-indigo-700 transition-colors">
+                  Mot de passe oublié ?
+                </button>
+              </div>
+
               <button
                 type="submit"
                 disabled={isLoading}
@@ -421,15 +449,6 @@ export const Login = ({ onLogin }: LoginProps) => {
               >
                 <button
                   type="button"
-                  onClick={handleQuickDemo}
-                  disabled={isLoading}
-                  className="w-full py-3 bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-2xl font-bold text-sm hover:bg-indigo-100 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 mb-3"
-                >
-                  <PlayCircle className="w-5 h-5" />
-                  Essayer la démo maintenant
-                </button>
-                <button
-                  type="button"
                   onClick={() => {
                     setLoginMode('demo');
                     setIsRegistering(true);
@@ -452,8 +471,17 @@ export const Login = ({ onLogin }: LoginProps) => {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
-                className="p-8 bg-slate-50 border-t border-slate-100"
+                className="p-8 bg-slate-50 border-t border-slate-100 space-y-3"
               >
+                <button
+                  type="button"
+                  onClick={handleQuickDemo}
+                  disabled={isLoading}
+                  className="w-full py-3 bg-indigo-50 text-indigo-600 rounded-2xl font-bold text-sm hover:bg-indigo-100 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  <PlayCircle className="w-5 h-5" />
+                  Accès rapide démo
+                </button>
                 <button
                   type="button"
                   onClick={() => setIsRegistering(true)}
@@ -472,7 +500,7 @@ export const Login = ({ onLogin }: LoginProps) => {
         </motion.div>
         
         <p className="mt-8 text-center text-slate-400 text-xs">
-          &copy; 2026 {MOCK_COMPANY.name}. Tous droits réservés. <br className="mt-1" />
+          &copy; 2026 SmartDesk. Tous droits réservés. <br className="mt-1" />
           SmartDesk by <a href="https://tbi-center.fr" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">TBI Center</a>
         </p>
       </div>

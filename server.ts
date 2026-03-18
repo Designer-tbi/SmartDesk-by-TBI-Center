@@ -1,8 +1,8 @@
 import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
+import compression from "compression";
 import { db, seedDatabase, connectionString } from "./db.js";
-import * as mockData from "./src/constants.js";
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 
@@ -29,6 +29,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
+app.use(compression());
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
@@ -46,10 +47,10 @@ export const broadcast = (data: any) => {
 };
 
 // Activity logging helper
-export const logActivity = async (userId: string | undefined, companyId: string | undefined, action: string, details: string) => {
+export const logActivity = async (dbClient: any, userId: string | undefined, companyId: string | undefined, action: string, details: string) => {
   try {
     const id = `act_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    await db.query(
+    await dbClient.query(
       'INSERT INTO activity_log (id, "userId", "companyId", action, details, "createdAt") VALUES ($1, $2, $3, $4, $5, $6)',
       [id, userId || null, companyId || null, action, details, new Date().toISOString()]
     );
@@ -60,7 +61,7 @@ export const logActivity = async (userId: string | undefined, companyId: string 
 };
 
 // Seed database with demo data
-await seedDatabase(db, mockData);
+await seedDatabase(db);
 
 // Attach database instance to request
 app.use(dbMiddleware);
@@ -117,9 +118,16 @@ if (!process.env.VERCEL) {
     });
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
+    // Cache static assets for 1 year
+    app.use(express.static(distPath, {
+      maxAge: '1y',
+      immutable: true,
+      index: false
+    }));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
+      res.sendFile(path.join(distPath, "index.html"), {
+        maxAge: '1h' // Cache index.html for a shorter time
+      });
     });
     server.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);

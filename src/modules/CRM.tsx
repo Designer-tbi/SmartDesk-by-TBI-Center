@@ -5,10 +5,11 @@ import { Plus, Filter, MoreVertical, Mail, Phone, ExternalLink, X, User, Buildin
 import { Contact, Company } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
 
+import { useTranslation } from '../lib/i18n';
+
 export const CRM = ({ user }: { user?: any }) => {
-  const [companies, setCompanies] = useState<Company[]>([]);
+  const { t } = useTranslation();
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const [mode, setMode] = useState<'demo' | 'real'>('real');
   
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -24,34 +25,39 @@ export const CRM = ({ user }: { user?: any }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   useEffect(() => {
-    const fetchInitialData = async () => {
+    const loadData = async () => {
+      setIsLoading(true);
+      setError(null);
       try {
-        if (user?.role === 'super_admin') {
-          const companiesRes = await apiFetch('/api/admin/companies');
-          if (companiesRes.ok) {
-            const allCompanies = await companiesRes.json();
-            setCompanies(allCompanies);
-            if (allCompanies.length > 0) {
-              setSelectedCompany(allCompanies[0]);
-              setMode(allCompanies[0].type);
+        // 1. Fetch Company Info
+        const companyRes = await apiFetch('/api/company');
+        if (companyRes.ok) {
+          const companyData = await companyRes.json();
+          setSelectedCompany(companyData);
+          
+          // 2. Fetch Contacts for this company
+          const contactsRes = await apiFetch('/api/contacts');
+          if (contactsRes.ok) {
+            setContacts(await contactsRes.json());
+          } else {
+            setContacts([]);
+            if (contactsRes.status !== 404) {
+              setError(t('crm.error.load'));
             }
           }
         } else {
-          const companyRes = await apiFetch('/api/company');
-          if (companyRes.ok) {
-            const companyData = await companyRes.json();
-            setCompanies([companyData]);
-            setSelectedCompany(companyData);
-            setMode(companyData.type);
-          }
+          setError(t('crm.errorLoading'));
         }
-      } catch (error) {
-        console.error('Error fetching initial data:', error);
+      } catch (err) {
+        console.error('CRM load error:', err);
+        setError(t('crm.error.connection'));
+      } finally {
+        setIsLoading(false);
       }
     };
     
-    fetchInitialData();
-  }, [user]);
+    loadData();
+  }, [user, t]);
   
   const [newContact, setNewContact] = useState<Partial<Contact>>({
     name: '',
@@ -75,43 +81,24 @@ export const CRM = ({ user }: { user?: any }) => {
     }
   }, [selectedCompany]);
 
-  useEffect(() => {
-    fetchContacts();
-  }, [selectedCompany, mode]);
-
   const fetchContacts = async () => {
     if (!selectedCompany) return;
-    setIsLoading(true);
     try {
-      const response = await apiFetch(`/api/contacts?companyId=${selectedCompany.id}`);
+      const response = await apiFetch(`/api/contacts`);
       if (response.ok) {
         setContacts(await response.json());
-      } else {
-        setContacts([]);
       }
     } catch (error) {
       console.error('Failed to fetch contacts:', error);
-      setContacts([]);
-    } finally {
-      setIsLoading(false);
     }
-  };
-
-  const filteredCompanies = companies.filter(c => c.type === mode);
-  const isRestricted = companies.length === 1 && companies[0].type === 'real';
-
-  const handleModeChange = (newMode: 'demo' | 'real') => {
-    setMode(newMode);
-    const firstOfMode = companies.find(c => c.type === newMode);
-    if (firstOfMode) setSelectedCompany(firstOfMode);
   };
 
   const filteredContacts = contacts
     .filter(contact => {
       const matchesFilter = filter === 'Tous' ? true : contact.status === filter;
-      const matchesSearch = contact.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                           contact.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           contact.email.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesSearch = (contact.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
+                           (contact.company?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                           (contact.email?.toLowerCase() || '').includes(searchQuery.toLowerCase());
       return matchesFilter && matchesSearch;
     })
     .sort((a, b) => {
@@ -133,8 +120,8 @@ export const CRM = ({ user }: { user?: any }) => {
       name: '', 
       email: '', 
       phone: '', 
-      company: selectedCompany.name, 
-      companyId: selectedCompany.id,
+      company: selectedCompany?.name || '', 
+      companyId: selectedCompany?.id || '',
       role: '', 
       notes: '', 
       status: 'Lead', 
@@ -168,7 +155,7 @@ export const CRM = ({ user }: { user?: any }) => {
           fetchContacts();
           resetForm();
         } else {
-          setError('Erreur lors de la mise à jour du contact.');
+          setError(t('crm.error.update'));
         }
       } else {
         const id = `cnt_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
@@ -181,12 +168,12 @@ export const CRM = ({ user }: { user?: any }) => {
           fetchContacts();
           resetForm();
         } else {
-          setError('Erreur lors de la création du contact.');
+          setError(t('crm.error.create'));
         }
       }
     } catch (error) {
       console.error('Failed to save contact:', error);
-      setError('Erreur de connexion au serveur.');
+      setError(t('crm.error.connection'));
     } finally {
       setIsSubmitting(false);
     }
@@ -201,11 +188,11 @@ export const CRM = ({ user }: { user?: any }) => {
         fetchContacts();
         setDeleteConfirmId(null);
       } else {
-        setError('Erreur lors de la suppression du contact.');
+        setError(t('crm.error.delete'));
       }
     } catch (error) {
       console.error('Failed to delete contact:', error);
-      setError('Erreur de connexion lors de la suppression.');
+      setError(t('crm.error.connection'));
     }
   };
 
@@ -221,98 +208,24 @@ export const CRM = ({ user }: { user?: any }) => {
       animate={{ opacity: 1, y: 0 }}
       className="space-y-8"
     >
-      {/* Multi-Company Header */}
-      {!isRestricted ? (
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="p-4 bg-indigo-50 rounded-2xl">
-              <Building2 className="w-8 h-8 text-indigo-600" />
-            </div>
-            <div>
-              <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">Gestion Multi-Entreprise</h2>
-              <p className="text-sm font-bold text-slate-500">Gérez vos contacts par entité</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <div className="flex bg-slate-100 p-1 rounded-2xl">
-              <button
-                onClick={() => handleModeChange('demo')}
-                className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                  mode === 'demo' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Mode Demo
-              </button>
-              <button
-                onClick={() => handleModeChange('real')}
-                className={`px-6 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${
-                  mode === 'real' ? 'bg-white text-indigo-600 shadow-lg' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                Mode Réel
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <select
-                value={selectedCompany?.id || ''}
-                onChange={(e) => {
-                  const company = companies.find(c => c.id === e.target.value);
-                  if (company) setSelectedCompany(company);
-                }}
-                className="px-6 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:ring-2 focus:ring-indigo-500/20 outline-none appearance-none cursor-pointer hover:bg-white transition-all min-w-[200px]"
-              >
-                {filteredCompanies.map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-              
-              {mode === 'real' && (
-                <button
-                  onClick={() => {
-                    const name = prompt('Nom de la nouvelle entreprise :');
-                    if (name) {
-                      const newComp: Company = {
-                        id: 'real-' + Date.now(),
-                        name,
-                        type: 'real',
-                        industry: 'Services',
-                        status: 'Active',
-                        createdAt: new Date().toISOString().split('T')[0]
-                      };
-                      setCompanies([...companies, newComp]);
-                      setSelectedCompany(newComp);
-                    }
-                  }}
-                  className="p-2.5 bg-indigo-600 text-white rounded-2xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
-                  title="Ajouter une entreprise"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
-              )}
-            </div>
-          </div>
+      {/* Company Header */}
+      <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center gap-4">
+        <div className="p-4 bg-indigo-50 rounded-2xl">
+          <Building2 className="w-8 h-8 text-indigo-600" />
         </div>
-      ) : (
-        <div className="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-sm flex items-center gap-4">
-          <div className="p-4 bg-indigo-50 rounded-2xl">
-            <Building2 className="w-8 h-8 text-indigo-600" />
-          </div>
-          <div>
-            <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">{selectedCompany?.name || 'Chargement...'}</h2>
-            <p className="text-sm font-bold text-slate-500">Gestion de vos contacts</p>
-          </div>
+        <div>
+          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">{selectedCompany?.name || t('common.loading')}</h2>
+          <p className="text-sm font-bold text-slate-500">{t('crm.manageContacts')}</p>
         </div>
-      )}
+      </div>
 
       {/* Stats Header */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Contacts', value: stats.total, icon: Users, color: 'bg-blue-500' },
-          { label: 'Prospects (Leads)', value: stats.leads, icon: UserPlus, color: 'bg-amber-500' },
-          { label: 'Clients Actifs', value: stats.clients, icon: Check, color: 'bg-emerald-500' },
-          { label: 'Taux de Conversion', value: `${stats.conversion}%`, icon: TrendingUp, color: 'bg-indigo-500' },
+          { label: t('crm.stats.total'), value: stats.total, icon: Users, color: 'bg-blue-500' },
+          { label: t('crm.stats.leads'), value: stats.leads, icon: UserPlus, color: 'bg-amber-500' },
+          { label: t('crm.stats.clients'), value: stats.clients, icon: Check, color: 'bg-emerald-500' },
+          { label: t('crm.stats.conversion'), value: `${stats.conversion}%`, icon: TrendingUp, color: 'bg-indigo-500' },
         ].map((stat, i) => (
           <motion.div
             key={i}
@@ -350,7 +263,7 @@ export const CRM = ({ user }: { user?: any }) => {
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input 
               type="text"
-              placeholder="Rechercher un contact, entreprise..."
+              placeholder={t('crm.searchPlaceholder')}
               className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all shadow-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -368,7 +281,7 @@ export const CRM = ({ user }: { user?: any }) => {
                     : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
-                {f === 'Tous' ? 'Tous' : f + 's'}
+                {f === 'Tous' ? t('crm.all') : t(`crm.${f.toLowerCase()}`) + 's'}
               </button>
             ))}
           </div>
@@ -381,7 +294,7 @@ export const CRM = ({ user }: { user?: any }) => {
               className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
             >
               <Filter className="w-4 h-4" />
-              Trier
+              {t('crm.sort')}
             </button>
             
             <AnimatePresence>
@@ -393,20 +306,20 @@ export const CRM = ({ user }: { user?: any }) => {
                   className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden z-10"
                 >
                   <div className="p-3">
-                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-2">Trier par</h4>
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 px-2">{t('crm.sortBy')}</h4>
                     <div className="space-y-1">
                       <button 
                         onClick={() => { setSortBy('recent'); setIsFilterMenuOpen(false); }}
                         className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-bold transition-colors ${sortBy === 'recent' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}
                       >
-                        Plus récent
+                        {t('crm.recent')}
                         {sortBy === 'recent' && <Check className="w-4 h-4" />}
                       </button>
                       <button 
                         onClick={() => { setSortBy('alpha'); setIsFilterMenuOpen(false); }}
                         className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-bold transition-colors ${sortBy === 'alpha' ? 'bg-indigo-50 text-indigo-700' : 'text-slate-600 hover:bg-slate-50'}`}
                       >
-                        Ordre alphabétique
+                        {t('crm.alphabetical')}
                         {sortBy === 'alpha' && <Check className="w-4 h-4" />}
                       </button>
                     </div>
@@ -421,7 +334,7 @@ export const CRM = ({ user }: { user?: any }) => {
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
           >
             <Plus className="w-5 h-5" />
-            Nouveau Contact
+            {t('crm.newContact')}
           </button>
         </div>
       </div>
@@ -431,17 +344,17 @@ export const CRM = ({ user }: { user?: any }) => {
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-              <p className="text-sm font-medium text-slate-500">Chargement des contacts...</p>
+              <p className="text-sm font-medium text-slate-500">{t('crm.loading')}</p>
             </div>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50/50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Contact</th>
-                  <th className="hidden sm:table-cell px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Statut</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Coordonnées</th>
-                  <th className="hidden md:table-cell px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Dernière Activité</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">Actions</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('crm.contact')}</th>
+                  <th className="hidden sm:table-cell px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('common.status')}</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('crm.details')}</th>
+                  <th className="hidden md:table-cell px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('crm.lastActivity')}</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">{t('crm.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -450,7 +363,7 @@ export const CRM = ({ user }: { user?: any }) => {
                     <td className="px-6 py-6">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-600 font-black text-lg group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
-                          {contact.name.charAt(0)}
+                          {contact.name?.charAt(0) || '?'}
                         </div>
                         <div>
                           <div className="text-sm font-black text-slate-900 group-hover:text-indigo-600 transition-colors">{contact.name}</div>
@@ -485,7 +398,7 @@ export const CRM = ({ user }: { user?: any }) => {
                     <td className="hidden md:table-cell px-6 py-6">
                       <div className="flex items-center gap-2 text-xs font-black text-slate-600 uppercase tracking-tighter">
                         <Calendar className="w-4 h-4 text-slate-300" />
-                        {new Date(contact.lastContact).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {contact.lastContact ? new Date(contact.lastContact).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-5 text-right">
@@ -509,8 +422,8 @@ export const CRM = ({ user }: { user?: any }) => {
                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-300">
                           <Search className="w-8 h-8" />
                         </div>
-                        <p className="text-slate-500 font-bold">Aucun contact ne correspond à votre recherche.</p>
-                        <button onClick={() => { setSearchQuery(''); setFilter('Tous'); }} className="text-indigo-600 text-sm font-bold hover:underline">Réinitialiser les filtres</button>
+                        <p className="text-slate-500 font-bold">{t('crm.noContacts')}</p>
+                        <button onClick={() => { setSearchQuery(''); setFilter('Tous'); }} className="text-indigo-600 text-sm font-bold hover:underline">{t('crm.resetFilters')}</button>
                       </div>
                     </td>
                   </tr>
@@ -536,8 +449,8 @@ export const CRM = ({ user }: { user?: any }) => {
             >
             <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">{editingContactId ? 'Modifier le Contact' : 'Nouveau Contact'}</h3>
-                <p className="text-sm text-slate-500">{editingContactId ? 'Mettez à jour les informations du contact.' : 'Ajoutez un nouveau client ou prospect.'}</p>
+                <h3 className="text-xl font-bold text-slate-900">{editingContactId ? t('crm.editContact') : t('crm.newContact')}</h3>
+                <p className="text-sm text-slate-500">{editingContactId ? t('crm.updateInfo') : t('crm.addInfo')}</p>
               </div>
               <button 
                 onClick={resetForm}
@@ -557,13 +470,13 @@ export const CRM = ({ user }: { user?: any }) => {
 
                 <div className="space-y-5">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nom Complet *</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.fullName')} *</label>
                     <div className="relative">
                       <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
                         required
                         type="text" 
-                        placeholder="Ex: Jean Dupont"
+                        placeholder={t('crm.placeholder.name')}
                         className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         value={newContact.name || ''}
                         onChange={(e) => setNewContact({...newContact, name: e.target.value})}
@@ -572,12 +485,12 @@ export const CRM = ({ user }: { user?: any }) => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fonction</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.jobTitle')}</label>
                     <div className="relative">
                       <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
                         type="text" 
-                        placeholder="Ex: Directeur Marketing"
+                        placeholder={t('crm.placeholder.role')}
                         className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         value={newContact.role || ''}
                         onChange={(e) => setNewContact({...newContact, role: e.target.value})}
@@ -587,13 +500,13 @@ export const CRM = ({ user }: { user?: any }) => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email *</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.email')} *</label>
                       <div className="relative">
                         <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input 
                           required
                           type="email" 
-                          placeholder="jean@exemple.com"
+                          placeholder={t('crm.placeholder.email')}
                           className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                           value={newContact.email || ''}
                           onChange={(e) => setNewContact({...newContact, email: e.target.value})}
@@ -601,13 +514,13 @@ export const CRM = ({ user }: { user?: any }) => {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Téléphone *</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.phone')} *</label>
                       <div className="relative">
                         <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input 
                           required
                           type="tel" 
-                          placeholder="01 23 45 67 89"
+                          placeholder={t('crm.placeholder.phone')}
                           className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                           value={newContact.phone || ''}
                           onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
@@ -617,13 +530,13 @@ export const CRM = ({ user }: { user?: any }) => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Entreprise *</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.company')} *</label>
                     <div className="relative">
                       <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input 
                         required
                         type="text" 
-                        placeholder="Ex: Tech Solutions SARL"
+                        placeholder={t('crm.placeholder.company')}
                         className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         value={newContact.company || ''}
                         onChange={(e) => setNewContact({...newContact, company: e.target.value})}
@@ -632,7 +545,7 @@ export const CRM = ({ user }: { user?: any }) => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Statut du Contact *</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('common.status')} *</label>
                     <div className="grid grid-cols-2 gap-3">
                       {['Lead', 'Client'].map((s) => (
                         <button
@@ -646,18 +559,18 @@ export const CRM = ({ user }: { user?: any }) => {
                           }`}
                         >
                           <Tag className="w-4 h-4" />
-                          {s}
+                          {t(`crm.${s.toLowerCase()}`)}
                         </button>
                       ))}
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Notes</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.notes')}</label>
                     <div className="relative">
                       <textarea 
                         rows={3} 
-                        placeholder="Informations additionnelles..."
+                        placeholder={t('crm.placeholder.notes')}
                         className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
                         value={newContact.notes || ''}
                         onChange={(e) => setNewContact({...newContact, notes: e.target.value})}
@@ -674,7 +587,7 @@ export const CRM = ({ user }: { user?: any }) => {
                   onClick={resetForm}
                   className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95"
                 >
-                  Annuler
+                  {t('common.cancel')}
                 </button>
                 <button 
                   type="submit"
@@ -682,7 +595,7 @@ export const CRM = ({ user }: { user?: any }) => {
                   disabled={isSubmitting}
                   className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95 disabled:opacity-70 flex items-center justify-center gap-2"
                 >
-                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingContactId ? 'Mettre à jour' : 'Enregistrer')}
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingContactId ? t('crm.update') : t('common.save'))}
                 </button>
               </div>
             </motion.div>
@@ -701,7 +614,7 @@ export const CRM = ({ user }: { user?: any }) => {
               className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden"
             >
             <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="text-xl font-bold text-slate-900">Détails du Contact</h3>
+              <h3 className="text-xl font-bold text-slate-900">{t('crm.contactDetails')}</h3>
               <button 
                 onClick={() => setViewContact(null)}
                 className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all shadow-sm"
@@ -747,13 +660,13 @@ export const CRM = ({ user }: { user?: any }) => {
                 </a>
                 <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
                   <Calendar className="w-4 h-4 text-slate-400" />
-                  Dernier contact : {new Date(viewContact.lastContact).toLocaleDateString('fr-FR')}
+                  {t('crm.lastContact')} : {new Date(viewContact.lastContact).toLocaleDateString('fr-FR')}
                 </div>
               </div>
               
               {viewContact.notes && (
                 <div>
-                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">Notes</h5>
+                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">{t('crm.notes')}</h5>
                   <p className="text-sm text-slate-600 bg-slate-50 p-4 rounded-2xl border border-slate-100 leading-relaxed">
                     {viewContact.notes}
                   </p>
@@ -766,7 +679,7 @@ export const CRM = ({ user }: { user?: any }) => {
                 onClick={() => { setViewContact(null); openEdit(viewContact); }}
                 className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
               >
-                Modifier le Contact
+                {t('crm.editContact')}
               </button>
             </div>
           </motion.div>
@@ -776,9 +689,9 @@ export const CRM = ({ user }: { user?: any }) => {
 
       <ConfirmModal
         isOpen={!!deleteConfirmId}
-        title="Supprimer le contact"
-        message="Êtes-vous sûr de vouloir supprimer ce contact ? Cette action est irréversible."
-        confirmLabel="Supprimer"
+        title={t('crm.deleteTitle')}
+        message={t('crm.deleteMessage')}
+        confirmLabel={t('common.delete')}
         onConfirm={() => deleteConfirmId && handleDeleteContact(deleteConfirmId)}
         onCancel={() => setDeleteConfirmId(null)}
       />

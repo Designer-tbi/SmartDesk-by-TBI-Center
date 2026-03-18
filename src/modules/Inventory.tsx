@@ -30,6 +30,10 @@ export const Inventory = ({ user }: { user: any }) => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const currentTvaRate = newProduct.tvaRate ?? 0.18;
+  const tvaAmount = (newProduct.price || 0) * currentTvaRate;
+  const totalTTC = (newProduct.price || 0) + tvaAmount;
+
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -178,7 +182,7 @@ export const Inventory = ({ user }: { user: any }) => {
             <ArrowRightLeft className="w-4 h-4" />
             Mouvement Stock
           </button>
-          <button onClick={() => { setEditingProduct(null); setNewProduct({ name: '', sku: '', price: 0, stock: 0, category: '' }); setIsAddProductOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+          <button onClick={() => { setEditingProduct(null); setNewProduct({ name: '', sku: '', price: 0, stock: 0, category: '', description: '', type: 'product', tvaRate: 0.18 }); setIsAddProductOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
             <Plus className="w-4 h-4" />
             Ajouter Produit
           </button>
@@ -375,8 +379,8 @@ export const Inventory = ({ user }: { user: any }) => {
                           step="0.01"
                           placeholder="0.00" 
                           className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm" 
-                          value={newProduct.price ?? 0} 
-                          onChange={e => setNewProduct({...newProduct, price: parseFloat(e.target.value)})} 
+                          value={newProduct.price || 0} 
+                          onChange={e => setNewProduct({...newProduct, price: parseFloat(e.target.value) || 0})} 
                           required 
                         />
                       </div>
@@ -394,6 +398,18 @@ export const Inventory = ({ user }: { user: any }) => {
                         </select>
                       </div>
                     </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Montant {taxLabel}</p>
+                        <p className="text-sm font-bold text-slate-700">{tvaAmount.toLocaleString()} {currencySymbol}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total TTC</p>
+                        <p className="text-sm font-bold text-indigo-600">{totalTTC.toLocaleString()} {currencySymbol}</p>
+                      </div>
+                    </div>
+
                     <div className="space-y-1.5">
                       <label className="text-sm font-medium text-slate-700 ml-1">Stock Initial</label>
                       <div className="relative">
@@ -401,8 +417,8 @@ export const Inventory = ({ user }: { user: any }) => {
                           type="number" 
                           placeholder="0" 
                           className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm" 
-                          value={newProduct.stock ?? 0} 
-                          onChange={e => setNewProduct({...newProduct, stock: parseInt(e.target.value)})} 
+                          value={newProduct.stock || 0} 
+                          onChange={e => setNewProduct({...newProduct, stock: parseInt(e.target.value) || 0})} 
                           required 
                         />
                       </div>

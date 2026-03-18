@@ -479,7 +479,7 @@ export const Projects = ({ user }: { user?: any }) => {
                           placeholder="0" 
                           className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all" 
                           value={newProject.budget || 0} 
-                          onChange={e => setNewProject({...newProject, budget: parseFloat(e.target.value)})} 
+                          onChange={e => setNewProject({...newProject, budget: parseFloat(e.target.value) || 0})} 
                         />
                       </div>
                     </div>

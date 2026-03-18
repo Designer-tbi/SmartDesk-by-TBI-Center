@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { MOCK_COMPANY } from '../constants';
 import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut } from 'lucide-react';
 import { CompanyInfo, User as UserType } from '../types';
 import { apiFetch } from '../lib/api';
@@ -9,9 +8,27 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../lib/i18n';
 
 export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: any, setUser: any }) => {
-  const { setLanguage } = useTranslation();
+  const { t, setLanguage } = useTranslation();
   const [activeTab, setActiveTab] = useState<'company' | 'profile' | 'security' | 'notifications'>('company');
-  const [company, setCompany] = useState<CompanyInfo>(MOCK_COMPANY);
+  const [company, setCompany] = useState<CompanyInfo>({
+    name: '',
+    type: 'real',
+    status: 'active',
+    address: '',
+    email: '',
+    phone: '',
+    website: '',
+    taxId: '',
+    rccm: '',
+    idNat: '',
+    siren: '',
+    siret: '',
+    logo: '',
+    language: 'fr',
+    currency: 'XAF',
+    accountingStandard: 'OHADA',
+    country: 'AFRIQUE'
+  });
   const [user, setUser] = useState<Partial<UserType>>(globalUser || { name: '', email: '' });
   const [passwords, setPasswords] = useState({ current: '', new: '', confirm: '' });
   const [showPasswords, setShowPasswords] = useState({ current: false, new: false, confirm: false });
@@ -27,35 +44,35 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchInitialData();
-  }, []);
-
-  const fetchInitialData = async () => {
-    try {
-      const [companyRes, userRes] = await Promise.all([
-        apiFetch('/api/company'),
-        apiFetch('/api/auth/me')
-      ]);
-      
-      if (companyRes.ok) {
-        const data = await companyRes.json();
-        if (data) setCompany(data);
-      }
-      
-      if (userRes.ok) {
-        const data = await userRes.json();
-        if (data) {
-          setUser(data);
-          setGlobalUser(data);
+    const fetchInitialData = async () => {
+      try {
+        const [companyRes, userRes] = await Promise.all([
+          apiFetch('/api/company'),
+          apiFetch('/api/auth/me')
+        ]);
+        
+        if (companyRes.ok) {
+          const data = await companyRes.json();
+          if (data) setCompany(data);
         }
+        
+        if (userRes.ok) {
+          const data = await userRes.json();
+          if (data) {
+            setUser(data);
+            setGlobalUser(data);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch settings data:', error);
+        setError(t('settings.error.fetch'));
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Failed to fetch settings data:', error);
-      setError("Erreur lors de la récupération des paramètres.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+
+    fetchInitialData();
+  }, [setGlobalUser, t]);
 
   const handleCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,11 +103,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
         setTimeout(() => setIsSaved(false), 3000);
       } else {
         const data = await response.json();
-        setError(data.error || "Une erreur est survenue lors de l'enregistrement.");
+        setError(data.error || t('settings.error.save'));
       }
     } catch (error) {
       console.error('Failed to save company:', error);
-      setError("Erreur de connexion au serveur.");
+      setError(t('settings.error.connection'));
     } finally {
       setIsSubmitting(false);
     }
@@ -112,15 +129,15 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       if (response.ok) {
         const updatedUser = await response.json();
         setGlobalUser(updatedUser);
-        setSuccessMessage("Profil mis à jour avec succès !");
+        setSuccessMessage(t('settings.success.profileUpdated'));
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         const data = await response.json();
-        setError(data.error || "Erreur lors de la mise à jour du profil.");
+        setError(data.error || t('settings.error.save'));
       }
     } catch (error) {
       console.error('Failed to update profile:', error);
-      setError("Erreur de connexion.");
+      setError(t('settings.error.connection'));
     } finally {
       setIsSubmitting(false);
     }
@@ -129,7 +146,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (passwords.new !== passwords.confirm) {
-      setError("Les nouveaux mots de passe ne correspondent pas.");
+      setError(t('settings.error.passwordMismatch'));
       return;
     }
 
@@ -148,16 +165,16 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       });
       
       if (response.ok) {
-        setSuccessMessage("Mot de passe mis à jour avec succès !");
+        setSuccessMessage(t('settings.success.passwordUpdated'));
         setPasswords({ current: '', new: '', confirm: '' });
         setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         const data = await response.json();
-        setError(data.error || "Erreur lors du changement de mot de passe.");
+        setError(data.error || t('settings.error.save'));
       }
     } catch (error) {
       console.error('Failed to change password:', error);
-      setError("Erreur de connexion.");
+      setError(t('settings.error.connection'));
     } finally {
       setIsSubmitting(false);
     }
@@ -169,13 +186,13 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       const response = await apiFetch('/api/company/reset-crm', { method: 'POST' });
       if (response.ok) {
         setIsResetConfirmOpen(false);
-        alert('Toutes les données du CRM ont été réinitialisées.');
+        alert(t('settings.resetCRMConfirm'));
       } else {
-        alert('Erreur lors de la réinitialisation.');
+        alert(t('settings.error.reset'));
       }
     } catch (error) {
       console.error('Failed to reset CRM:', error);
-      alert('Erreur de connexion.');
+      alert(t('settings.error.connection'));
     } finally {
       setIsResetting(false);
     }
@@ -187,13 +204,13 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       const response = await apiFetch('/api/company/reset-accounting', { method: 'POST' });
       if (response.ok) {
         setIsAccountingResetConfirmOpen(false);
-        alert('Toutes les données de la comptabilité ont été réinitialisées.');
+        alert(t('settings.resetAccountingConfirm'));
       } else {
-        alert('Erreur lors de la réinitialisation.');
+        alert(t('settings.error.reset'));
       }
     } catch (error) {
       console.error('Failed to reset accounting:', error);
-      alert('Erreur de connexion.');
+      alert(t('settings.error.connection'));
     } finally {
       setIsAccountingResetting(false);
     }
@@ -203,7 +220,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-        <p className="text-sm font-medium text-slate-500">Chargement des paramètres...</p>
+        <p className="text-sm font-medium text-slate-500">{t('settings.loading')}</p>
       </div>
     );
   }
@@ -221,7 +238,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           }`}
         >
           <Building2 className="w-4 h-4" />
-          Entreprise
+          {t('settings.tab.company')}
         </button>
         <button
           onClick={() => setActiveTab('profile')}
@@ -232,7 +249,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           }`}
         >
           <User className="w-4 h-4" />
-          Profil
+          {t('settings.tab.profile')}
         </button>
         <button
           onClick={() => setActiveTab('security')}
@@ -243,7 +260,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           }`}
         >
           <Shield className="w-4 h-4" />
-          Sécurité
+          {t('settings.tab.security')}
         </button>
         <button
           onClick={() => setActiveTab('notifications')}
@@ -254,7 +271,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           }`}
         >
           <Bell className="w-4 h-4" />
-          Notifications
+          {t('settings.tab.notifications')}
         </button>
         <button
           onClick={() => setActiveTab('help' as any)}
@@ -265,7 +282,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           }`}
         >
           <BookOpen className="w-4 h-4" />
-          Aide
+          {t('settings.tab.help')}
         </button>
       </div>
 
@@ -282,15 +299,15 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
               <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <Building2 className="w-5 h-5 text-indigo-600" />
-                  Informations de l'Entreprise
+                  {t('settings.companyInfo')}
                 </h3>
-                <p className="text-sm text-slate-500 mt-1">Ces informations apparaîtront sur vos factures et devis.</p>
+                <p className="text-sm text-slate-500 mt-1">{t('settings.companyInfoDesc')}</p>
               </div>
 
               <form onSubmit={handleCompanySubmit} className="p-6 space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Logo URL</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.logoUrl')}</label>
                     <div className="relative">
                       <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
@@ -304,7 +321,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nom de l'entreprise</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.companyName')}</label>
                     <div className="relative">
                       <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
@@ -318,7 +335,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Continent / Région</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.region')}</label>
                     <div className="relative">
                       <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <select
@@ -335,7 +352,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Système Comptable</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.accountingStandard')}</label>
                     <div className="relative">
                       <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <select
@@ -351,7 +368,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Langue du CRM</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.crmLanguage')}</label>
                     <div className="relative">
                       <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <select
@@ -366,7 +383,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Devise par défaut</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.defaultCurrency')}</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
                         {company.currency === 'XAF' ? 'FCFA' : company.currency === 'EUR' ? '€' : '$'}
@@ -386,7 +403,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   {company.country === 'AFRIQUE' && (
                     <>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">NIF</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.taxId')}</label>
                         <div className="relative">
                           <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input
@@ -399,7 +416,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">RCCM</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.rccm')}</label>
                         <div className="relative">
                           <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input
@@ -415,7 +432,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   )}
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email de contact</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.contactEmail')}</label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
@@ -429,7 +446,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Téléphone</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.phone')}</label>
                     <div className="relative">
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
@@ -443,7 +460,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
 
                   <div className="space-y-1.5 md:col-span-2">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Adresse complète</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.address')}</label>
                     <div className="relative">
                       <MapPin className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                       <textarea
@@ -462,7 +479,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     {isSaved && (
                       <div className="flex items-center gap-1.5 text-emerald-600 animate-in fade-in slide-in-from-left-2">
                         <CheckCircle className="w-4 h-4" />
-                        <span className="text-sm font-medium">Paramètres enregistrés !</span>
+                        <span className="text-sm font-medium">{t('settings.success.preferencesSaved')}</span>
                       </div>
                     )}
                     {error && (
@@ -478,7 +495,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {isSubmitting ? 'Enregistrement...' : 'Enregistrer'}
+                    {isSubmitting ? t('settings.updating') : t('common.save')}
                   </button>
                 </div>
               </form>
@@ -487,20 +504,20 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             <div className="bg-rose-50 rounded-2xl border border-rose-100 p-6 space-y-4">
               <div className="flex items-center gap-3 text-rose-700">
                 <Trash2 className="w-5 h-5" />
-                <h3 className="text-lg font-bold">Zone de Danger</h3>
+                <h3 className="text-lg font-bold">{t('settings.dangerZone')}</h3>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <button
                   onClick={() => setIsResetConfirmOpen(true)}
                   className="px-4 py-2 bg-rose-600 text-white rounded-xl text-sm font-bold hover:bg-rose-700 transition-all shadow-lg shadow-rose-200 active:scale-95"
                 >
-                  Réinitialiser CRM
+                  {t('settings.resetCRM')}
                 </button>
                 <button
                   onClick={() => setIsAccountingResetConfirmOpen(true)}
                   className="px-4 py-2 bg-rose-600 text-white rounded-xl text-sm font-bold hover:bg-rose-700 transition-all shadow-lg shadow-rose-200 active:scale-95"
                 >
-                  Réinitialiser Comptabilité
+                  {t('settings.resetAccounting')}
                 </button>
               </div>
             </div>
@@ -518,15 +535,15 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             <div className="p-6 border-b border-slate-100 bg-slate-50/50">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <User className="w-5 h-5 text-indigo-600" />
-                Profil Utilisateur
+                {t('settings.profile')}
               </h3>
-              <p className="text-sm text-slate-500 mt-1">Gérez vos informations personnelles.</p>
+              <p className="text-sm text-slate-500 mt-1">{t('settings.profileDesc')}</p>
             </div>
 
             <form onSubmit={handleProfileSubmit} className="p-6 space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nom Complet</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.fullName')}</label>
                   <div className="relative">
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
@@ -540,7 +557,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.email')}</label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
@@ -579,7 +596,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     className="flex items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl text-sm font-bold transition-all active:scale-95"
                   >
                     <LogOut className="w-4 h-4" />
-                    Déconnexion
+                    {t('nav.logout')}
                   </button>
                   <button
                     type="submit"
@@ -587,7 +604,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                    {isSubmitting ? 'Mise à jour...' : 'Mettre à jour le profil'}
+                    {isSubmitting ? t('settings.updating') : t('settings.updateProfile')}
                   </button>
                 </div>
               </div>
@@ -606,15 +623,15 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             <div className="p-6 border-b border-slate-100 bg-slate-50/50">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Shield className="w-5 h-5 text-indigo-600" />
-                Sécurité
+                {t('settings.security')}
               </h3>
-              <p className="text-sm text-slate-500 mt-1">Changez votre mot de passe pour sécuriser votre compte.</p>
+              <p className="text-sm text-slate-500 mt-1">{t('settings.securityDesc')}</p>
             </div>
 
             <form onSubmit={handlePasswordSubmit} className="p-6 space-y-6">
               <div className="space-y-4 max-w-md">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Mot de passe actuel</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.currentPassword')}</label>
                   <div className="relative">
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
@@ -635,7 +652,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nouveau mot de passe</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.newPassword')}</label>
                   <div className="relative">
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
@@ -656,7 +673,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Confirmer le nouveau mot de passe</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.confirmNewPassword')}</label>
                   <div className="relative">
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
@@ -698,7 +715,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  {isSubmitting ? 'Mise à jour...' : 'Changer le mot de passe'}
+                  {isSubmitting ? t('settings.updating') : t('settings.changePassword')}
                 </button>
               </div>
             </form>
@@ -716,18 +733,18 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             <div className="p-6 border-b border-slate-100 bg-slate-50/50">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                 <Bell className="w-5 h-5 text-indigo-600" />
-                Notifications
+                {t('settings.notifications')}
               </h3>
-              <p className="text-sm text-slate-500 mt-1">Choisissez comment vous souhaitez être informé.</p>
+              <p className="text-sm text-slate-500 mt-1">{t('settings.notificationsDesc')}</p>
             </div>
 
             <div className="p-6 space-y-6">
               <div className="space-y-4">
                 {[
-                  { id: 'email_reports', label: 'Rapports hebdomadaires par email', desc: 'Recevez un résumé de votre activité chaque lundi.' },
-                  { id: 'new_lead', label: 'Nouveaux prospects', desc: 'Soyez alerté dès qu\'un nouveau prospect est créé.' },
-                  { id: 'invoice_paid', label: 'Factures payées', desc: 'Recevez une notification quand une facture est réglée.' },
-                  { id: 'project_update', label: 'Mises à jour de projet', desc: 'Alertes sur les changements de statut des projets.' },
+                  { id: 'email_reports', label: t('settings.emailReports'), desc: t('settings.emailReportsDesc') },
+                  { id: 'new_lead', label: t('settings.newLead'), desc: t('settings.newLeadDesc') },
+                  { id: 'invoice_paid', label: t('settings.invoicePaid'), desc: t('settings.invoicePaidDesc') },
+                  { id: 'project_update', label: t('settings.projectUpdate'), desc: t('settings.projectUpdateDesc') },
                 ].map((item) => (
                   <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                     <div>
@@ -745,13 +762,13 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
               <div className="flex justify-end pt-4 border-t border-slate-100">
                 <button
                   onClick={() => {
-                    setSuccessMessage("Préférences de notifications enregistrées !");
+                    setSuccessMessage(t('settings.success.preferencesSaved'));
                     setTimeout(() => setSuccessMessage(null), 3000);
                   }}
                   className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
                 >
                   <Save className="w-4 h-4" />
-                  Enregistrer les préférences
+                  {t('settings.savePreferences')}
                 </button>
               </div>
             </div>
@@ -770,17 +787,17 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
               <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-indigo-600" />
-                  Centre d'Aide & Ressources
+                  {t('settings.help')}
                 </h3>
-                <p className="text-sm text-slate-500 mt-1">Trouvez des réponses à vos questions et apprenez à utiliser SmartDesk.</p>
+                <p className="text-sm text-slate-500 mt-1">{t('settings.helpDesc')}</p>
               </div>
 
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
                 {[
-                  { title: 'Guide de démarrage', desc: 'Apprenez les bases de SmartDesk en 5 minutes.', icon: BookOpen, link: '#' },
-                  { title: 'Documentation API', desc: 'Intégrez SmartDesk à vos propres outils.', icon: FileText, link: '#' },
-                  { title: 'Support Technique', desc: 'Contactez notre équipe d\'experts.', icon: Mail, link: 'mailto:support@smartdesk.com' },
-                  { title: 'Sécurité & Confidentialité', desc: 'Comment nous protégeons vos données.', icon: Shield, link: '#' },
+                  { title: t('settings.guide'), desc: t('settings.guideDesc'), icon: BookOpen, link: '#' },
+                  { title: t('settings.apiDoc'), desc: t('settings.apiDocDesc'), icon: FileText, link: '#' },
+                  { title: t('settings.techSupport'), desc: t('settings.techSupportDesc'), icon: Mail, link: 'mailto:support@smartdesk.com' },
+                  { title: t('settings.securityPrivacy'), desc: t('settings.securityPrivacyDesc'), icon: Shield, link: '#' },
                 ].map((item, idx) => (
                   <a
                     key={idx}
@@ -801,12 +818,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
 
             <div className="bg-indigo-600 rounded-2xl p-8 text-white relative overflow-hidden">
               <div className="relative z-10">
-                <h3 className="text-2xl font-black mb-2">Besoin d'une formation ?</h3>
+                <h3 className="text-2xl font-black mb-2">{t('settings.needTraining')}</h3>
                 <p className="text-indigo-100 mb-6 max-w-md">
-                  Nos experts peuvent vous accompagner pour configurer SmartDesk selon les besoins spécifiques de votre entreprise.
+                  {t('settings.trainingDesc')}
                 </p>
                 <button className="px-6 py-3 bg-white text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-xl shadow-indigo-900/20 active:scale-95">
-                  Prendre rendez-vous
+                  {t('settings.bookAppointment')}
                 </button>
               </div>
               <Building2 className="absolute -right-8 -bottom-8 w-64 h-64 text-white/10 -rotate-12" />
@@ -817,18 +834,18 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
 
       <ConfirmModal
         isOpen={isResetConfirmOpen}
-        title="Réinitialiser le CRM"
-        message="Attention : Cette action va supprimer DÉFINITIVEMENT tous les contacts, produits, factures, projets et plannings de votre entreprise. Voulez-vous continuer ?"
-        confirmLabel={isResetting ? "Réinitialisation..." : "Tout supprimer"}
+        title={t('settings.resetCrmTitle')}
+        message={t('settings.resetCrmMessage')}
+        confirmLabel={isResetting ? t('settings.resetting') : t('settings.deleteAll')}
         onConfirm={handleResetCRM}
         onCancel={() => setIsResetConfirmOpen(false)}
       />
 
       <ConfirmModal
         isOpen={isAccountingResetConfirmOpen}
-        title="Réinitialiser la Comptabilité"
-        message="Attention : Cette action va supprimer DÉFINITIVEMENT toutes les écritures et transactions comptables de votre entreprise. Voulez-vous continuer ?"
-        confirmLabel={isAccountingResetting ? "Réinitialisation..." : "Tout supprimer"}
+        title={t('settings.resetAccountingTitle')}
+        message={t('settings.resetAccountingMessage')}
+        confirmLabel={isAccountingResetting ? t('settings.resetting') : t('settings.deleteAll')}
         onConfirm={handleResetAccounting}
         onCancel={() => setIsAccountingResetConfirmOpen(false)}
       />

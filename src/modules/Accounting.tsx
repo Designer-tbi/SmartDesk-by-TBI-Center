@@ -6,7 +6,6 @@ import { Transaction, JournalEntry } from '../types';
 import { OHADA_PCG } from '../constants/ohadaPCG';
 import { US_GAAP } from '../constants/usGAAP';
 import { FRANCE_PCG } from '../constants/francePCG';
-import { MOCK_COMPANY } from '../constants';
 import { suggestAccountingEntry } from '../services/accountingAutomation';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -258,9 +257,9 @@ export const Accounting = ({ user }: { user?: any }) => {
     doc.text(`DÉCLARATION DE ${taxLabel.toUpperCase()}`, 105, 20, { align: 'center' });
     
     doc.setFontSize(10);
-    doc.text(MOCK_COMPANY.name, 20, 35);
-    doc.text(MOCK_COMPANY.address, 20, 40);
-    doc.text(MOCK_COMPANY.taxId, 20, 45);
+    doc.text(companyInfo?.name || 'Entreprise', 20, 35);
+    doc.text(companyInfo?.address || '', 20, 40);
+    doc.text(companyInfo?.taxId || '', 20, 45);
     
     doc.text(`Période : ${month} ${year}`, 150, 35);
     doc.text(`Date de génération : ${new Date().toLocaleDateString()}`, 150, 40);
@@ -297,8 +296,8 @@ export const Accounting = ({ user }: { user?: any }) => {
     doc.text('INFORMATIONS ENTREPRISE', 20, 120);
     doc.line(20, 122, 80, 122);
     
-    doc.text(`Dénomination : ${companyInfo?.name || MOCK_COMPANY.name}`, 20, 135);
-    doc.text(`Siège Social : ${companyInfo?.address || MOCK_COMPANY.address}`, 20, 145);
+    doc.text(`Dénomination : ${companyInfo?.name || 'Entreprise'}`, 20, 135);
+    doc.text(`Siège Social : ${companyInfo?.address || ''}`, 20, 145);
     
     if (isFR) {
       doc.text(`SIREN : ${companyInfo?.siren || '-'}`, 20, 155);
@@ -307,9 +306,9 @@ export const Accounting = ({ user }: { user?: any }) => {
     } else if (isUS) {
       doc.text(`EIN : ${companyInfo?.taxId || '-'}`, 20, 155);
     } else {
-      doc.text(`NIF : ${companyInfo?.taxId || MOCK_COMPANY.taxId}`, 20, 155);
-      doc.text(`RCCM : ${companyInfo?.rccm || MOCK_COMPANY.rccm}`, 20, 165);
-      doc.text(`ID NAT : ${companyInfo?.idNat || MOCK_COMPANY.idNat}`, 20, 175);
+      doc.text(`NIF : ${companyInfo?.taxId || '-'}`, 20, 155);
+      doc.text(`RCCM : ${companyInfo?.rccm || '-'}`, 20, 165);
+      doc.text(`ID NAT : ${companyInfo?.idNat || '-'}`, 20, 175);
     }
 
     // Page 2: Bilan
@@ -372,7 +371,7 @@ export const Accounting = ({ user }: { user?: any }) => {
     doc.setFontSize(14);
     doc.text(`RÉSULTAT NET : ${net.toLocaleString()} ${currencySymbol}`, 105, (doc as any).lastAutoTable.finalY + 30, { align: 'center' });
 
-    doc.save(`Liasse_Fiscale_${MOCK_COMPANY.name.replace(/\s+/g, '_')}_${year}.pdf`);
+    doc.save(`Liasse_Fiscale_${(companyInfo?.name || 'Entreprise').replace(/\s+/g, '_')}_${year}.pdf`);
   };
 
   const renderContent = () => {
@@ -589,16 +588,16 @@ export const Accounting = ({ user }: { user?: any }) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Dénomination</label>
-                    <p className="text-sm font-bold text-slate-900">{companyInfo?.name || MOCK_COMPANY.name}</p>
+                    <p className="text-sm font-bold text-slate-900">{companyInfo?.name || 'Entreprise'}</p>
                   </div>
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{isFR ? 'TVA Intracom.' : isUS ? 'EIN' : 'NIF'}</label>
-                    <p className="text-sm font-bold text-slate-900">{companyInfo?.taxId || MOCK_COMPANY.taxId}</p>
+                    <p className="text-sm font-bold text-slate-900">{companyInfo?.taxId || '-'}</p>
                   </div>
                 </div>
                 <div>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Siège Social</label>
-                  <p className="text-sm font-medium text-slate-600">{companyInfo?.address || MOCK_COMPANY.address}</p>
+                  <p className="text-sm font-medium text-slate-600">{companyInfo?.address || '-'}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   {isFR ? (
@@ -621,11 +620,11 @@ export const Accounting = ({ user }: { user?: any }) => {
                     <>
                       <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">RCCM</label>
-                        <p className="text-sm font-medium text-slate-600">{companyInfo?.rccm || MOCK_COMPANY.rccm}</p>
+                        <p className="text-sm font-medium text-slate-600">{companyInfo?.rccm || '-'}</p>
                       </div>
                       <div>
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ID NAT</label>
-                        <p className="text-sm font-medium text-slate-600">{companyInfo?.idNat || MOCK_COMPANY.idNat}</p>
+                        <p className="text-sm font-medium text-slate-600">{companyInfo?.idNat || '-'}</p>
                       </div>
                     </>
                   )}
@@ -738,8 +737,8 @@ export const Accounting = ({ user }: { user?: any }) => {
                           {PCG.map(acc => <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>)}
                         </select>
                       </td>
-                      <td className="p-1"><input type="number" className="w-full p-1 border rounded-lg" value={item.debit ?? 0} onChange={e => { const items = [...newEntry.items]; items[idx].debit = Number(e.target.value); setNewEntry({...newEntry, items}); }} /></td>
-                      <td className="p-1"><input type="number" className="w-full p-1 border rounded-lg" value={item.credit ?? 0} onChange={e => { const items = [...newEntry.items]; items[idx].credit = Number(e.target.value); setNewEntry({...newEntry, items}); }} /></td>
+                      <td className="p-1"><input type="number" className="w-full p-1 border rounded-lg" value={item.debit || 0} onChange={e => { const items = [...newEntry.items]; items[idx].debit = Number(e.target.value) || 0; setNewEntry({...newEntry, items}); }} /></td>
+                      <td className="p-1"><input type="number" className="w-full p-1 border rounded-lg" value={item.credit || 0} onChange={e => { const items = [...newEntry.items]; items[idx].credit = Number(e.target.value) || 0; setNewEntry({...newEntry, items}); }} /></td>
                       <td className="p-1">
                         <button type="button" onClick={() => setNewEntry({...newEntry, items: newEntry.items.filter((_, i) => i !== idx)})} className="text-rose-500"><X className="w-4 h-4" /></button>
                       </td>

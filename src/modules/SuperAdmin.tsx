@@ -110,10 +110,10 @@ export const SuperAdmin = () => {
         fetchCompanyUsers(selectedCompany.id);
         fetchData(); // Update total users count
       } else {
-        alert(t('admin.error.createUser'));
+        setError(t('admin.error.createUser'));
       }
     } catch (err) {
-      alert(t('admin.error.connection'));
+      setError(t('admin.error.connection'));
     }
   };
 
@@ -128,9 +128,11 @@ export const SuperAdmin = () => {
       if (res.ok) {
         if (selectedCompany) fetchCompanyUsers(selectedCompany.id);
         fetchData();
+      } else {
+        setError(t('admin.error.delete'));
       }
     } catch (err) {
-      alert(t('admin.error.connection'));
+      setError(t('admin.error.connection'));
     } finally {
       setUserToDelete(null);
     }
@@ -150,10 +152,10 @@ export const SuperAdmin = () => {
       if (res.ok) {
         fetchData();
       } else {
-        alert(t('admin.error.delete'));
+        setError(t('admin.error.delete'));
       }
     } catch (err) {
-      alert(t('admin.error.connection'));
+      setError(t('admin.error.connection'));
     } finally {
       setCompanyToDelete(null);
     }
@@ -210,10 +212,10 @@ export const SuperAdmin = () => {
         setIsModalOpen(false);
         fetchData();
       } else {
-        alert(t('admin.error.save'));
+        setError(t('admin.error.save'));
       }
     } catch (err) {
-      alert(t('admin.error.connection'));
+      setError(t('admin.error.connection'));
     }
   };
 
@@ -468,11 +470,11 @@ export const SuperAdmin = () => {
                           user.role === 'super_admin' ? 'bg-purple-100 text-purple-800' : 
                           user.role === 'admin' ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'
                         }`}>
-                          {user.role}
+                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-slate-500">
-                        {user.lastLogin ? new Date(user.lastLogin).toLocaleString('fr-FR') : t('admin.never')}
+                        {user.lastLogin ? new Date(user.lastLogin).toLocaleString('fr-FR') : t('common.never')}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <button 
@@ -520,9 +522,9 @@ export const SuperAdmin = () => {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-4">
                         <p className="text-sm font-medium text-slate-900">
-                          {log.userName || t('admin.system')}
+                          {log.userName || t('common.system')}
                           <span className="mx-2 text-slate-300">•</span>
-                          <span className="text-slate-500 font-normal">{log.action}</span>
+                          <span className="text-slate-500 font-normal">{t(`admin.actions.${log.action}`) || log.action}</span>
                         </p>
                         <span className="text-xs text-slate-400 shrink-0">
                           {new Date(log.createdAt).toLocaleTimeString('fr-FR')}
@@ -531,7 +533,7 @@ export const SuperAdmin = () => {
                       <p className="text-sm text-slate-500 mt-1">{log.details}</p>
                       <div className="mt-2 flex items-center gap-2">
                         <span className="inline-flex items-center px-2 py-0.5 rounded bg-slate-50 text-slate-500 text-[10px] font-medium border border-slate-100">
-                          {log.companyName || t('admin.global')}
+                          {log.companyName || t('common.global')}
                         </span>
                       </div>
                     </div>
@@ -793,13 +795,13 @@ export const SuperAdmin = () => {
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
                 >
-                  Annuler
+                  {t('common.cancel')}
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
                 >
-                  {editingCompany ? 'Enregistrer' : 'Créer'}
+                  {editingCompany ? t('common.save') : t('common.create')}
                 </button>
               </div>
             </form>
