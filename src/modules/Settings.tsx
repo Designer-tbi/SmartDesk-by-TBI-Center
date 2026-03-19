@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut } from 'lucide-react';
+import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut, Upload, Check, PlayCircle, Star, HelpCircle } from 'lucide-react';
 import { CompanyInfo, User as UserType } from '../types';
 import { apiFetch } from '../lib/api';
 import { ConfirmModal } from '../components/ConfirmModal';
@@ -9,7 +9,7 @@ import { useTranslation } from '../lib/i18n';
 
 export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: any, setUser: any }) => {
   const { t, setLanguage } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'company' | 'profile' | 'security' | 'notifications'>('company');
+  const [activeTab, setActiveTab] = useState<'company' | 'profile' | 'security' | 'notifications' | 'help'>('company');
   const [company, setCompany] = useState<CompanyInfo>({
     name: '',
     type: 'real',
@@ -42,6 +42,18 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   const [isAccountingResetConfirmOpen, setIsAccountingResetConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState(false);
+
+  // Generate a stable API key for demo purposes based on company name or just once
+  const apiKey = React.useMemo(() => {
+    return `sk_live_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
+  }, []);
+
+  const handleCopyApiKey = () => {
+    navigator.clipboard.writeText(apiKey);
+    setCopiedKey(true);
+    setTimeout(() => setCopiedKey(false), 2000);
+  };
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -274,9 +286,9 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           {t('settings.tab.notifications')}
         </button>
         <button
-          onClick={() => setActiveTab('help' as any)}
+          onClick={() => setActiveTab('help')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
-            activeTab === ('help' as any)
+            activeTab === 'help'
               ? 'bg-white text-indigo-600 shadow-sm' 
               : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
           }`}
@@ -308,15 +320,45 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.logoUrl')}</label>
-                    <div className="relative">
-                      <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input
-                        type="text"
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
-                        value={company.logo || ''}
-                        onChange={(e) => setCompany({ ...company, logo: e.target.value })}
-                        placeholder="https://example.com/logo.png"
-                      />
+                    <div className="flex items-center gap-4">
+                      {company.logo ? (
+                        <div className="relative w-16 h-16 rounded-xl border border-slate-200 overflow-hidden bg-white flex-shrink-0 flex items-center justify-center">
+                          <img src={company.logo} alt="Logo" className="max-w-full max-h-full object-contain" />
+                          <button
+                            type="button"
+                            onClick={() => setCompany({ ...company, logo: '' })}
+                            className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors shadow-sm"
+                          >
+                            <XCircle className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl border border-dashed border-slate-300 bg-slate-50 flex items-center justify-center flex-shrink-0">
+                          <Building2 className="w-6 h-6 text-slate-400" />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <label className="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-50 transition-all cursor-pointer w-full sm:w-auto">
+                          <Upload className="w-4 h-4" />
+                          {t('settings.uploadLogo')}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setCompany({ ...company, logo: reader.result as string });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                        <p className="text-xs text-slate-500 mt-2">{t('settings.logoFormat')}</p>
+                      </div>
                     </div>
                   </div>
 
@@ -335,7 +377,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.region')}</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.continentRegion')}</label>
                     <div className="relative">
                       <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <select
@@ -343,16 +385,16 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                         value={company.country || 'EUROPE'}
                         onChange={(e) => setCompany({ ...company, country: e.target.value })}
                       >
-                        <option value="CONTINENT">Continent (Général)</option>
-                        <option value="AFRIQUE">Afrique</option>
-                        <option value="EUROPE">Europe</option>
-                        <option value="USA">États-Unis</option>
+                        <option value="CONTINENT">{t('settings.continentGeneral')}</option>
+                        <option value="AFRIQUE">{t('settings.africa')}</option>
+                        <option value="EUROPE">{t('settings.europe')}</option>
+                        <option value="USA">{t('settings.usa')}</option>
                       </select>
                     </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.accountingStandard')}</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.accountingSystem')}</label>
                     <div className="relative">
                       <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <select
@@ -360,9 +402,9 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                         value={company.accountingStandard || 'OHADA'}
                         onChange={(e) => setCompany({ ...company, accountingStandard: e.target.value as any })}
                       >
-                        <option value="OHADA">OHADA (Afrique Centrale/Ouest)</option>
-                        <option value="FRANCE">PCG France</option>
-                        <option value="US_GAAP">US GAAP (États-Unis)</option>
+                        <option value="OHADA">{t('settings.ohada')}</option>
+                        <option value="FRANCE">{t('settings.pcgFrance')}</option>
+                        <option value="US_GAAP">{t('settings.usGaap')}</option>
                       </select>
                     </div>
                   </div>
@@ -376,8 +418,8 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                         value={company.language || 'fr'}
                         onChange={(e) => setCompany({ ...company, language: e.target.value })}
                       >
-                        <option value="fr">Français</option>
-                        <option value="en">English</option>
+                        <option value="fr">{t('settings.langFr')}</option>
+                        <option value="en">{t('settings.langEn')}</option>
                       </select>
                     </div>
                   </div>
@@ -393,9 +435,9 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                         value={company.currency || 'XAF'}
                         onChange={(e) => setCompany({ ...company, currency: e.target.value })}
                       >
-                        <option value="XAF">XAF (Franc CFA)</option>
-                        <option value="EUR">EUR (€)</option>
-                        <option value="USD">USD ($)</option>
+                        <option value="XAF">{t('settings.currencyXaf')}</option>
+                        <option value="EUR">{t('settings.currencyEur')}</option>
+                        <option value="USD">{t('settings.currencyUsd')}</option>
                       </select>
                     </div>
                   </div>
@@ -629,14 +671,14 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             </div>
 
             <form onSubmit={handlePasswordSubmit} className="p-6 space-y-6">
-              <div className="space-y-4 max-w-md">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.currentPassword')}</label>
                   <div className="relative">
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
-                      type={showPasswords.current ? "text" : "password"}
-                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      type={showPasswords.current ? 'text' : 'password'}
+                      className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       value={passwords.current}
                       onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
                       required
@@ -644,7 +686,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <button
                       type="button"
                       onClick={() => setShowPasswords({ ...showPasswords, current: !showPasswords.current })}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
                     >
                       {showPasswords.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -656,8 +698,8 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   <div className="relative">
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
-                      type={showPasswords.new ? "text" : "password"}
-                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      type={showPasswords.new ? 'text' : 'password'}
+                      className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       value={passwords.new}
                       onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
                       required
@@ -665,7 +707,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <button
                       type="button"
                       onClick={() => setShowPasswords({ ...showPasswords, new: !showPasswords.new })}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
                     >
                       {showPasswords.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -677,8 +719,8 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   <div className="relative">
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
-                      type={showPasswords.confirm ? "text" : "password"}
-                      className="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      type={showPasswords.confirm ? 'text' : 'password'}
+                      className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       value={passwords.confirm}
                       onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
                       required
@@ -686,7 +728,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <button
                       type="button"
                       onClick={() => setShowPasswords({ ...showPasswords, confirm: !showPasswords.confirm })}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 transition-colors"
                     >
                       {showPasswords.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -740,27 +782,54 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
 
             <div className="p-6 space-y-6">
               <div className="space-y-4">
-                {[
-                  { id: 'email_reports', label: t('settings.emailReports'), desc: t('settings.emailReportsDesc') },
-                  { id: 'new_lead', label: t('settings.newLead'), desc: t('settings.newLeadDesc') },
-                  { id: 'invoice_paid', label: t('settings.invoicePaid'), desc: t('settings.invoicePaidDesc') },
-                  { id: 'project_update', label: t('settings.projectUpdate'), desc: t('settings.projectUpdateDesc') },
-                ].map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">{item.label}</p>
-                      <p className="text-xs text-slate-500">{item.desc}</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
-                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
-                    </label>
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">{t('settings.emailReports')}</h4>
+                    <p className="text-xs text-slate-500">{t('settings.emailReportsDesc')}</p>
                   </div>
-                ))}
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">{t('settings.newLead')}</h4>
+                    <p className="text-xs text-slate-500">{t('settings.newLeadDesc')}</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">{t('settings.invoicePaid')}</h4>
+                    <p className="text-xs text-slate-500">{t('settings.invoicePaidDesc')}</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900">{t('settings.projectUpdate')}</h4>
+                    <p className="text-xs text-slate-500">{t('settings.projectUpdateDesc')}</p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
               </div>
 
-              <div className="flex justify-end pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end pt-4 border-t border-slate-100">
                 <button
+                  type="button"
                   onClick={() => {
                     setSuccessMessage(t('settings.success.preferencesSaved'));
                     setTimeout(() => setSuccessMessage(null), 3000);
@@ -775,7 +844,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           </motion.div>
         )}
 
-        {activeTab === ('help' as any) && (
+        {activeTab === 'help' && (
           <motion.div
             key="help"
             initial={{ opacity: 0, y: 10 }}
@@ -787,46 +856,155 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
               <div className="p-6 border-b border-slate-100 bg-slate-50/50">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-indigo-600" />
-                  {t('settings.help')}
+                  {t('settings.guideTitle')}
                 </h3>
-                <p className="text-sm text-slate-500 mt-1">{t('settings.helpDesc')}</p>
+                <p className="text-sm text-slate-500 mt-1">{t('settings.guideIntro')}</p>
               </div>
 
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {[
-                  { title: t('settings.guide'), desc: t('settings.guideDesc'), icon: BookOpen, link: '#' },
-                  { title: t('settings.apiDoc'), desc: t('settings.apiDocDesc'), icon: FileText, link: '#' },
-                  { title: t('settings.techSupport'), desc: t('settings.techSupportDesc'), icon: Mail, link: 'mailto:support@smartdesk.com' },
-                  { title: t('settings.securityPrivacy'), desc: t('settings.securityPrivacyDesc'), icon: Shield, link: '#' },
-                ].map((item, idx) => (
-                  <a
-                    key={idx}
-                    href={item.link}
-                    className="flex items-start gap-4 p-4 rounded-xl border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all group"
-                  >
-                    <div className="p-2 bg-slate-100 rounded-lg group-hover:bg-indigo-100 transition-colors">
-                      <item.icon className="w-5 h-5 text-slate-600 group-hover:text-indigo-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-900">{item.title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
-                    </div>
-                  </a>
-                ))}
+              <div className="p-6 space-y-8">
+                <div className="flex gap-6">
+                  <div className="flex-shrink-0 w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-xl">
+                    1
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900 mb-2">{t('settings.guideStep1Title')}</h4>
+                    <p className="text-slate-600 mb-4">{t('settings.guideStep1Desc')}</p>
+                    <ul className="space-y-2 text-sm text-slate-600">
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> <span dangerouslySetInnerHTML={{ __html: t('settings.guideStep1Item1') }} /></li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> {t('settings.guideStep1Item2')}</li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> {t('settings.guideStep1Item3')}</li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> {t('settings.guideStep1Item4')}</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex gap-6">
+                  <div className="flex-shrink-0 w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-xl">
+                    2
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900 mb-2">{t('settings.guideStep2Title')}</h4>
+                    <p className="text-slate-600 mb-4">{t('settings.guideStep2Desc')}</p>
+                    <ul className="space-y-2 text-sm text-slate-600">
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> <span dangerouslySetInnerHTML={{ __html: t('settings.guideStep2Item1') }} /></li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> <span dangerouslySetInnerHTML={{ __html: t('settings.guideStep2Item2') }} /></li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> {t('settings.guideStep2Item3')}</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex gap-6">
+                  <div className="flex-shrink-0 w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-xl">
+                    3
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900 mb-2">{t('settings.guideStep3Title')}</h4>
+                    <p className="text-slate-600 mb-4">{t('settings.guideStep3Desc')}</p>
+                    <ul className="space-y-2 text-sm text-slate-600">
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> <span dangerouslySetInnerHTML={{ __html: t('settings.guideStep3Item1') }} /></li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> {t('settings.guideStep3Item2')}</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="flex gap-6">
+                  <div className="flex-shrink-0 w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center font-black text-xl">
+                    4
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-slate-900 mb-2">{t('settings.guideStep4Title')}</h4>
+                    <p className="text-slate-600 mb-4">{t('settings.guideStep4Desc')}</p>
+                    <ul className="space-y-2 text-sm text-slate-600">
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> <span dangerouslySetInnerHTML={{ __html: t('settings.guideStep4Item1') }} /></li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> <span dangerouslySetInnerHTML={{ __html: t('settings.guideStep4Item2') }} /></li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> {t('settings.guideStep4Item3')}</li>
+                      <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-500" /> {t('settings.guideStep4Item4')}</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="bg-indigo-600 rounded-2xl p-8 text-white relative overflow-hidden">
-              <div className="relative z-10">
-                <h3 className="text-2xl font-black mb-2">{t('settings.needTraining')}</h3>
-                <p className="text-indigo-100 mb-6 max-w-md">
-                  {t('settings.trainingDesc')}
-                </p>
-                <button className="px-6 py-3 bg-white text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-xl shadow-indigo-900/20 active:scale-95">
-                  {t('settings.bookAppointment')}
-                </button>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-indigo-600" />
+                  {t('settings.apiDocTitle')} ({company.name || t('settings.tab.company')})
+                </h3>
+                <p className="text-sm text-slate-500 mt-1">{t('settings.apiDocIntro')}</p>
               </div>
-              <Building2 className="absolute -right-8 -bottom-8 w-64 h-64 text-white/10 -rotate-12" />
+              <div className="p-6 space-y-6">
+                <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
+                  <h4 className="text-sm font-bold text-slate-900 mb-2">{t('settings.apiKeyTitle')}</h4>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 p-2.5 bg-slate-800 text-emerald-400 rounded-lg text-sm font-mono break-all">
+                      {apiKey}
+                    </code>
+                    <button 
+                      onClick={handleCopyApiKey}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-50 transition-all"
+                    >
+                      {copiedKey ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-600" />
+                          {t('settings.apiCopied')}
+                        </>
+                      ) : (
+                        t('settings.apiCopy')
+                      )}
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-2">{t('settings.apiKeyWarning', { company: company.name || t('settings.tab.company') })}</p>
+                </div>
+
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 mb-3">{t('settings.apiExampleTitle')}</h4>
+                  <pre className="p-4 bg-slate-800 text-slate-300 rounded-xl text-sm font-mono overflow-x-auto">
+{`curl -X POST https://api.smartdesk.com/v1/contacts \\
+  -H "Authorization: Bearer ${apiKey}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "name": "Jean Dupont",
+    "email": "jean.dupont@example.com",
+    "type": "Client"
+  }'`}
+                  </pre>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-indigo-600 rounded-2xl p-8 text-white relative overflow-hidden">
+                <div className="relative z-10">
+                  <h3 className="text-xl font-black mb-2 flex items-center gap-2">
+                    <PlayCircle className="w-6 h-6" />
+                    {t('settings.videoTutorials')}
+                  </h3>
+                  <p className="text-indigo-100 mb-6">
+                    {t('settings.videoTutorialsDesc')}
+                  </p>
+                  <button className="px-6 py-3 bg-white text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition-all shadow-xl shadow-indigo-900/20 active:scale-95">
+                    {t('settings.watchTutorials')}
+                  </button>
+                </div>
+                <PlayCircle className="absolute -right-8 -bottom-8 w-48 h-48 text-white/10 -rotate-12" />
+              </div>
+
+              <div className="bg-emerald-600 rounded-2xl p-8 text-white relative overflow-hidden">
+                <div className="relative z-10">
+                  <h3 className="text-xl font-black mb-2 flex items-center gap-2">
+                    <HelpCircle className="w-6 h-6" />
+                    {t('settings.needHelp')}
+                  </h3>
+                  <p className="text-emerald-100 mb-6">
+                    {t('settings.supportDesc')}
+                  </p>
+                  <button className="px-6 py-3 bg-white text-emerald-600 rounded-xl font-bold hover:bg-emerald-50 transition-all shadow-xl shadow-emerald-900/20 active:scale-95">
+                    {t('settings.contactSupport')}
+                  </button>
+                </div>
+                <HelpCircle className="absolute -right-8 -bottom-8 w-48 h-48 text-white/10 -rotate-12" />
+              </div>
             </div>
           </motion.div>
         )}

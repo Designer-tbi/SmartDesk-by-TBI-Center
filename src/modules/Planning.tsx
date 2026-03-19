@@ -18,8 +18,8 @@ import {
   Download
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { useTranslation } from '../lib/i18n';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addDays, startOfYear, endOfYear, eachMonthOfInterval, addWeeks, subWeeks, addYears, subYears, differenceInMinutes, startOfDay, endOfDay } from 'date-fns';
-import { fr } from 'date-fns/locale';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -39,6 +39,7 @@ interface Schedule {
 }
 
 export const Planning = ({ user }: { user?: any }) => {
+  const { t, dateLocale } = useTranslation();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<ViewType>('week');
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -216,30 +217,31 @@ export const Planning = ({ user }: { user?: any }) => {
     setIsModalOpen(true);
   };
 
-  const calculateTotalHours = (userId: string, start: Date, end: Date) => {
+  const calculateTotalHours = (userId: string | null, start: Date, end: Date) => {
     const s = startOfDay(start);
     const e = endOfDay(end);
     const periodSchedules = schedules.filter(sch => {
       const schStart = new Date(sch.startDate);
-      return sch.userId === userId && schStart >= s && schStart <= e;
+      const userMatch = !userId || sch.userId === userId;
+      return userMatch && schStart >= s && schStart <= e;
     });
     
     const totalMinutes = periodSchedules.reduce((acc, sch) => {
       return acc + differenceInMinutes(new Date(sch.endDate), new Date(sch.startDate));
     }, 0);
 
-    return (totalMinutes / 60).toFixed(2);
+    return Number((totalMinutes / 60).toFixed(1));
   };
 
   const generatePDF = () => {
     const doc = new jsPDF();
-    const title = `Rapport d'heures - ${format(currentDate, 'MMMM yyyy', { locale: fr })}`;
+    const title = `${t('planning.pdf.title')} - ${format(currentDate, 'MMMM yyyy', { locale: dateLocale })}`;
     
     doc.setFontSize(18);
     doc.text(title, 14, 22);
     doc.setFontSize(11);
     doc.setTextColor(100);
-    doc.text(`Généré le ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 30);
+    doc.text(`${t('planning.pdf.generatedAt')} ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, 14, 30);
 
     const tableData = users.map(user => {
       const dayTotal = calculateTotalHours(user.id, currentDate, currentDate);
@@ -257,7 +259,7 @@ export const Planning = ({ user }: { user?: any }) => {
 
     autoTable(doc, {
       startY: 40,
-      head: [['Employé', 'Rôle', 'Aujourd\'hui', 'Cette Semaine', 'Ce Mois']],
+      head: [[t('planning.table.employee'), t('planning.table.role'), t('planning.table.today'), t('planning.table.thisWeek'), t('planning.table.thisMonth')]],
       body: tableData,
       theme: 'striped',
       headStyles: { fillColor: [79, 70, 229] }
@@ -275,66 +277,100 @@ export const Planning = ({ user }: { user?: any }) => {
 
     return (
       <div className="flex flex-col border border-slate-200 rounded-xl overflow-hidden bg-white">
-        <div className="grid grid-cols-[200px_repeat(7,1fr)] border-b border-slate-200 bg-slate-50">
-          <div className="p-4 border-r border-slate-200 font-bold text-slate-500 text-xs uppercase tracking-wider">Employé</div>
+        <div className="grid grid-cols-[200px_repeat(7,1fr)_100px] border-b border-slate-200 bg-slate-50">
+          <div className="p-4 border-r border-slate-200 font-bold text-slate-500 text-xs uppercase tracking-wider">{t('planning.employee')}</div>
           {weekDays.map(day => (
-            <div key={day.toString()} className="p-2 text-center border-r border-slate-200 last:border-r-0">
-              <div className="text-[10px] font-bold text-slate-400 uppercase">{format(day, 'EEE', { locale: fr })}</div>
+            <div key={day.toString()} className="p-2 text-center border-r border-slate-200">
+              <div className="text-[10px] font-bold text-slate-400 uppercase">{format(day, 'EEE', { locale: dateLocale })}</div>
               <div className={`text-sm font-bold ${isSameDay(day, new Date()) ? 'text-indigo-600' : 'text-slate-700'}`}>{format(day, 'd')}</div>
             </div>
           ))}
+          <div className="p-4 font-bold text-slate-500 text-xs uppercase tracking-wider text-center">{t('planning.totalHours')}</div>
         </div>
         <div className="flex-1">
-          {displayUsers.map(user => (
-            <div key={user.id} className="grid grid-cols-[200px_repeat(7,1fr)] border-b border-slate-100 last:border-b-0 hover:bg-slate-50/30 transition-colors">
-              <div className="p-4 border-r border-slate-100 flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs">
-                  {user.name.charAt(0)}
+          {displayUsers.map(user => {
+            const weekTotal = calculateTotalHours(user.id, startDate, addDays(startDate, 6));
+            return (
+              <div key={user.id} className="grid grid-cols-[200px_repeat(7,1fr)_100px] border-b border-slate-100 last:border-b-0 hover:bg-slate-50/30 transition-colors">
+                <div className="p-4 border-r border-slate-100 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-bold text-xs">
+                    {user.name.charAt(0)}
+                  </div>
+                  <div className="flex flex-col overflow-hidden">
+                    <span className="text-sm font-bold text-slate-900 truncate">{user.name}</span>
+                    <span className="text-[10px] text-slate-500 uppercase font-medium">{user.role}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col overflow-hidden">
-                  <span className="text-sm font-bold text-slate-900 truncate">{user.name}</span>
-                  <span className="text-[10px] text-slate-500 uppercase font-medium">{user.role}</span>
+                {weekDays.map(day => {
+                  const daySchedules = schedules.filter(s => {
+                    if (s.userId !== user.id) return false;
+                    const start = startOfDay(new Date(s.startDate));
+                    const end = endOfDay(new Date(s.endDate));
+                    return day >= start && day <= end;
+                  });
+                  return (
+                    <div 
+                      key={day.toString()} 
+                      className="p-2 border-r border-slate-100 min-h-[80px] relative group"
+                      onClick={() => canManage && openAddModal(day, user.id)}
+                    >
+                      {daySchedules.map(sch => (
+                        <div 
+                          key={sch.id}
+                          onClick={(e) => { e.stopPropagation(); openEditModal(sch); }}
+                          className={`p-1.5 mb-1 rounded text-[10px] font-bold border cursor-pointer transition-all hover:shadow-sm ${
+                            sch.type === 'Congé' ? 'bg-amber-50 border-amber-200 text-amber-700' :
+                            sch.type === 'Maladie' ? 'bg-red-50 border-red-200 text-red-700' :
+                            'bg-indigo-50 border-indigo-200 text-indigo-700'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span>{format(new Date(sch.startDate), 'HH:mm')} - {format(new Date(sch.endDate), 'HH:mm')}</span>
+                          </div>
+                          <div className="truncate">{sch.title}</div>
+                        </div>
+                      ))}
+                      {canManage && (
+                        <button className="absolute bottom-1 right-1 p-1 bg-white border border-slate-200 rounded text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-indigo-600 hover:border-indigo-200">
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+                <div className="p-4 flex items-center justify-center bg-slate-50/50">
+                  <div className="flex flex-col items-center">
+                    <span className="text-lg font-bold text-indigo-600">{weekTotal}h</span>
+                    <span className="text-[8px] text-slate-400 uppercase font-bold tracking-tighter">Total</span>
+                  </div>
                 </div>
               </div>
+            );
+          })}
+          
+          {/* Grand Total Row for Week View */}
+          {canManage && (
+            <div className="grid grid-cols-[200px_repeat(7,1fr)_100px] border-t-2 border-slate-200 bg-slate-50 font-black">
+              <div className="p-4 border-r border-slate-200 text-slate-700 uppercase text-xs tracking-wider flex items-center">
+                Grand Total
+              </div>
               {weekDays.map(day => {
-                const daySchedules = schedules.filter(s => {
-                  if (s.userId !== user.id) return false;
-                  const start = startOfDay(new Date(s.startDate));
-                  const end = endOfDay(new Date(s.endDate));
-                  return day >= start && day <= end;
-                });
+                const dayTotal = calculateTotalHours(null, day, day);
                 return (
-                  <div 
-                    key={day.toString()} 
-                    className="p-2 border-r border-slate-100 last:border-r-0 min-h-[80px] relative group"
-                    onClick={() => canManage && openAddModal(day, user.id)}
-                  >
-                    {daySchedules.map(sch => (
-                      <div 
-                        key={sch.id}
-                        onClick={(e) => { e.stopPropagation(); openEditModal(sch); }}
-                        className={`p-1.5 mb-1 rounded text-[10px] font-bold border cursor-pointer transition-all hover:shadow-sm ${
-                          sch.type === 'Congé' ? 'bg-amber-50 border-amber-200 text-amber-700' :
-                          sch.type === 'Maladie' ? 'bg-red-50 border-red-200 text-red-700' :
-                          'bg-indigo-50 border-indigo-200 text-indigo-700'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span>{format(new Date(sch.startDate), 'HH:mm')} - {format(new Date(sch.endDate), 'HH:mm')}</span>
-                        </div>
-                        <div className="truncate">{sch.title}</div>
-                      </div>
-                    ))}
-                    {canManage && (
-                      <button className="absolute bottom-1 right-1 p-1 bg-white border border-slate-200 rounded text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-indigo-600 hover:border-indigo-200">
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    )}
+                  <div key={day.toString()} className="p-2 text-center border-r border-slate-200 flex flex-col justify-center">
+                    <span className="text-xs text-indigo-600">{dayTotal}h</span>
                   </div>
                 );
               })}
+              <div className="p-4 flex items-center justify-center bg-indigo-50">
+                <div className="flex flex-col items-center">
+                  <span className="text-lg font-black text-indigo-700">
+                    {calculateTotalHours(null, startDate, addDays(startDate, 6))}h
+                  </span>
+                </div>
+              </div>
             </div>
-          ))}
+          )}
         </div>
       </div>
     );
@@ -347,9 +383,9 @@ export const Planning = ({ user }: { user?: any }) => {
     return (
       <div className="flex flex-col border border-slate-200 rounded-xl overflow-hidden bg-white">
         <div className="grid grid-cols-[100px_1fr] border-b border-slate-200 bg-slate-50">
-          <div className="p-4 border-r border-slate-200 font-bold text-slate-500 text-xs uppercase tracking-wider text-center">Heure</div>
+          <div className="p-4 border-r border-slate-200 font-bold text-slate-500 text-xs uppercase tracking-wider text-center">{t('planning.hour')}</div>
           <div className="p-4 font-bold text-slate-700 text-sm text-center">
-            {format(currentDate, 'EEEE d MMMM yyyy', { locale: fr })}
+            {format(currentDate, 'EEEE d MMMM yyyy', { locale: dateLocale })}
           </div>
         </div>
         <div className="relative overflow-y-auto max-h-[600px]">
@@ -412,7 +448,15 @@ export const Planning = ({ user }: { user?: any }) => {
     return (
       <div className="border border-slate-200 rounded-xl overflow-hidden bg-white">
         <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
-          {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
+          {[
+            t('planning.days.mon'),
+            t('planning.days.tue'),
+            t('planning.days.wed'),
+            t('planning.days.thu'),
+            t('planning.days.fri'),
+            t('planning.days.sat'),
+            t('planning.days.sun')
+          ].map(day => (
             <div key={day} className="p-3 text-center font-bold text-slate-500 text-xs uppercase tracking-wider border-r border-slate-200 last:border-r-0">
               {day}
             </div>
@@ -465,7 +509,7 @@ export const Planning = ({ user }: { user?: any }) => {
                   ))}
                   {daySchedules.length > 3 && (
                     <div className="text-[9px] font-bold text-slate-400 text-center">
-                      + {daySchedules.length - 3} de plus
+                      {t('planning.more', { count: (daySchedules.length - 3).toString() })}
                     </div>
                   )}
                 </div>
@@ -483,7 +527,7 @@ export const Planning = ({ user }: { user?: any }) => {
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
             <button onClick={handlePrev} className="p-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5 text-slate-600" /></button>
-            <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">Aujourd'hui</button>
+            <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">{t('planning.today')}</button>
             <button onClick={handleNext} className="p-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronRight className="w-5 h-5 text-slate-600" /></button>
           </div>
           
@@ -492,26 +536,26 @@ export const Planning = ({ user }: { user?: any }) => {
               onClick={() => setView('day')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'day' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              Jour
+              {t('planning.view.day')}
             </button>
             <button 
               onClick={() => setView('week')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'week' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              Semaine
+              {t('planning.view.week')}
             </button>
             <button 
               onClick={() => setView('month')}
               className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'month' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              Mois
+              {t('planning.view.month')}
             </button>
           </div>
 
           <h2 className="text-xl font-black text-slate-900 capitalize">
-            {view === 'month' ? format(currentDate, 'MMMM yyyy', { locale: fr }) :
-             view === 'week' ? `${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMMM', { locale: fr })} - ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMMM yyyy', { locale: fr })}` :
-             format(currentDate, 'EEEE d MMMM yyyy', { locale: fr })}
+            {view === 'month' ? format(currentDate, 'MMMM yyyy', { locale: dateLocale }) :
+             view === 'week' ? `${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMMM', { locale: dateLocale })} - ${format(endOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMMM yyyy', { locale: dateLocale })}` :
+             format(currentDate, 'EEEE d MMMM yyyy', { locale: dateLocale })}
           </h2>
         </div>
 
@@ -527,7 +571,7 @@ export const Planning = ({ user }: { user?: any }) => {
               onClick={() => openAddModal()}
               className="flex items-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
             >
-              <Plus className="w-4 h-4" /> Nouveau Planning
+              <Plus className="w-4 h-4" /> {t('planning.newSchedule')}
             </button>
           )}
         </div>
@@ -537,20 +581,20 @@ export const Planning = ({ user }: { user?: any }) => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         {[
           { 
-            label: 'Aujourd\'hui', 
-            hours: calculateTotalHours(currentUser?.id || '', currentDate, currentDate),
+            label: t('planning.table.today'), 
+            hours: calculateTotalHours(canManage ? null : currentUser?.id || '', currentDate, currentDate),
             icon: Clock,
             color: 'indigo'
           },
           { 
-            label: 'Cette Semaine', 
-            hours: calculateTotalHours(currentUser?.id || '', startOfWeek(currentDate, { weekStartsOn: 1 }), endOfWeek(currentDate, { weekStartsOn: 1 })),
+            label: t('planning.table.thisWeek'), 
+            hours: calculateTotalHours(canManage ? null : currentUser?.id || '', startOfWeek(currentDate, { weekStartsOn: 1 }), endOfWeek(currentDate, { weekStartsOn: 1 })),
             icon: CalendarRange,
             color: 'emerald'
           },
           { 
-            label: 'Ce Mois', 
-            hours: calculateTotalHours(currentUser?.id || '', startOfMonth(currentDate), endOfMonth(currentDate)),
+            label: t('planning.table.thisMonth'), 
+            hours: calculateTotalHours(canManage ? null : currentUser?.id || '', startOfMonth(currentDate), endOfMonth(currentDate)),
             icon: CalendarDays,
             color: 'amber'
           }
@@ -561,7 +605,7 @@ export const Planning = ({ user }: { user?: any }) => {
             </div>
             <div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{stat.label}</p>
-              <p className="text-xl font-black text-slate-900">{stat.hours}h <span className="text-xs font-bold text-slate-400">travaillées</span></p>
+              <p className="text-xl font-black text-slate-900">{stat.hours}h <span className="text-xs font-bold text-slate-400">{canManage ? t('planning.table.total') : t('planning.table.worked')}</span></p>
             </div>
           </div>
         ))}
@@ -599,10 +643,10 @@ export const Planning = ({ user }: { user?: any }) => {
                   </div>
                   <div>
                     <h3 className="text-lg sm:text-xl font-black text-slate-900">
-                      {selectedSchedule ? 'Modifier le planning' : 'Nouveau planning'}
+                      {selectedSchedule ? t('planning.modal.editTitle') : t('planning.modal.newTitle')}
                     </h3>
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
-                      {selectedSchedule ? 'Mise à jour des horaires' : 'Planification d\'une session'}
+                      {selectedSchedule ? t('planning.modal.editSubtitle') : t('planning.modal.newSubtitle')}
                     </p>
                   </div>
                 </div>
@@ -624,14 +668,14 @@ export const Planning = ({ user }: { user?: any }) => {
                         <Users className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-black text-slate-900">Attribution & Activité</h4>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Définir l'employé et sa mission</p>
+                        <h4 className="text-sm font-black text-slate-900">{t('planning.modal.attributionTitle')}</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('planning.modal.attributionSubtitle')}</p>
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Employé</label>
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">{t('planning.employee')}</label>
                         <div className="relative group">
                           <select
                             required
@@ -639,7 +683,7 @@ export const Planning = ({ user }: { user?: any }) => {
                             value={formData.userId || ''}
                             onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
                           >
-                            <option value="">Sélectionner un membre</option>
+                            <option value="">{t('planning.modal.selectMember')}</option>
                             {users.map(u => (
                               <option key={u.id} value={u.id}>{u.name}</option>
                             ))}
@@ -652,7 +696,7 @@ export const Planning = ({ user }: { user?: any }) => {
                       </div>
 
                       <div className="space-y-2">
-                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Statut de publication</label>
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">{t('planning.modal.statusLabel')}</label>
                         <div className="flex bg-slate-100 p-1 rounded-2xl">
                           <button
                             type="button"
@@ -661,7 +705,7 @@ export const Planning = ({ user }: { user?: any }) => {
                               formData.status === 'draft' ? 'bg-white text-slate-600 shadow-sm' : 'text-slate-400 hover:text-slate-500'
                             }`}
                           >
-                            Brouillon
+                            {t('planning.modal.draft')}
                           </button>
                           <button
                             type="button"
@@ -670,20 +714,20 @@ export const Planning = ({ user }: { user?: any }) => {
                               formData.status === 'published' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' : 'text-slate-400 hover:text-slate-500'
                             }`}
                           >
-                            Publié
+                            {t('planning.modal.published')}
                           </button>
                         </div>
                       </div>
 
                       <div className="md:col-span-2 space-y-4">
-                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Type de session</label>
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">{t('planning.modal.typeLabel')}</label>
                         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                           {[
-                            { id: 'Travail', label: 'Travail', icon: '💼', color: 'indigo' },
-                            { id: 'Congé', label: 'Congé', icon: '🏖️', color: 'amber' },
-                            { id: 'Maladie', label: 'Maladie', icon: '🤒', color: 'red' },
-                            { id: 'Formation', label: 'Formation', icon: '🎓', color: 'emerald' },
-                            { id: 'Autre', label: 'Autre', icon: '✨', color: 'slate' }
+                            { id: 'Travail', label: t('planning.types.work'), icon: '💼', color: 'indigo' },
+                            { id: 'Congé', label: t('planning.types.leave'), icon: '🏖️', color: 'amber' },
+                            { id: 'Maladie', label: t('planning.types.sick'), icon: '🤒', color: 'red' },
+                            { id: 'Formation', label: t('planning.types.training'), icon: '🎓', color: 'emerald' },
+                            { id: 'Autre', label: t('planning.types.other'), icon: '✨', color: 'slate' }
                           ].map((type) => (
                             <button
                               key={type.id}
@@ -707,7 +751,7 @@ export const Planning = ({ user }: { user?: any }) => {
                       </div>
 
                       <div className="md:col-span-2 space-y-2">
-                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">Intitulé du poste / Mission</label>
+                        <label className="text-xs font-black text-slate-500 uppercase tracking-widest ml-1">{t('planning.modal.titleLabel')}</label>
                         <div className="relative group">
                           <input
                             type="text"
@@ -715,7 +759,7 @@ export const Planning = ({ user }: { user?: any }) => {
                             className="w-full pl-11 pr-4 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all"
                             value={formData.title || ''}
                             onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                            placeholder="Ex: Responsable Accueil, Inventaire..."
+                            placeholder={t('planning.modal.titlePlaceholder')}
                           />
                           <CalendarDays className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
                         </div>
@@ -730,14 +774,14 @@ export const Planning = ({ user }: { user?: any }) => {
                         <Clock className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-black text-slate-900">Horaires & Durée</h4>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Définir la plage de présence</p>
+                        <h4 className="text-sm font-black text-slate-900">{t('planning.modal.timeTitle')}</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('planning.modal.timeSubtitle')}</p>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                       <div className="p-6 bg-slate-50 border-2 border-transparent rounded-[2rem] focus-within:bg-white focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/5 transition-all">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Début de service</label>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{t('planning.modal.startLabel')}</label>
                         <input
                           type="datetime-local"
                           required
@@ -747,7 +791,7 @@ export const Planning = ({ user }: { user?: any }) => {
                         />
                       </div>
                       <div className="p-6 bg-slate-50 border-2 border-transparent rounded-[2rem] focus-within:bg-white focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/5 transition-all">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Fin de service</label>
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{t('planning.modal.endLabel')}</label>
                         <input
                           type="datetime-local"
                           required
@@ -763,7 +807,7 @@ export const Planning = ({ user }: { user?: any }) => {
                         <div className="flex items-center gap-3 px-5 py-3 bg-emerald-50 rounded-2xl w-fit border border-emerald-100">
                           <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
                           <span className="text-xs font-black text-emerald-700 uppercase tracking-wider">
-                            Durée totale : {(() => {
+                            {t('planning.modal.totalDuration')} : {(() => {
                               const start = new Date(formData.startDate);
                               const end = new Date(formData.endDate);
                               const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
@@ -786,10 +830,10 @@ export const Planning = ({ user }: { user?: any }) => {
                                 diff = (dailyEnd.getTime() - dailyStart.getTime()) * daysCount;
                               }
                               
-                              if (diff <= 0) return 'Invalide';
+                              if (diff <= 0) return t('common.invalid');
                               const hours = Math.floor(diff / (1000 * 60 * 60));
                               const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                              return `${hours}h${minutes > 0 ? minutes.toString().padStart(2, '0') : ''} ${daysCount > 1 ? `(${daysCount} jours)` : ''}`;
+                              return `${hours}h${minutes > 0 ? minutes.toString().padStart(2, '0') : ''} ${daysCount > 1 ? `(${daysCount} ${t('common.days')})` : ''}`;
                             })()}
                           </span>
                         </div>
@@ -828,17 +872,17 @@ export const Planning = ({ user }: { user?: any }) => {
                         <Plus className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="text-sm font-black text-slate-900">Notes & Instructions</h4>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Informations additionnelles</p>
+                        <h4 className="text-sm font-black text-slate-900">{t('planning.modal.notesTitle')}</h4>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('planning.modal.notesSubtitle')}</p>
                       </div>
                     </div>
-                    <textarea
-                      rows={4}
-                      className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[2rem] text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-slate-300 focus:ring-4 focus:ring-slate-500/5 transition-all resize-none"
-                      value={formData.description || ''}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      placeholder="Ex: Prévoir les clés du dépôt, briefing équipe à 9h15..."
-                    />
+                      <textarea
+                        rows={4}
+                        className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[2rem] text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-slate-300 focus:ring-4 focus:ring-slate-500/5 transition-all resize-none"
+                        value={formData.description || ''}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        placeholder={t('planning.modal.notesPlaceholder')}
+                      />
                   </section>
                 </div>
 
@@ -852,14 +896,14 @@ export const Planning = ({ user }: { user?: any }) => {
                           onClick={() => handleDelete(selectedSchedule.id)}
                           className="flex-1 sm:flex-none px-4 py-4 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-2xl transition-all text-center"
                         >
-                          Confirmer
+                          {t('common.confirm')}
                         </button>
                         <button
                           type="button"
                           onClick={() => setShowDeleteConfirm(false)}
                           className="flex-1 sm:flex-none px-4 py-4 text-sm font-bold text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-2xl transition-all text-center"
                         >
-                          Annuler
+                          {t('common.cancel')}
                         </button>
                       </div>
                     ) : (
@@ -869,7 +913,7 @@ export const Planning = ({ user }: { user?: any }) => {
                         className="group flex items-center gap-2 px-6 py-4 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-all w-full sm:w-auto justify-center"
                       >
                         <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                        Supprimer
+                        {t('common.delete')}
                       </button>
                     )
                   ) : <div className="hidden sm:block" />}
@@ -880,14 +924,14 @@ export const Planning = ({ user }: { user?: any }) => {
                       onClick={() => setIsModalOpen(false)}
                       className="px-8 py-4 text-sm font-bold text-slate-500 hover:bg-slate-200/50 rounded-2xl transition-all w-full sm:w-auto"
                     >
-                      Annuler
+                      {t('common.cancel')}
                     </button>
                     <button
                       type="submit"
                       className="flex items-center gap-3 px-12 py-4 bg-indigo-600 text-white rounded-2xl text-sm font-black hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95 w-full sm:w-auto justify-center"
                     >
                       <Check className="w-5 h-5" />
-                      {selectedSchedule ? 'Mettre à jour' : 'Confirmer le planning'}
+                      {selectedSchedule ? t('common.update') : t('planning.modal.confirm')}
                     </button>
                   </div>
                 </div>

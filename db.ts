@@ -709,11 +709,11 @@ export async function seedDatabase(dbInstance: Pool) {
 
 export async function seedDefaultRoles(dbInstance: any, companyId: string) {
   const roles = [
-    { id: `role_admin_${companyId}`, name: 'Administrateur', permissions: ['all'] },
+    { id: `role_admin_${companyId}`, name: 'Administrator', permissions: ['all'] },
     { id: `role_manager_${companyId}`, name: 'Manager', permissions: ['crm.view', 'crm.edit', 'sales.view', 'sales.edit', 'inventory.view', 'hr.view', 'projects.view', 'projects.edit'] },
-    { id: `role_sales_${companyId}`, name: 'Commercial', permissions: ['crm.view', 'crm.edit', 'sales.view', 'sales.edit'] },
-    { id: `role_accountant_${companyId}`, name: 'Comptable', permissions: ['accounting.view', 'accounting.edit', 'sales.view'] },
-    { id: `role_user_${companyId}`, name: 'Utilisateur', permissions: ['crm.view', 'sales.view'] }
+    { id: `role_sales_${companyId}`, name: 'Sales Representative', permissions: ['crm.view', 'crm.edit', 'sales.view', 'sales.edit'] },
+    { id: `role_accountant_${companyId}`, name: 'Accountant', permissions: ['accounting.view', 'accounting.edit', 'sales.view'] },
+    { id: `role_user_${companyId}`, name: 'User', permissions: ['crm.view', 'sales.view'] }
   ];
 
   for (const role of roles) {

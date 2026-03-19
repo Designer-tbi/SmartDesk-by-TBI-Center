@@ -19,7 +19,8 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addDays, startOfYear, endOfYear, eachMonthOfInterval, addWeeks, subWeeks, addYears, subYears, startOfDay, endOfDay } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import { fr, enUS } from 'date-fns/locale';
+import { useTranslation } from '../lib/i18n';
 
 type ViewType = 'day' | 'week' | 'month' | 'year';
 
@@ -37,6 +38,8 @@ interface Event {
 }
 
 export const Agenda = ({ user }: { user?: any }) => {
+  const { t, language } = useTranslation();
+  const locale = language === 'fr' ? fr : enUS;
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<ViewType>('month');
   const [events, setEvents] = useState<Event[]>([]);
@@ -189,7 +192,7 @@ export const Agenda = ({ user }: { user?: any }) => {
       description: '',
       startDate: start,
       endDate: end,
-      category: 'Réunion',
+      category: t('agenda.category.meeting'),
       isPrivate: false,
       assignedTo: ''
     });
@@ -221,9 +224,9 @@ export const Agenda = ({ user }: { user?: any }) => {
 
     return (
       <div className="grid grid-cols-7 border-t border-l border-slate-200">
-        {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(day => (
+        {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map(day => (
           <div key={day} className="py-2 text-center text-xs font-bold text-slate-400 uppercase tracking-wider border-r border-b border-slate-200 bg-slate-50">
-            {day}
+            {t(`agenda.day.${day}`)}
           </div>
         ))}
         {calendarDays.map((day, i) => {
@@ -279,7 +282,7 @@ export const Agenda = ({ user }: { user?: any }) => {
           <div className="p-2 border-r border-slate-200"></div>
           {weekDays.map(day => (
             <div key={day.toString()} className="p-2 text-center border-r border-slate-200 last:border-r-0">
-              <div className="text-[10px] font-bold text-slate-400 uppercase">{format(day, 'EEE', { locale: fr })}</div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase">{format(day, 'EEE', { locale })}</div>
               <div className={`text-sm font-bold ${isSameDay(day, new Date()) ? 'text-indigo-600' : 'text-slate-700'}`}>{format(day, 'd')}</div>
             </div>
           ))}
@@ -408,10 +411,10 @@ export const Agenda = ({ user }: { user?: any }) => {
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {months.map(month => (
           <div key={month.toString()} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-900 mb-3 capitalize">{format(month, 'MMMM', { locale: fr })}</h3>
+            <h3 className="text-sm font-bold text-slate-900 mb-3 capitalize">{format(month, 'MMMM', { locale })}</h3>
             <div className="grid grid-cols-7 gap-1">
-              {['L', 'M', 'M', 'J', 'V', 'S', 'D'].map((d, i) => (
-                <div key={i} className="text-[8px] font-bold text-slate-400 text-center">{d}</div>
+              {['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].map((d, i) => (
+                <div key={i} className="text-[8px] font-bold text-slate-400 text-center">{t(`agenda.day.${d}`).charAt(0)}</div>
               ))}
               {eachDayOfInterval({
                 start: startOfWeek(startOfMonth(month), { weekStartsOn: 1 }),
@@ -445,13 +448,13 @@ export const Agenda = ({ user }: { user?: any }) => {
         <div className="flex items-center gap-4">
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
             <button onClick={handlePrev} className="p-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronLeft className="w-5 h-5 text-slate-600" /></button>
-            <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">Aujourd'hui</button>
+            <button onClick={() => setCurrentDate(new Date())} className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">{t('agenda.today')}</button>
             <button onClick={handleNext} className="p-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronRight className="w-5 h-5 text-slate-600" /></button>
           </div>
           <h2 className="text-xl font-black text-slate-900 capitalize">
-            {view === 'day' ? format(currentDate, 'd MMMM yyyy', { locale: fr }) :
-             view === 'week' ? `Semaine du ${format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMMM', { locale: fr })}` :
-             view === 'month' ? format(currentDate, 'MMMM yyyy', { locale: fr }) :
+            {view === 'day' ? format(currentDate, 'd MMMM yyyy', { locale }) :
+             view === 'week' ? t('agenda.weekOf').replace('{{date}}', format(startOfWeek(currentDate, { weekStartsOn: 1 }), 'd MMMM', { locale })) :
+             view === 'month' ? format(currentDate, 'MMMM yyyy', { locale }) :
              format(currentDate, 'yyyy')}
           </h2>
         </div>
@@ -461,32 +464,32 @@ export const Agenda = ({ user }: { user?: any }) => {
             onClick={() => setView('day')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'day' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
-            <CalendarIcon className="w-4 h-4" /> Jour
+            <CalendarIcon className="w-4 h-4" /> {t('agenda.view.day')}
           </button>
           <button 
             onClick={() => setView('week')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'week' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
-            <CalendarRange className="w-4 h-4" /> Semaine
+            <CalendarRange className="w-4 h-4" /> {t('agenda.view.week')}
           </button>
           <button 
             onClick={() => setView('month')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'month' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
-            <CalendarMonthIcon className="w-4 h-4" /> Mois
+            <CalendarMonthIcon className="w-4 h-4" /> {t('agenda.view.month')}
           </button>
           <button 
             onClick={() => setView('year')}
             className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'year' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
-            <LayoutGrid className="w-4 h-4" /> Année
+            <LayoutGrid className="w-4 h-4" /> {t('agenda.view.year')}
           </button>
           <div className="w-px h-6 bg-slate-200 mx-1" />
           <button 
             onClick={() => openAddModal()}
             className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all shadow-md active:scale-95"
           >
-            <Plus className="w-4 h-4" /> Nouvel Événement
+            <Plus className="w-4 h-4" /> {t('agenda.newEvent')}
           </button>
         </div>
       </div>
@@ -523,10 +526,10 @@ export const Agenda = ({ user }: { user?: any }) => {
                   </div>
                   <div>
                     <h3 className="text-2xl font-black text-slate-900 tracking-tight">
-                      {selectedEvent ? 'Modifier l\'événement' : 'Nouvel événement'}
+                      {selectedEvent ? t('agenda.modal.editTitle') : t('agenda.modal.newTitle')}
                     </h3>
                     <p className="text-[11px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-1">
-                      {selectedEvent ? 'Mise à jour des détails de l\'activité' : 'Planification d\'une nouvelle session de travail'}
+                      {selectedEvent ? t('agenda.modal.editSubtitle') : t('agenda.modal.newSubtitle')}
                     </p>
                   </div>
                 </div>
@@ -544,34 +547,34 @@ export const Agenda = ({ user }: { user?: any }) => {
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                       <LayoutGrid className="w-4 h-4 text-indigo-500" />
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Informations Générales</h4>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('agenda.form.generalInfo')}</h4>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                       <div className="md:col-span-2 space-y-2">
-                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Titre de l'événement</label>
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('agenda.form.title')}</label>
                         <input
                           type="text"
                           required
                           className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
                           value={formData.title}
                           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                          placeholder="Ex: Réunion d'équipe hebdomadaire"
+                          placeholder={t('agenda.form.titlePlaceholder')}
                         />
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Catégorie</label>
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('agenda.form.category')}</label>
                         <div className="relative">
                           <select
                             className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer shadow-sm"
                             value={formData.category}
                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                           >
-                            <option value="Réunion">Réunion</option>
-                            <option value="Client">Client</option>
-                            <option value="Interne">Interne</option>
-                            <option value="Privé">Privé</option>
-                            <option value="Autre">Autre</option>
+                            <option value="Réunion">{t('agenda.category.meeting')}</option>
+                            <option value="Client">{t('agenda.category.client')}</option>
+                            <option value="Interne">{t('agenda.category.internal')}</option>
+                            <option value="Privé">{t('agenda.category.private')}</option>
+                            <option value="Autre">{t('agenda.category.other')}</option>
                           </select>
                           <ChevronRight className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 rotate-90 pointer-events-none" />
                         </div>
@@ -583,12 +586,12 @@ export const Agenda = ({ user }: { user?: any }) => {
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                       <Clock className="w-4 h-4 text-emerald-500" />
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Temporalité</h4>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('agenda.form.timing')}</h4>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-2">
-                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Date & Heure de début</label>
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('agenda.form.start')}</label>
                         <div className="relative group">
                           <input
                             type="datetime-local"
@@ -600,7 +603,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                         </div>
                       </div>
                       <div className="space-y-2">
-                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Date & Heure de fin</label>
+                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('agenda.form.end')}</label>
                         <div className="relative group">
                           <input
                             type="datetime-local"
@@ -618,20 +621,20 @@ export const Agenda = ({ user }: { user?: any }) => {
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                       <Users className="w-4 h-4 text-amber-500" />
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Attribution & Confidentialité</h4>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('agenda.form.attribution')}</h4>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin') && (
                         <div className="space-y-2">
-                          <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Attribuer à</label>
+                          <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('agenda.form.assignTo')}</label>
                           <div className="relative">
                             <select
                               className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer shadow-sm"
                               value={formData.assignedTo}
                               onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
                             >
-                              <option value="">Moi-même</option>
+                              <option value="">{t('agenda.form.myself')}</option>
                               {users.filter(u => u.id !== currentUser.id).map(u => (
                                 <option key={u.id} value={u.id}>{u.name} ({u.role})</option>
                               ))}
@@ -654,9 +657,9 @@ export const Agenda = ({ user }: { user?: any }) => {
                         </div>
                         <div className="flex flex-col">
                           <label htmlFor="isPrivate" className="text-sm font-bold text-slate-700 cursor-pointer select-none group-hover:text-indigo-600 transition-colors">
-                            Événement privé
+                            {t('agenda.form.private')}
                           </label>
-                          <span className="text-[10px] font-medium text-slate-400">Visible uniquement par vous et les administrateurs</span>
+                          <span className="text-[10px] font-medium text-slate-400">{t('agenda.form.privateHint')}</span>
                         </div>
                       </div>
                     </div>
@@ -666,16 +669,16 @@ export const Agenda = ({ user }: { user?: any }) => {
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
                       <FileText className="w-4 h-4 text-slate-500" />
-                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Description</h4>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('agenda.form.description')}</h4>
                     </div>
                     <div className="space-y-2">
-                      <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">Notes & Détails</label>
+                      <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('agenda.form.notes')}</label>
                       <textarea
                         rows={5}
                         className="w-full px-8 py-6 bg-slate-50 border-2 border-transparent rounded-[2.5rem] text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all resize-none shadow-sm"
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        placeholder="Décrivez les objectifs, l'ordre du jour ou toute information pertinente pour cet événement..."
+                        placeholder={t('agenda.form.notesPlaceholder')}
                       />
                     </div>
                   </div>

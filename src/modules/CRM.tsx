@@ -8,12 +8,12 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { useTranslation } from '../lib/i18n';
 
 export const CRM = ({ user }: { user?: any }) => {
-  const { t } = useTranslation();
+  const { t, language } = useTranslation();
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filter, setFilter] = useState<'Tous' | 'Client' | 'Lead'>('Tous');
+  const [filter, setFilter] = useState<'All' | 'Client' | 'Lead'>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [sortBy, setSortBy] = useState<'recent' | 'alpha'>('recent');
@@ -95,7 +95,7 @@ export const CRM = ({ user }: { user?: any }) => {
 
   const filteredContacts = contacts
     .filter(contact => {
-      const matchesFilter = filter === 'Tous' ? true : contact.status === filter;
+      const matchesFilter = filter === 'All' ? true : contact.status === filter;
       const matchesSearch = (contact.name?.toLowerCase() || '').includes(searchQuery.toLowerCase()) || 
                            (contact.company?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
                            (contact.email?.toLowerCase() || '').includes(searchQuery.toLowerCase());
@@ -271,7 +271,7 @@ export const CRM = ({ user }: { user?: any }) => {
           </div>
           
           <div className="flex bg-white border border-slate-200 rounded-2xl p-1 shadow-sm">
-            {(['Tous', 'Client', 'Lead'] as const).map((f) => (
+            {(['All', 'Client', 'Lead'] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
@@ -281,7 +281,7 @@ export const CRM = ({ user }: { user?: any }) => {
                     : "text-slate-500 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
-                {f === 'Tous' ? t('crm.all') : t(`crm.${f.toLowerCase()}`) + 's'}
+                {f === 'All' ? t('crm.filter.all') : t(`crm.filter.${f.toLowerCase()}s`)}
               </button>
             ))}
           </div>
@@ -380,7 +380,7 @@ export const CRM = ({ user }: { user?: any }) => {
                         contact.status === 'Lead' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 
                         'bg-blue-50 text-blue-600 border border-blue-100'
                       }`}>
-                        {contact.status}
+                        {t(`crm.status.${contact.status.toLowerCase()}`)}
                       </span>
                     </td>
                     <td className="px-6 py-6">
@@ -398,18 +398,18 @@ export const CRM = ({ user }: { user?: any }) => {
                     <td className="hidden md:table-cell px-6 py-6">
                       <div className="flex items-center gap-2 text-xs font-black text-slate-600 uppercase tracking-tighter">
                         <Calendar className="w-4 h-4 text-slate-300" />
-                        {contact.lastContact ? new Date(contact.lastContact).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
+                        {contact.lastContact ? new Date(contact.lastContact).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => setViewContact(contact)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title="Voir détails">
+                        <button onClick={() => setViewContact(contact)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all" title={t('crm.viewDetails')}>
                           <Eye className="w-4.5 h-4.5" />
                         </button>
-                        <button onClick={() => openEdit(contact)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title="Modifier">
+                        <button onClick={() => openEdit(contact)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title={t('common.edit')}>
                           <Pencil className="w-4.5 h-4.5" />
                         </button>
-                        <button onClick={() => setDeleteConfirmId(contact.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title="Supprimer">
+                        <button onClick={() => setDeleteConfirmId(contact.id)} className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all" title={t('common.delete')}>
                           <Trash2 className="w-4.5 h-4.5" />
                         </button>
                       </div>
@@ -423,7 +423,7 @@ export const CRM = ({ user }: { user?: any }) => {
                           <Search className="w-8 h-8" />
                         </div>
                         <p className="text-slate-500 font-bold">{t('crm.noContacts')}</p>
-                        <button onClick={() => { setSearchQuery(''); setFilter('Tous'); }} className="text-indigo-600 text-sm font-bold hover:underline">{t('crm.resetFilters')}</button>
+                        <button onClick={() => { setSearchQuery(''); setFilter('All'); }} className="text-indigo-600 text-sm font-bold hover:underline">{t('crm.resetFilters')}</button>
                       </div>
                     </td>
                   </tr>
@@ -559,7 +559,7 @@ export const CRM = ({ user }: { user?: any }) => {
                           }`}
                         >
                           <Tag className="w-4 h-4" />
-                          {t(`crm.${s.toLowerCase()}`)}
+                          {t(`crm.status.${s.toLowerCase()}`)}
                         </button>
                       ))}
                     </div>
@@ -631,14 +631,14 @@ export const CRM = ({ user }: { user?: any }) => {
                 <div>
                   <h4 className="text-lg font-bold text-slate-900">{viewContact.name}</h4>
                   <p className="text-sm font-medium text-slate-500">
-                    {viewContact.role ? `${viewContact.role} chez ` : ''}{viewContact.company}
+                    {viewContact.role ? `${viewContact.role}${t('crm.at')}` : ''}{viewContact.company}
                   </p>
                   <span className={`mt-2 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                     viewContact.status === 'Client' ? 'bg-emerald-100 text-emerald-700' : 
                     viewContact.status === 'Lead' ? 'bg-amber-100 text-amber-700' : 
                     'bg-blue-100 text-blue-700'
                   }`}>
-                    {viewContact.status}
+                    {t(`crm.status.${viewContact.status.toLowerCase()}`)}
                   </span>
                 </div>
               </div>
@@ -660,7 +660,7 @@ export const CRM = ({ user }: { user?: any }) => {
                 </a>
                 <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
                   <Calendar className="w-4 h-4 text-slate-400" />
-                  {t('crm.lastContact')} : {new Date(viewContact.lastContact).toLocaleDateString('fr-FR')}
+                  {t('crm.lastContact')} : {new Date(viewContact.lastContact).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}
                 </div>
               </div>
               

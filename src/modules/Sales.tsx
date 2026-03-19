@@ -100,12 +100,12 @@ export const Sales = ({ user }: { user: any }) => {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'Paid': return 'Payée';
-      case 'Sent': return 'Envoyée';
-      case 'Overdue': return 'En retard';
-      case 'Draft': return 'Brouillon';
-      case 'Accepted': return 'Accepté';
-      case 'Rejected': return 'Refusé';
+      case 'Paid': return t('sales.paid');
+      case 'Sent': return t('sales.sent');
+      case 'Overdue': return t('sales.overdue');
+      case 'Draft': return t('sales.draft');
+      case 'Accepted': return t('sales.accepted');
+      case 'Rejected': return t('sales.rejected');
       default: return status;
     }
   };
@@ -185,7 +185,7 @@ export const Sales = ({ user }: { user: any }) => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newInvoice.contactId || (newInvoice.items || []).length === 0) {
-      setError("Veuillez sélectionner un client et ajouter au moins un article.");
+      setError(t('sales.errorMissingFields'));
       return;
     }
 
@@ -395,7 +395,7 @@ export const Sales = ({ user }: { user: any }) => {
         <div className="flex items-center gap-4">
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
             {(['Tous', 'Invoice', 'Quote'] as const).map((f) => (
-              <button
+              <button 
                 key={f}
                 onClick={() => {
                   setFilter(f);
@@ -407,7 +407,7 @@ export const Sales = ({ user }: { user: any }) => {
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
-                {f === 'Tous' ? t('sales.all') : f === 'Invoice' ? t('sales.invoices') : t('sales.quotes')}
+                {f === 'Tous' ? t('common.all') : f === 'Invoice' ? t('sales.invoices') : t('sales.quotes')}
               </button>
             ))}
           </div>
@@ -420,14 +420,14 @@ export const Sales = ({ user }: { user: any }) => {
               className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
             >
               <Plus className="w-5 h-5" />
-              Nouveau Modèle
+              {t('sales.newTemplate')}
             </button>
           ) : filter === 'Quote' && quoteSubTab === 'signed' ? (
             <label className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 active:scale-95 cursor-pointer">
               <Plus className="w-5 h-5" />
-              Réceptionner un Devis
+              {t('sales.receiveQuote')}
               <input type="file" className="hidden" onChange={() => {
-                setSuccessMessage('Devis réceptionné !');
+                setSuccessMessage(t('sales.quoteReceived'));
                 setTimeout(() => setSuccessMessage(null), 3000);
               }} />
             </label>
@@ -437,7 +437,7 @@ export const Sales = ({ user }: { user: any }) => {
               className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
             >
               <Plus className="w-5 h-5" />
-              Nouveau {filter === 'Quote' ? 'Devis' : filter === 'Invoice' ? 'Facture' : 'Document'}
+              {t('sales.new')} {filter === 'Quote' ? t('sales.quote') : filter === 'Invoice' ? t('sales.invoice') : t('sales.document')}
             </button>
           )}
         </div>
@@ -449,19 +449,19 @@ export const Sales = ({ user }: { user: any }) => {
             onClick={() => setQuoteSubTab('list')}
             className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'list' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
-            Liste des Devis
+            {t('sales.quoteList')}
           </button>
           <button 
             onClick={() => setQuoteSubTab('templates')}
             className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'templates' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
-            Modèles de Devis
+            {t('sales.quoteTemplates')}
           </button>
           <button 
             onClick={() => setQuoteSubTab('signed')}
             className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'signed' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
-            Devis Signés / Réception
+            {t('sales.signedQuotesReception')}
           </button>
         </div>
       )}
@@ -474,7 +474,7 @@ export const Sales = ({ user }: { user: any }) => {
                 <CheckCircle className="w-5 h-5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-xs text-slate-500 font-medium">Factures Payées</p>
+                <p className="text-xs text-slate-500 font-medium">{t('sales.paidInvoices')}</p>
                 <p className="text-lg font-bold text-slate-900">
                   {invoices.filter(i => i.type === 'Invoice' && i.status === 'Paid').reduce((sum, i) => sum + (i.total || 0), 0).toLocaleString()} {currencySymbol}
                 </p>
@@ -485,7 +485,7 @@ export const Sales = ({ user }: { user: any }) => {
                 <Clock className="w-5 h-5 text-blue-600" />
               </div>
               <div>
-                <p className="text-xs text-slate-500 font-medium">En attente</p>
+                <p className="text-xs text-slate-500 font-medium">{t('sales.pending')}</p>
                 <p className="text-lg font-bold text-slate-900">
                   {invoices.filter(i => i.status === 'Sent').reduce((sum, i) => sum + (i.total || 0), 0).toLocaleString()} {currencySymbol}
                 </p>
@@ -496,7 +496,7 @@ export const Sales = ({ user }: { user: any }) => {
                 <AlertCircle className="w-5 h-5 text-rose-600" />
               </div>
               <div>
-                <p className="text-xs text-slate-500 font-medium">En retard</p>
+                <p className="text-xs text-slate-500 font-medium">{t('sales.overdue')}</p>
                 <p className="text-lg font-bold text-slate-900">
                   {invoices.filter(i => i.status === 'Overdue').reduce((sum, i) => sum + (i.total || 0), 0).toLocaleString()} {currencySymbol}
                 </p>
@@ -509,12 +509,12 @@ export const Sales = ({ user }: { user: any }) => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Type / N°</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Client</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Date / Échéance</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Montant</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Statut</th>
-                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('sales.typeNo')}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('sales.client')}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('sales.dateDueDate')}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('sales.amount')}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('sales.status')}</th>
+                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">{t('common.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -527,7 +527,7 @@ export const Sales = ({ user }: { user: any }) => {
                           </div>
                           <div>
                             <div className="text-sm font-bold text-slate-900">{invoice.id}</div>
-                            <div className="text-xs font-medium text-slate-500">{invoice.type === 'Invoice' ? 'Facture' : 'Devis'}</div>
+                            <div className="text-xs font-medium text-slate-500">{invoice.type === 'Invoice' ? t('sales.invoice') : t('sales.quote')}</div>
                           </div>
                         </div>
                       </td>
@@ -535,8 +535,8 @@ export const Sales = ({ user }: { user: any }) => {
                         {getContactName(invoice.contactId)}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-slate-900">{new Date(invoice.date).toLocaleDateString('fr-FR')}</div>
-                        <div className="text-xs text-slate-500">{new Date(invoice.dueDate).toLocaleDateString('fr-FR')}</div>
+                        <div className="text-sm text-slate-900">{new Date(invoice.date).toLocaleDateString()}</div>
+                        <div className="text-xs text-slate-500">{new Date(invoice.dueDate).toLocaleDateString()}</div>
                       </td>
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">
                         {invoice.total.toLocaleString()} {currencySymbol}
@@ -556,25 +556,25 @@ export const Sales = ({ user }: { user: any }) => {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
                           {invoice.type === 'Quote' && invoice.status === 'Sent' && invoice.signatureLink && (
-                            <button onClick={() => copyToClipboard(invoice.signatureLink!, invoice.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title="Copier lien signature">
+                            <button onClick={() => copyToClipboard(invoice.signatureLink!, invoice.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.copySignatureLink')}>
                               {copiedId === invoice.id ? <Check className="w-4 h-4 text-emerald-500" /> : <LinkIcon className="w-4 h-4" />}
                             </button>
                           )}
                           {invoice.type === 'Quote' && invoice.status === 'Sent' && (
-                            <button onClick={() => setSigningQuote(invoice)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title="Signer manuellement">
+                            <button onClick={() => setSigningQuote(invoice)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.signManually')}>
                               <FileSignature className="w-4 h-4" />
                             </button>
                           )}
-                          <button onClick={() => setViewInvoice(invoice)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title="Prévisualiser">
+                          <button onClick={() => setViewInvoice(invoice)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.preview')}>
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleSendEmail(invoice)} disabled={isSending === invoice.id} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title="Envoyer par email">
+                          <button onClick={() => handleSendEmail(invoice)} disabled={isSending === invoice.id} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.sendEmail')}>
                             {isSending === invoice.id ? <div className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" /> : <Mail className="w-4 h-4" />}
                           </button>
-                          <button onClick={() => openEdit(invoice)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title="Modifier">
+                          <button onClick={() => openEdit(invoice)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.edit')}>
                             <Pencil className="w-4 h-4" />
                           </button>
-                          <button onClick={() => setDeleteConfirmId(invoice.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title="Supprimer">
+                          <button onClick={() => setDeleteConfirmId(invoice.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.delete')}>
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -779,7 +779,7 @@ export const Sales = ({ user }: { user: any }) => {
                   </div>
                   
                   <div className="flex gap-4 w-full">
-                    <button onClick={() => { setSigningQuote(null); setHasSignature(false); }} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all">Annuler</button>
+                    <button onClick={() => { setSigningQuote(null); setHasSignature(false); }} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
                     <button 
                       onClick={() => handleSignQuote(signingQuote.id)}
                       disabled={!hasSignature}
@@ -815,8 +815,8 @@ export const Sales = ({ user }: { user: any }) => {
             >
             <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">{editingInvoiceId ? 'Modifier le Document' : 'Nouveau Document'}</h3>
-                <p className="text-sm text-slate-500">Créez une facture ou un devis.</p>
+                <h3 className="text-xl font-bold text-slate-900">{editingInvoiceId ? t('sales.editDocument') : t('sales.newDocument')}</h3>
+                <p className="text-sm text-slate-500">{t('sales.formDescription')}</p>
               </div>
               <button onClick={resetForm} className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all shadow-sm">
                 <X className="w-5 h-5" />
@@ -827,19 +827,19 @@ export const Sales = ({ user }: { user: any }) => {
               <form id="invoice-form" onSubmit={handleSave} className="space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Type de document</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.documentType')}</label>
                     <select 
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       value={newInvoice.type || 'Invoice'}
                       onChange={(e) => setNewInvoice({...newInvoice, type: e.target.value as 'Invoice' | 'Quote'})}
                     >
-                      <option value="Invoice">Facture</option>
-                      <option value="Quote">Devis</option>
+                      <option value="Invoice">{t('sales.invoice')}</option>
+                      <option value="Quote">{t('sales.quote')}</option>
                     </select>
                   </div>
                   {newInvoice.type === 'Quote' && (
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Utiliser un modèle</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.useTemplate')}</label>
                       <select 
                         className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                         onChange={(e) => {
@@ -847,7 +847,7 @@ export const Sales = ({ user }: { user: any }) => {
                           if (template) applyTemplate(template);
                         }}
                       >
-                        <option value="">Choisir un modèle...</option>
+                        <option value="">{t('sales.chooseTemplate')}</option>
                         {templates.map(t => (
                           <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
@@ -855,31 +855,31 @@ export const Sales = ({ user }: { user: any }) => {
                     </div>
                   )}
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Statut</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.status')}</label>
                     <select 
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                       value={newInvoice.status || 'Draft'}
                       onChange={(e) => setNewInvoice({...newInvoice, status: e.target.value as any})}
                     >
-                      <option value="Draft">Brouillon</option>
-                      <option value="Sent">Envoyé</option>
-                      {newInvoice.type === 'Invoice' && <option value="Paid">Payé</option>}
-                      {newInvoice.type === 'Invoice' && <option value="Overdue">En retard</option>}
-                      {newInvoice.type === 'Quote' && <option value="Accepted">Accepté</option>}
-                      {newInvoice.type === 'Quote' && <option value="Rejected">Refusé</option>}
+                      <option value="Draft">{t('sales.draft')}</option>
+                      <option value="Sent">{t('sales.sent')}</option>
+                      {newInvoice.type === 'Invoice' && <option value="Paid">{t('sales.paid')}</option>}
+                      {newInvoice.type === 'Invoice' && <option value="Overdue">{t('sales.overdue')}</option>}
+                      {newInvoice.type === 'Quote' && <option value="Accepted">{t('sales.accepted')}</option>}
+                      {newInvoice.type === 'Quote' && <option value="Rejected">{t('sales.rejected')}</option>}
                     </select>
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Client *</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.client')}</label>
                   <select 
                     required
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     value={newInvoice.contactId || ''}
                     onChange={(e) => setNewInvoice({...newInvoice, contactId: e.target.value})}
                   >
-                    <option value="">Sélectionner un client</option>
+                    <option value="">{t('sales.selectClient')}</option>
                     {contacts.map(c => (
                       <option key={c.id} value={c.id}>{c.name} ({c.company})</option>
                     ))}
@@ -888,7 +888,7 @@ export const Sales = ({ user }: { user: any }) => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Date</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.date')}</label>
                     <input 
                       type="date" 
                       required
@@ -898,7 +898,7 @@ export const Sales = ({ user }: { user: any }) => {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Échéance</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.dueDate')}</label>
                     <input 
                       type="date" 
                       required
@@ -910,13 +910,13 @@ export const Sales = ({ user }: { user: any }) => {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Description</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.description')}</label>
                   <input 
                     type="text" 
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     value={newInvoice.description || ''}
                     onChange={(e) => setNewInvoice({...newInvoice, description: e.target.value})}
-                    placeholder="Description du document..."
+                    placeholder={t('sales.documentDescriptionPlaceholder')}
                   />
                 </div>
 
@@ -934,9 +934,9 @@ export const Sales = ({ user }: { user: any }) => {
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Articles *</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.items')}</label>
                     <button type="button" onClick={handleAddItem} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
-                      <PlusCircle className="w-3 h-3" /> Ajouter
+                      <PlusCircle className="w-3 h-3" /> {t('sales.addItem')}
                     </button>
                   </div>
                   
@@ -949,7 +949,7 @@ export const Sales = ({ user }: { user: any }) => {
                             value={item.productId || ''}
                             onChange={(e) => handleUpdateItem(index, 'productId', e.target.value)}
                           >
-                            <option value="">Sélectionner un produit</option>
+                            <option value="">{t('sales.selectProduct')}</option>
                             {products.map(p => (
                               <option key={p.id} value={p.id}>{p.name} - {p.price} {currencySymbol}</option>
                             ))}
@@ -959,7 +959,7 @@ export const Sales = ({ user }: { user: any }) => {
                           <input 
                             type="number" 
                             min="1"
-                            placeholder="Qté"
+                            placeholder={t('sales.qty')}
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                             value={item.quantity || 0}
                             onChange={(e) => handleUpdateItem(index, 'quantity', parseInt(e.target.value) || 0)}
@@ -968,7 +968,7 @@ export const Sales = ({ user }: { user: any }) => {
                         <div className="w-32">
                           <input 
                             type="number" 
-                            placeholder="Prix"
+                            placeholder={t('sales.price')}
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                             value={item.price || 0}
                             onChange={(e) => handleUpdateItem(index, 'price', parseFloat(e.target.value) || 0)}
@@ -993,25 +993,25 @@ export const Sales = ({ user }: { user: any }) => {
                     ))}
                     {(newInvoice.items || []).length === 0 && (
                       <div className="text-center py-6 bg-slate-50 border border-slate-200 border-dashed rounded-xl text-sm text-slate-500">
-                        Aucun article ajouté. Cliquez sur "Ajouter" pour commencer.
+                        {t('sales.noItemsAdded')}
                       </div>
                     )}
                   </div>
                   <div className="flex flex-col items-end pt-2 space-y-1">
                     <div className="text-sm text-slate-500">
-                      Total HT : {newInvoice.totalHT?.toLocaleString()} {currencySymbol}
+                      {t('sales.totalHT')} {newInvoice.totalHT?.toLocaleString()} {currencySymbol}
                     </div>
                     <div className="text-sm text-slate-500">
-                      TVA : {newInvoice.tvaTotal?.toLocaleString()} {currencySymbol}
+                      {t('sales.tva')} {newInvoice.tvaTotal?.toLocaleString()} {currencySymbol}
                     </div>
                     <div className="text-lg font-bold text-slate-900">
-                      Total TTC : {newInvoice.total?.toLocaleString()} {currencySymbol}
+                      {t('sales.totalTTC')} {newInvoice.total?.toLocaleString()} {currencySymbol}
                     </div>
                   </div>
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Notes / Conditions</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.notesConditions')}</label>
                   <textarea 
                     rows={3} 
                     className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
@@ -1024,10 +1024,10 @@ export const Sales = ({ user }: { user: any }) => {
 
             <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex gap-3">
               <button type="button" onClick={resetForm} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95">
-                Annuler
+                {t('common.cancel')}
               </button>
               <button type="submit" form="invoice-form" className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95">
-                {editingInvoiceId ? 'Mettre à jour' : 'Enregistrer'}
+                {editingInvoiceId ? t('sales.update') : t('sales.save')}
               </button>
             </div>
           </motion.div>
@@ -1050,8 +1050,8 @@ export const Sales = ({ user }: { user: any }) => {
             >
             <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Nouveau Modèle de Devis</h3>
-                <p className="text-sm text-slate-500">Créez un modèle réutilisable.</p>
+                <h3 className="text-xl font-bold text-slate-900">{t('sales.newQuoteTemplate')}</h3>
+                <p className="text-sm text-slate-500">{t('sales.createTemplate')}</p>
               </div>
               <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all shadow-sm">
                 <X className="w-5 h-5" />
@@ -1066,7 +1066,7 @@ export const Sales = ({ user }: { user: any }) => {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                      name: newInvoice.notes || 'Nouveau Modèle', // using notes field temporarily for name
+                      name: newInvoice.notes || t('sales.newTemplate'), // using notes field temporarily for name
                       items: newInvoice.items || []
                     })
                   });
@@ -1080,22 +1080,22 @@ export const Sales = ({ user }: { user: any }) => {
                 }
               }} className="space-y-6">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nom du modèle *</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.templateName')}</label>
                   <input 
                     type="text" 
                     required
                     className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
                     value={newInvoice.notes || ''}
                     onChange={(e) => setNewInvoice({...newInvoice, notes: e.target.value})}
-                    placeholder="Ex: Devis Standard Web"
+                    placeholder={t('sales.templateNamePlaceholder')}
                   />
                 </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Articles *</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.items')}</label>
                     <button type="button" onClick={handleAddItem} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
-                      <PlusCircle className="w-3 h-3" /> Ajouter
+                      <PlusCircle className="w-3 h-3" /> {t('sales.addItem')}
                     </button>
                   </div>
                   
@@ -1108,7 +1108,7 @@ export const Sales = ({ user }: { user: any }) => {
                             value={item.productId || ''}
                             onChange={(e) => handleUpdateItem(index, 'productId', e.target.value)}
                           >
-                            <option value="">Sélectionner un produit</option>
+                            <option value="">{t('sales.selectProduct')}</option>
                             {products.map(p => (
                               <option key={p.id} value={p.id}>{p.name} - {p.price} {currencySymbol}</option>
                             ))}
@@ -1118,7 +1118,7 @@ export const Sales = ({ user }: { user: any }) => {
                           <input 
                             type="number" 
                             min="1"
-                            placeholder="Qté"
+                            placeholder={t('sales.qty')}
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                             value={item.quantity || 0}
                             onChange={(e) => handleUpdateItem(index, 'quantity', parseInt(e.target.value) || 0)}
@@ -1127,7 +1127,7 @@ export const Sales = ({ user }: { user: any }) => {
                         <div className="w-32">
                           <input 
                             type="number" 
-                            placeholder="Prix"
+                            placeholder={t('sales.price')}
                             className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                             value={item.price || 0}
                             onChange={(e) => handleUpdateItem(index, 'price', parseFloat(e.target.value) || 0)}
@@ -1140,7 +1140,7 @@ export const Sales = ({ user }: { user: any }) => {
                     ))}
                     {(newInvoice.items || []).length === 0 && (
                       <div className="text-center py-6 bg-slate-50 border border-slate-200 border-dashed rounded-xl text-sm text-slate-500">
-                        Aucun article ajouté. Cliquez sur "Ajouter" pour commencer.
+                        {t('sales.noItemsAdded')}
                       </div>
                     )}
                   </div>
@@ -1150,10 +1150,10 @@ export const Sales = ({ user }: { user: any }) => {
 
             <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex gap-3">
               <button type="button" onClick={() => setIsTemplateModalOpen(false)} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95">
-                Annuler
+                {t('common.cancel')}
               </button>
               <button type="submit" form="template-form" className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95">
-                Enregistrer le modèle
+                {t('sales.saveTemplate')}
               </button>
             </div>
           </motion.div>

@@ -9,14 +9,13 @@ import {
 } from 'lucide-react';
 import { Employee, LeaveRequest, Payslip, Contract, ContractTemplate, EmployeeTask } from '../types';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addDays, addWeeks, subWeeks, startOfDay } from 'date-fns';
-import { fr } from 'date-fns/locale';
 
 import { useTranslation } from '../lib/i18n';
 
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const HR = ({ user }: { user: any }) => {
-  const { t } = useTranslation();
+  const { t, dateLocale } = useTranslation();
   const isUS = user?.country === 'USA';
   const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency === 'XAF' ? 'XAF' : (isUS ? '$' : '€');
 
@@ -136,7 +135,7 @@ export const HR = ({ user }: { user: any }) => {
     }
   };
 
-  const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name || 'Inconnu';
+  const getEmployeeName = (id: string) => employees.find(e => e.id === id)?.name || t('common.unknown');
 
   const openAddModal = () => {
     setEditingEmployee(null);
@@ -437,7 +436,7 @@ export const HR = ({ user }: { user: any }) => {
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
           >
             <Plus className="w-5 h-5" />
-            Nouvel Employé
+            {t('hr.newEmployee')}
           </button>
         )}
 
@@ -449,7 +448,7 @@ export const HR = ({ user }: { user: any }) => {
                 className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
               >
                 <Plus className="w-5 h-5" />
-                Nouveau Contrat
+                {t('hr.newContract')}
               </button>
             )}
             {contractSubTab === 'templates' && (
@@ -458,14 +457,14 @@ export const HR = ({ user }: { user: any }) => {
                 className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
               >
                 <Plus className="w-5 h-5" />
-                Nouveau Modèle
+                {t('hr.newTemplate')}
               </button>
             )}
             {contractSubTab === 'signed' && (
               <label className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 active:scale-95 cursor-pointer">
                 <Plus className="w-5 h-5" />
-                Réceptionner un Contrat
-                <input type="file" className="hidden" onChange={(e) => alert('Fichier réceptionné et archivé !')} />
+                {t('hr.receiveContract')}
+                <input type="file" className="hidden" onChange={(e) => alert(t('hr.fileReceived'))} />
               </label>
             )}
           </div>
@@ -478,7 +477,7 @@ export const HR = ({ user }: { user: any }) => {
           {isLoading ? (
             <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-              <p className="text-sm font-medium text-slate-500">Chargement de l'annuaire...</p>
+              <p className="text-sm font-medium text-slate-500">{t('hr.loadingDirectory')}</p>
             </div>
           ) : employees.length > 0 ? employees.map((employee) => (
             <div key={employee.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-6 group hover:shadow-md transition-all">
@@ -490,9 +489,9 @@ export const HR = ({ user }: { user: any }) => {
                 <div className="flex items-start justify-between mb-1">
                   <h3 className="text-lg font-bold text-slate-900 truncate">{employee.name}</h3>
                   <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                    <button onClick={() => setViewEmployee(employee)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all shadow-sm" title="Voir"><Eye className="w-4 h-4" /></button>
-                    <button onClick={() => openEditModal(employee)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all shadow-sm" title="Modifier"><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => setDeleteConfirmId(employee.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
+                    <button onClick={() => setViewEmployee(employee)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all shadow-sm" title={t('common.view')}><Eye className="w-4 h-4" /></button>
+                    <button onClick={() => openEditModal(employee)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all shadow-sm" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
+                    <button onClick={() => setDeleteConfirmId(employee.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
                 <p className="text-sm text-indigo-600 font-semibold mb-4">{employee.role}</p>
@@ -504,7 +503,7 @@ export const HR = ({ user }: { user: any }) => {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    Arrivée: {employee.joinDate}
+                    {t('hr.arrival')}: {employee.joinDate}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-500">
                     <Briefcase className="w-3.5 h-3.5 text-slate-400" />
@@ -519,7 +518,7 @@ export const HR = ({ user }: { user: any }) => {
             </div>
           )) : (
             <div className="col-span-full text-center py-20 text-slate-500">
-              Aucun employé trouvé.
+              {t('hr.noEmployeeFound')}
             </div>
           )}
         </div>
@@ -533,26 +532,26 @@ export const HR = ({ user }: { user: any }) => {
               onClick={() => setContractSubTab('list')}
               className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'list' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
             >
-              Liste des Contrats
+              {t('hr.contractList')}
             </button>
             <button 
               onClick={() => setContractSubTab('templates')}
               className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'templates' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
             >
-              Modèles de Contrats
+              {t('hr.contractTemplates')}
             </button>
             <button 
               onClick={() => setContractSubTab('signed')}
               className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'signed' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
             >
-              Contrats Signés / Réception
+              {t('hr.signedContracts')}
             </button>
           </div>
 
           {contractSubTab === 'list' ? (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-bold text-slate-900">Gestion des Contrats</h3>
+                <h3 className="font-bold text-slate-900">{t('hr.contractManagement')}</h3>
                 <div className="flex gap-2">
                   <button className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg"><Filter className="w-4 h-4" /></button>
                 </div>
@@ -561,12 +560,12 @@ export const HR = ({ user }: { user: any }) => {
                 <table className="w-full text-left border-collapse">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">ID / Date</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Employé</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Type</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Salaire</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Statut</th>
-                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.idDate')}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.employee')}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.type')}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.salary')}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.status')}</th>
+                      <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">{t('hr.actions')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -594,9 +593,9 @@ export const HR = ({ user }: { user: any }) => {
                             {contract.status === 'Active' ? <Check className="w-3 h-3" /> : 
                              contract.status === 'Signed' ? <FileSignature className="w-3 h-3" /> :
                              contract.status === 'Sent' ? <Send className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                            {contract.status === 'Active' ? 'Actif' : 
-                             contract.status === 'Signed' ? 'Signé' :
-                             contract.status === 'Sent' ? 'Envoyé' : 'Brouillon'}
+                            {contract.status === 'Active' ? t('hr.status.active') : 
+                             contract.status === 'Signed' ? t('hr.status.signed') :
+                             contract.status === 'Sent' ? t('hr.status.sent') : t('hr.status.draft')}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-right">
@@ -605,7 +604,7 @@ export const HR = ({ user }: { user: any }) => {
                               <button 
                                 onClick={() => copyToClipboard(contract.signatureLink!)}
                                 className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                                title="Copier le lien de signature"
+                                title={t('hr.copyLink')}
                               >
                                 <LinkIcon className="w-4 h-4" />
                               </button>
@@ -614,7 +613,7 @@ export const HR = ({ user }: { user: any }) => {
                               <button 
                                 onClick={() => setSigningContract(contract)}
                                 className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
-                                title="Signer le contrat (Interne)"
+                                title={t('hr.signInternal')}
                               >
                                 <FileSignature className="w-4 h-4" />
                               </button>
@@ -623,7 +622,7 @@ export const HR = ({ user }: { user: any }) => {
                               onClick={() => handleSendContract(contract.id)}
                               disabled={isSending === contract.id}
                               className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
-                              title="Envoyer par mail"
+                              title={t('hr.sendEmail')}
                             >
                               {isSending === contract.id ? (
                                 <div className="w-4 h-4 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
@@ -631,7 +630,7 @@ export const HR = ({ user }: { user: any }) => {
                                 <Send className="w-4 h-4" />
                               )}
                             </button>
-                            <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all">
+                            <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all" title={t('hr.download')}>
                               <Download className="w-4 h-4" />
                             </button>
                           </div>
@@ -801,11 +800,11 @@ export const HR = ({ user }: { user: any }) => {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Employé</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Période</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Salaire Net</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Statut</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.employee')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.period')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.netSalary')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.status')}</th>
+                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">{t('hr.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -824,7 +823,7 @@ export const HR = ({ user }: { user: any }) => {
                       <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
                         payslip.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
                       }`}>
-                        {payslip.status === 'Paid' ? 'Payé' : 'Brouillon'}
+                        {payslip.status === 'Paid' ? t('hr.paid') : t('hr.draft')}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
@@ -844,34 +843,34 @@ export const HR = ({ user }: { user: any }) => {
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Users className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-emerald-600">+2 ce mois</span>
+              <span className="text-xs font-bold text-emerald-600">{t('hr.newThisMonth')}</span>
             </div>
             <div className="text-2xl font-black text-slate-900">{employees.length}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Effectif Total</div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.totalEffectif')}</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><Coffee className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-amber-600">3 actifs</span>
+              <span className="text-xs font-bold text-amber-600">3 {t('hr.status.active').toLowerCase()}s</span>
             </div>
             <div className="text-2xl font-black text-slate-900">{leaves.filter(l => l.status === 'Approved').length}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Congés en cours</div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.currentLeaves')}</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><DollarSign className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-slate-400">Masse salariale</span>
+              <span className="text-xs font-bold text-slate-400">{t('hr.payrollMass')}</span>
             </div>
             <div className="text-2xl font-black text-slate-900">{(employees.reduce((acc, curr) => acc + curr.salary, 0) / 12).toLocaleString()}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{currencySymbol} / mois</div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{currencySymbol} {t('hr.perMonth')}</div>
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Briefcase className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-slate-400">Départements</span>
+              <span className="text-xs font-bold text-slate-400">{t('nav.section.management')}</span>
             </div>
             <div className="text-2xl font-black text-slate-900">{new Set(employees.map(e => e.department)).size}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Unités actives</div>
+            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.activeUnits')}</div>
           </div>
         </div>
       )}
@@ -890,7 +889,7 @@ export const HR = ({ user }: { user: any }) => {
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold">
                 <Target className="w-4 h-4" />
-                {tasks.length} Tâches au total
+                {tasks.length} {t('hr.totalTasks')}
               </div>
             </div>
           </div>
@@ -986,9 +985,9 @@ export const HR = ({ user }: { user: any }) => {
           {taskView === 'day' && (
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-bold text-slate-900">Tâches du {format(currentDate, 'd MMMM yyyy', { locale: fr })}</h3>
+                <h3 className="font-bold text-slate-900">{t('hr.tasksOfDate', { date: format(currentDate, 'd MMMM yyyy', { locale: fr }) })}</h3>
                 <button onClick={() => setIsTaskModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all">
-                  <Plus className="w-4 h-4" /> Ajouter
+                  <Plus className="w-4 h-4" /> {t('hr.add')}
                 </button>
               </div>
               <div className="divide-y divide-slate-50">
@@ -1013,7 +1012,7 @@ export const HR = ({ user }: { user: any }) => {
                   ))
                 ) : (
                   <div className="p-12 text-center text-slate-400 italic text-sm">
-                    Aucune tâche prévue pour ce jour.
+                    {t('hr.noTaskToday')}
                   </div>
                 )}
               </div>
@@ -1028,7 +1027,7 @@ export const HR = ({ user }: { user: any }) => {
           <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
             <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
               <div>
-                <h3 className="text-xl font-black uppercase tracking-tight">Signature du Contrat</h3>
+                <h3 className="text-xl font-black uppercase tracking-tight">{t('hr.signatureTitle')}</h3>
                 <p className="text-indigo-100 text-xs font-bold mt-1">ID: {signingContract.id} • {getEmployeeName(signingContract.employeeId)}</p>
               </div>
               <button onClick={() => setSigningContract(null)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
@@ -1044,12 +1043,12 @@ export const HR = ({ user }: { user: any }) => {
               <div className="flex flex-col items-center gap-6 pt-6 border-t border-slate-100">
                 <div className="w-full max-w-md space-y-4">
                   <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Signature Manuelle</label>
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.manualSignature')}</label>
                     <button 
                       onClick={clearSignature}
                       className="flex items-center gap-1 text-[10px] font-bold text-red-500 hover:text-red-600 uppercase tracking-widest"
                     >
-                      <Eraser className="w-3 h-3" /> Effacer
+                      <Eraser className="w-3 h-3" /> {t('hr.clear')}
                     </button>
                   </div>
                   <div className="relative h-48 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl overflow-hidden cursor-crosshair">
@@ -1068,14 +1067,14 @@ export const HR = ({ user }: { user: any }) => {
                     />
                     {!hasSignature && (
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-300 italic text-sm">
-                        Signez ici avec votre souris ou votre doigt
+                        {t('hr.signHere')}
                       </div>
                     )}
                   </div>
                 </div>
                 
                 <div className="flex gap-4 w-full">
-                  <button onClick={() => { setSigningContract(null); setHasSignature(false); }} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all">Annuler</button>
+                  <button onClick={() => { setSigningContract(null); setHasSignature(false); }} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
                   <button 
                     onClick={() => handleSignContract(signingContract.id)}
                     disabled={!hasSignature}
@@ -1086,7 +1085,7 @@ export const HR = ({ user }: { user: any }) => {
                     }`}
                   >
                     <FileSignature className="w-5 h-5" />
-                    Valider la Signature
+                    {t('hr.validateSignature')}
                   </button>
                 </div>
               </div>
@@ -1101,7 +1100,7 @@ export const HR = ({ user }: { user: any }) => {
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto border border-slate-200">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                Nouveau Modèle de Contrat
+                {t('hr.newTemplateTitle')}
               </h3>
               <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
                 <X className="w-6 h-6 text-slate-400"/>
@@ -1110,11 +1109,11 @@ export const HR = ({ user }: { user: any }) => {
             <form onSubmit={handleSaveTemplate} className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nom du Modèle</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.templateName')}</label>
                   <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none" value={newTemplate.name || ''} onChange={e => setNewTemplate({...newTemplate, name: e.target.value})} placeholder="Ex: CDI Standard" required />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Type par défaut</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.defaultType')}</label>
                   <select 
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
                     value={newTemplate.type || 'CDI'}
@@ -1130,10 +1129,10 @@ export const HR = ({ user }: { user: any }) => {
               </div>
               
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Contenu du Modèle</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.templateContent')}</label>
                 <textarea 
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none min-h-[300px] font-serif"
-                  placeholder="Rédigez le texte du modèle ici. Utilisez des balises comme [NOM_EMPLOYE]..."
+                  placeholder={t('hr.templateContentPlaceholder')}
                   value={newTemplate.content || ''}
                   onChange={e => setNewTemplate({...newTemplate, content: e.target.value})}
                   required
@@ -1141,8 +1140,8 @@ export const HR = ({ user }: { user: any }) => {
               </div>
               
               <div className="flex gap-4 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setIsTemplateModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">Annuler</button>
-                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">Enregistrer le Modèle</button>
+                <button type="button" onClick={() => setIsTemplateModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
+                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">{t('hr.saveTemplate')}</button>
               </div>
             </form>
           </div>
@@ -1155,7 +1154,7 @@ export const HR = ({ user }: { user: any }) => {
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto border border-slate-200">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                Nouveau Contrat
+                {t('hr.newContractTitle')}
               </h3>
               <button onClick={() => setIsContractModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
                 <X className="w-6 h-6 text-slate-400"/>
@@ -1164,26 +1163,26 @@ export const HR = ({ user }: { user: any }) => {
             <form onSubmit={handleSaveContract} className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Modèle (Optionnel)</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.templateOptional')}</label>
                   <select 
                     className="w-full px-4 py-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-medium text-indigo-700"
                     onChange={e => applyTemplate(e.target.value)}
                   >
-                    <option value="">Choisir un modèle...</option>
+                    <option value="">{t('hr.chooseTemplate')}</option>
                     {templates.map(tmp => (
                       <option key={tmp.id} value={tmp.id}>{tmp.name}</option>
                     ))}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Employé</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.employee')}</label>
                   <select 
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
                     value={newContract.employeeId || ''}
                     onChange={e => setNewContract({...newContract, employeeId: e.target.value})}
                     required
                   >
-                    <option value="">Sélectionner un employé</option>
+                    <option value="">{t('hr.selectEmployee')}</option>
                     {employees.map(emp => (
                       <option key={emp.id} value={emp.id}>{emp.name}</option>
                     ))}
@@ -1204,20 +1203,20 @@ export const HR = ({ user }: { user: any }) => {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Date de début</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.startDate')}</label>
                   <input type="date" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none" value={newContract.startDate || ''} onChange={e => setNewContract({...newContract, startDate: e.target.value})} required />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Salaire Mensuel ({currencySymbol})</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.monthlySalary')} ({currencySymbol})</label>
                   <input type="number" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newContract.salary || 0} onChange={e => setNewContract({...newContract, salary: parseInt(e.target.value) || 0})} required />
                 </div>
               </div>
               
               <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Contenu du Contrat</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.contractContent')}</label>
                 <textarea 
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none min-h-[200px]"
-                  placeholder="Rédigez les termes du contrat ici..."
+                  placeholder={t('hr.contractContentPlaceholder')}
                   value={newContract.content || ''}
                   onChange={e => setNewContract({...newContract, content: e.target.value})}
                   required
@@ -1225,8 +1224,8 @@ export const HR = ({ user }: { user: any }) => {
               </div>
               
               <div className="flex gap-4 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setIsContractModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">Annuler</button>
-                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">Créer le Brouillon</button>
+                <button type="button" onClick={() => setIsContractModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
+                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">{t('hr.createDraft')}</button>
               </div>
             </form>
           </div>
@@ -1245,9 +1244,9 @@ export const HR = ({ user }: { user: any }) => {
                   </div>
                   <div>
                     <h3 className="text-2xl font-black uppercase tracking-tight">
-                      {editingEmployee ? 'Modifier' : 'Ajouter'} un employé
+                      {editingEmployee ? t('common.edit') : t('hr.add')} {t('hr.employee').toLowerCase()}
                     </h3>
-                    <p className="text-indigo-100 text-sm font-bold">Gestion des ressources humaines</p>
+                    <p className="text-indigo-100 text-sm font-bold">{t('hr.hrManagement')}</p>
                   </div>
                 </div>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
@@ -1280,24 +1279,24 @@ export const HR = ({ user }: { user: any }) => {
                   <section className="space-y-6">
                     <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
                       <User className="w-5 h-5 text-indigo-600" />
-                      <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Informations Personnelles</h4>
+                      <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">{t('hr.personalInfo')}</h4>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Nom complet</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.fullName')}</label>
                         <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.name || ''} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} placeholder="Ex: Jean Dupont" required />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Email professionnel</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.proEmail')}</label>
                         <input type="email" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.email || ''} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} placeholder="jean.dupont@entreprise.com" required />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Téléphone</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.phone')}</label>
                         <input type="tel" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.phone || ''} onChange={e => setNewEmployee({...newEmployee, phone: e.target.value})} placeholder="+33 6 00 00 00 00" />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Adresse</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.address')}</label>
                         <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.address || ''} onChange={e => setNewEmployee({...newEmployee, address: e.target.value})} placeholder="123 Rue de la Paix, Paris" />
                       </div>
                     </div>
@@ -1307,20 +1306,20 @@ export const HR = ({ user }: { user: any }) => {
                   <section className="space-y-6">
                     <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
                       <Briefcase className="w-5 h-5 text-indigo-600" />
-                      <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Poste & Contrat</h4>
+                      <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">{t('hr.positionContract')}</h4>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Poste / Rôle</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.positionRole')}</label>
                         <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.role || ''} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} placeholder="Ex: Développeur Fullstack" required />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Département</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.department')}</label>
                         <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.department || ''} onChange={e => setNewEmployee({...newEmployee, department: e.target.value})} placeholder="Ex: Technique" required />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Type de Contrat</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.contractType')}</label>
                         <select 
                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
                           value={newEmployee.contractType || 'CDI'}
@@ -1333,11 +1332,11 @@ export const HR = ({ user }: { user: any }) => {
                         </select>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Salaire Annuel ({currencySymbol})</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.annualSalary')} ({currencySymbol})</label>
                         <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.salary || 0} onChange={e => setNewEmployee({...newEmployee, salary: parseInt(e.target.value) || 0})} required />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Date d'embauche</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.joinDate')}</label>
                         <input type="date" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.joinDate || ''} onChange={e => setNewEmployee({...newEmployee, joinDate: e.target.value})} required />
                       </div>
                     </div>
@@ -1347,12 +1346,12 @@ export const HR = ({ user }: { user: any }) => {
                   <section className="space-y-6">
                     <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
                       <LayoutGrid className="w-5 h-5 text-indigo-600" />
-                      <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">Médias & Documents</h4>
+                      <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">{t('hr.mediaDocs')}</h4>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                       <div className="space-y-4">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Photo de Profil</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.profilePicture')}</label>
                         <div className="flex items-center gap-6">
                           <div className="w-24 h-24 rounded-3xl bg-slate-100 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shrink-0">
                             {newEmployee.profilePicture ? (
@@ -1362,16 +1361,16 @@ export const HR = ({ user }: { user: any }) => {
                             )}
                           </div>
                           <label className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-600 cursor-pointer hover:bg-slate-50 transition-all text-center">
-                            Changer la photo
+                            {t('hr.changePhoto')}
                             <input type="file" accept="image/*" className="hidden" onChange={(e) => handleFileChange(e, 'picture')} />
                           </label>
                         </div>
                       </div>
 
                       <div className="space-y-4">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Documents Administratifs</label>
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.adminDocs')}</label>
                         <label className="flex items-center justify-center w-full px-4 py-4 bg-white border-2 border-dashed border-slate-200 rounded-2xl text-xs font-bold text-slate-400 cursor-pointer hover:border-indigo-300 hover:text-indigo-500 transition-all">
-                          <Plus className="w-5 h-5 mr-2" /> Ajouter un document
+                          <Plus className="w-5 h-5 mr-2" /> {t('hr.addDoc')}
                           <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'document')} />
                         </label>
                         {newEmployee.documents && newEmployee.documents.length > 0 && (
@@ -1392,9 +1391,9 @@ export const HR = ({ user }: { user: any }) => {
                 </div>
 
                 <div className="flex gap-4 pt-10 mt-10 border-t border-slate-100">
-                  <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all">Annuler</button>
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
                   <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200">
-                    {editingEmployee ? 'Mettre à jour' : 'Enregistrer l\'employé'}
+                    {editingEmployee ? t('hr.update') : t('hr.saveEmployee')}
                   </button>
                 </div>
               </form>

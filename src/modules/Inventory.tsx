@@ -95,7 +95,7 @@ export const Inventory = ({ user }: { user: any }) => {
         if (viewProduct?.id === id) setViewProduct(null);
         setDeleteConfirmId(null);
       } else {
-        setError('Erreur lors de la suppression.');
+        setError(t('inventory.error.delete'));
       }
     } catch (error) {
       console.error('Failed to delete product:', error);
@@ -142,7 +142,7 @@ export const Inventory = ({ user }: { user: any }) => {
               <Package className="w-6 h-6 text-indigo-600" />
             </div>
             <div>
-              <p className="text-sm text-slate-500 font-medium">Total Produits</p>
+              <p className="text-sm text-slate-500 font-medium">{t('inventory.totalProducts')}</p>
               <p className="text-2xl font-bold text-slate-900">{products.length}</p>
             </div>
           </div>
@@ -153,7 +153,7 @@ export const Inventory = ({ user }: { user: any }) => {
               <AlertTriangle className="w-6 h-6 text-amber-600" />
             </div>
             <div>
-              <p className="text-sm text-slate-500 font-medium">Stock Faible</p>
+              <p className="text-sm text-slate-500 font-medium">{t('inventory.lowStock')}</p>
               <p className="text-2xl font-bold text-slate-900">{products.filter(p => p.stock < 10).length}</p>
             </div>
           </div>
@@ -164,7 +164,7 @@ export const Inventory = ({ user }: { user: any }) => {
               <Tag className="w-6 h-6 text-emerald-600" />
             </div>
             <div>
-              <p className="text-sm text-slate-500 font-medium">Valeur Stock</p>
+              <p className="text-sm text-slate-500 font-medium">{t('inventory.stockValue')}</p>
               <p className="text-2xl font-bold text-slate-900">{products.reduce((sum, p) => sum + (p.price * p.stock), 0).toLocaleString()} {currencySymbol}</p>
             </div>
           </div>
@@ -172,19 +172,19 @@ export const Inventory = ({ user }: { user: any }) => {
       </div>
 
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">Catalogue Produits</h2>
+        <h2 className="text-lg font-semibold text-slate-900">{t('inventory.productCatalog')}</h2>
         <div className="flex gap-3">
           <button onClick={() => setIsCategoryManagerOpen(true)} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
             <Tag className="w-4 h-4" />
-            Gérer Catégories
+            {t('inventory.manageCategories')}
           </button>
           <button onClick={() => setIsStockMovementOpen(true)} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
             <ArrowRightLeft className="w-4 h-4" />
-            Mouvement Stock
+            {t('inventory.stockMovement')}
           </button>
           <button onClick={() => { setEditingProduct(null); setNewProduct({ name: '', sku: '', price: 0, stock: 0, category: '', description: '', type: 'product', tvaRate: 0.18 }); setIsAddProductOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
             <Plus className="w-4 h-4" />
-            Ajouter Produit
+            {t('inventory.addProduct')}
           </button>
         </div>
       </div>
@@ -193,19 +193,19 @@ export const Inventory = ({ user }: { user: any }) => {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-            <p className="text-sm font-medium text-slate-500">Chargement du catalogue...</p>
+            <p className="text-sm font-medium text-slate-500">{t('inventory.loadingCatalog')}</p>
           </div>
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Produit</th>
-                <th className="hidden sm:table-cell px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">SKU</th>
-                <th className="hidden md:table-cell px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Type</th>
-                <th className="hidden lg:table-cell px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Catégorie</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Prix Unitaire</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Stock</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">Actions</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.product')}</th>
+                <th className="hidden sm:table-cell px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.sku')}</th>
+                <th className="hidden md:table-cell px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.type')}</th>
+                <th className="hidden lg:table-cell px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.category')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.unitPrice')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.stock')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">{t('inventory.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -218,7 +218,7 @@ export const Inventory = ({ user }: { user: any }) => {
                     {product.sku}
                   </td>
                   <td className="hidden md:table-cell px-6 py-4 text-sm text-slate-600 capitalize">
-                    {product.type}
+                    {product.type === 'product' ? t('inventory.productType') : t('inventory.serviceType')}
                   </td>
                   <td className="hidden lg:table-cell px-6 py-4 text-sm text-slate-600">
                     {product.category}
@@ -236,16 +236,16 @@ export const Inventory = ({ user }: { user: any }) => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                      <button onClick={() => setViewProduct(product)} className="text-slate-400 hover:text-indigo-600 p-1 hover:bg-white rounded-lg transition-all shadow-sm" title="Voir"><Eye className="w-4 h-4" /></button>
-                      <button onClick={() => { setEditingProduct(product); setNewProduct(product); setIsAddProductOpen(true); }} className="text-slate-400 hover:text-amber-600 p-1 hover:bg-white rounded-lg transition-all shadow-sm" title="Modifier"><Pencil className="w-4 h-4" /></button>
-                      <button onClick={() => setDeleteConfirmId(product.id)} className="text-slate-400 hover:text-red-600 p-1 hover:bg-white rounded-lg transition-all shadow-sm" title="Supprimer"><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => setViewProduct(product)} className="text-slate-400 hover:text-indigo-600 p-1 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.view')}><Eye className="w-4 h-4" /></button>
+                      <button onClick={() => { setEditingProduct(product); setNewProduct(product); setIsAddProductOpen(true); }} className="text-slate-400 hover:text-amber-600 p-1 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => setDeleteConfirmId(product.id)} className="text-slate-400 hover:text-red-600 p-1 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>
               )) : (
                 <tr>
                   <td colSpan={7} className="px-6 py-10 text-center text-slate-500 text-sm">
-                    Aucun produit trouvé.
+                    {t('inventory.noProductFound')}
                   </td>
                 </tr>
               )}
@@ -401,17 +401,17 @@ export const Inventory = ({ user }: { user: any }) => {
                     
                     <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Montant {taxLabel}</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t('inventory.taxAmount', { taxLabel })}</p>
                         <p className="text-sm font-bold text-slate-700">{tvaAmount.toLocaleString()} {currencySymbol}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total TTC</p>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t('inventory.totalTTC')}</p>
                         <p className="text-sm font-bold text-indigo-600">{totalTTC.toLocaleString()} {currencySymbol}</p>
                       </div>
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 ml-1">Stock Initial</label>
+                      <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.initialStock')}</label>
                       <div className="relative">
                         <input 
                           type="number" 
@@ -429,9 +429,9 @@ export const Inventory = ({ user }: { user: any }) => {
                 {/* Description */}
                 <div className="space-y-4 md:col-span-2">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700 ml-1">Description</label>
+                    <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.description')}</label>
                     <textarea 
-                      placeholder="Détails du produit, caractéristiques techniques..." 
+                      placeholder={t('inventory.descriptionPlaceholder')} 
                       rows={3}
                       className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm resize-none" 
                       value={newProduct.description || ''} 
@@ -447,7 +447,7 @@ export const Inventory = ({ user }: { user: any }) => {
                   onClick={() => setIsAddProductOpen(false)}
                   className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 transition-all"
                 >
-                  Annuler
+                  {t('common.cancel')}
                 </button>
                 <button 
                   type="submit" 
@@ -455,7 +455,7 @@ export const Inventory = ({ user }: { user: any }) => {
                   className="flex-[2] bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                  {editingProduct ? 'Mettre à jour' : 'Enregistrer le produit'}
+                  {editingProduct ? t('common.update') : t('inventory.saveProduct')}
                 </button>
               </div>
             </form>
@@ -468,7 +468,7 @@ export const Inventory = ({ user }: { user: any }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-2xl shadow-xl p-6 space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold">Gérer les catégories</h3>
+              <h3 className="text-lg font-bold">{t('inventory.manageCategories')}</h3>
               <button onClick={() => setIsCategoryManagerOpen(false)}><X className="w-5 h-5 text-slate-400"/></button>
             </div>
             <div className="space-y-2">
@@ -479,8 +479,8 @@ export const Inventory = ({ user }: { user: any }) => {
                 </div>
               ))}
               <div className="flex gap-2">
-                <input type="text" placeholder="Nouvelle catégorie" className="flex-1 p-2 border rounded-lg" value={newCategory || ''} onChange={e => setNewCategory(e.target.value)} />
-                <button onClick={() => { if(newCategory && !categories.includes(newCategory)) { setCategories([...categories, newCategory]); setNewCategory(''); } }} className="px-3 bg-indigo-600 text-white rounded-lg">Ajouter</button>
+                <input type="text" placeholder={t('inventory.newCategory')} className="flex-1 p-2 border rounded-lg" value={newCategory || ''} onChange={e => setNewCategory(e.target.value)} />
+                <button onClick={() => { if(newCategory && !categories.includes(newCategory)) { setCategories([...categories, newCategory]); setNewCategory(''); } }} className="px-3 bg-indigo-600 text-white rounded-lg">{t('common.add')}</button>
               </div>
             </div>
           </div>
@@ -492,18 +492,18 @@ export const Inventory = ({ user }: { user: any }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-2xl shadow-xl p-6 space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold">Détails Produit</h3>
+              <h3 className="text-lg font-bold">{t('inventory.productDetails')}</h3>
               <button onClick={() => setViewProduct(null)}><X className="w-5 h-5 text-slate-400"/></button>
             </div>
             <div className="space-y-2">
-              <p><strong>Nom:</strong> {viewProduct.name}</p>
-              <p><strong>SKU:</strong> {viewProduct.sku}</p>
-              <p><strong>Catégorie:</strong> {viewProduct.category}</p>
-              <p><strong>Type:</strong> {viewProduct.type === 'product' ? 'Produit' : 'Service'}</p>
-              <p><strong>Prix:</strong> {viewProduct.price.toLocaleString()} {currencySymbol}</p>
-              <p><strong>Taux TVA:</strong> {(viewProduct.tvaRate * 100).toFixed(0)}%</p>
-              <p><strong>Stock:</strong> {viewProduct.stock}</p>
-              <p><strong>Description:</strong> {viewProduct.description || 'Aucune description'}</p>
+              <p><strong>{t('inventory.productName')}:</strong> {viewProduct.name}</p>
+              <p><strong>{t('inventory.sku')}:</strong> {viewProduct.sku}</p>
+              <p><strong>{t('inventory.category')}:</strong> {viewProduct.category}</p>
+              <p><strong>{t('inventory.type')}:</strong> {viewProduct.type === 'product' ? t('inventory.productType') : t('inventory.serviceType')}</p>
+              <p><strong>{t('inventory.priceHT')}:</strong> {viewProduct.price.toLocaleString()} {currencySymbol}</p>
+              <p><strong>{t('inventory.tvaRate')}:</strong> {(viewProduct.tvaRate * 100).toFixed(0)}%</p>
+              <p><strong>{t('inventory.stock')}:</strong> {viewProduct.stock}</p>
+              <p><strong>{t('inventory.description')}:</strong> {viewProduct.description || t('inventory.noDescription')}</p>
             </div>
           </div>
         </div>
@@ -514,20 +514,20 @@ export const Inventory = ({ user }: { user: any }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-2xl shadow-xl p-6 space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold">Mouvement de stock</h3>
+              <h3 className="text-lg font-bold">{t('inventory.stockMovementTitle')}</h3>
               <button onClick={() => setIsStockMovementOpen(false)}><X className="w-5 h-5 text-slate-400"/></button>
             </div>
             <form onSubmit={handleMovement} className="space-y-4">
               <select className="w-full p-2 border rounded-lg" onChange={e => setMovement({...movement, productId: e.target.value})} required>
-                <option value="">Sélectionner un produit</option>
+                <option value="">{t('inventory.selectProduct')}</option>
                 {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
               </select>
-              <input type="number" placeholder="Quantité" className="w-full p-2 border rounded-lg" onChange={e => setMovement({...movement, quantity: parseInt(e.target.value)})} required />
+              <input type="number" placeholder={t('inventory.quantity')} className="w-full p-2 border rounded-lg" onChange={e => setMovement({...movement, quantity: parseInt(e.target.value)})} required />
               <select className="w-full p-2 border rounded-lg" onChange={e => setMovement({...movement, type: e.target.value as 'IN' | 'OUT'})}>
-                <option value="IN">Entrée (Réception)</option>
-                <option value="OUT">Sortie (Vente/Perte)</option>
+                <option value="IN">{t('inventory.in')}</option>
+                <option value="OUT">{t('inventory.out')}</option>
               </select>
-              <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold">Valider Mouvement</button>
+              <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold">{t('inventory.validateMovement')}</button>
             </form>
           </div>
         </div>
@@ -535,18 +535,18 @@ export const Inventory = ({ user }: { user: any }) => {
       {/* Confirm Modals */}
       <ConfirmModal
         isOpen={!!deleteConfirmId}
-        title="Supprimer le produit"
-        message="Êtes-vous sûr de vouloir supprimer ce produit ? Cette action est irréversible."
-        confirmLabel="Supprimer"
+        title={t('inventory.deleteProduct')}
+        message={t('inventory.confirmDeleteProduct')}
+        confirmLabel={t('common.delete')}
         onConfirm={() => deleteConfirmId && handleDeleteProduct(deleteConfirmId)}
         onCancel={() => setDeleteConfirmId(null)}
       />
 
       <ConfirmModal
         isOpen={!!deleteCategoryConfirm}
-        title="Supprimer la catégorie"
-        message={`Supprimer la catégorie "${deleteCategoryConfirm}" ? Les produits associés seront sans catégorie.`}
-        confirmLabel="Supprimer"
+        title={t('inventory.deleteCategory')}
+        message={t('inventory.confirmDeleteCategory', { category: deleteCategoryConfirm || '' })}
+        confirmLabel={t('common.delete')}
         onConfirm={() => deleteCategoryConfirm && handleDeleteCategory(deleteCategoryConfirm)}
         onCancel={() => setDeleteCategoryConfirm(null)}
       />
