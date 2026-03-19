@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { db } from '../../db.js';
+import { db } from '../../db';
 
 export const dbMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {

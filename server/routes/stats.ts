@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireTenant } from '../middleware/auth.js';
+import { requireTenant } from '../middleware/auth';
 
 export const statsRouter = Router();
 

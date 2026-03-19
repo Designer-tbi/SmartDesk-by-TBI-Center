@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
+import { requireAuth, requireSuperAdmin } from '../middleware/auth';
 import bcrypt from 'bcrypt';
-import { initializeTenantSchema, seedDefaultRoles } from '../../db.js';
+import { initializeTenantSchema, seedDefaultRoles } from '../../db';
 
 export const adminRouter = Router();
 

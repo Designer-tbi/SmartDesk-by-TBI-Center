@@ -29,6 +29,7 @@ export interface Invoice {
   contactId: string;
   date: string;
   dueDate: string;
+  description?: string;
   items: { 
     productId: string; 
     quantity: number; 
@@ -191,6 +192,8 @@ export interface Company {
 
 export interface CompanyInfo {
   name: string;
+  type?: string;
+  status?: string;
   address: string;
   email: string;
   phone: string;

@@ -264,7 +264,7 @@ export const Inventory = ({ user }: { user: any }) => {
                   <Package className="w-5 h-5 text-indigo-600" />
                 </div>
                 <h3 className="text-lg font-bold text-slate-900">
-                  {editingProduct ? 'Modifier le produit' : 'Nouveau produit'}
+                  {editingProduct ? t('inventory.editProduct') : t('inventory.newProduct')}
                 </h3>
               </div>
               <button 
@@ -281,11 +281,11 @@ export const Inventory = ({ user }: { user: any }) => {
                 <div className="space-y-4 md:col-span-2">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <FileText className="w-3 h-3" />
-                    Informations Générales
+                    {t('inventory.generalInfo')}
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 ml-1">Nom du produit</label>
+                      <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.productName')}</label>
                       <div className="relative">
                         <input 
                           type="text" 
@@ -298,7 +298,7 @@ export const Inventory = ({ user }: { user: any }) => {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 ml-1">Référence (SKU)</label>
+                      <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.skuRef')}</label>
                       <div className="relative">
                         <input 
                           type="text" 
@@ -317,23 +317,23 @@ export const Inventory = ({ user }: { user: any }) => {
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Tag className="w-3 h-3" />
-                    Classification
+                    {t('inventory.classification')}
                   </h4>
                   <div className="space-y-4">
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 ml-1">Catégorie</label>
+                      <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.category')}</label>
                       <select 
                         className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm bg-white" 
                         value={newProduct.category || ''} 
                         onChange={e => setNewProduct({...newProduct, category: e.target.value})} 
                         required
                       >
-                        <option value="">Sélectionner une catégorie</option>
+                        <option value="">{t('inventory.selectCategory')}</option>
                         {categories.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 ml-1">Type de ressource</label>
+                      <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.resourceType')}</label>
                       <div className="flex gap-4">
                         <label className="flex-1 cursor-pointer">
                           <input 
@@ -344,7 +344,7 @@ export const Inventory = ({ user }: { user: any }) => {
                             onChange={() => setNewProduct({...newProduct, type: 'product'})} 
                           />
                           <div className="py-2 text-center border border-slate-200 rounded-xl text-sm font-medium text-slate-600 peer-checked:bg-indigo-50 peer-checked:border-indigo-600 peer-checked:text-indigo-700 transition-all">
-                            Produit
+                            {t('inventory.productType')}
                           </div>
                         </label>
                         <label className="flex-1 cursor-pointer">
@@ -356,7 +356,7 @@ export const Inventory = ({ user }: { user: any }) => {
                             onChange={() => setNewProduct({...newProduct, type: 'service'})} 
                           />
                           <div className="py-2 text-center border border-slate-200 rounded-xl text-sm font-medium text-slate-600 peer-checked:bg-indigo-50 peer-checked:border-indigo-600 peer-checked:text-indigo-700 transition-all">
-                            Service
+                            {t('inventory.serviceType')}
                           </div>
                         </label>
                       </div>
@@ -368,12 +368,12 @@ export const Inventory = ({ user }: { user: any }) => {
                 <div className="space-y-4">
                   <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
                     <Calculator className="w-3 h-3" />
-                    Prix & Stock
+                    {t('inventory.priceAndStock')}
                   </h4>
                   <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-slate-700 ml-1">Prix HT ({currencySymbol})</label>
+                        <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.priceHT')} ({currencySymbol})</label>
                         <input 
                           type="number" 
                           step="0.01"
@@ -385,7 +385,7 @@ export const Inventory = ({ user }: { user: any }) => {
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-slate-700 ml-1">Taux TVA</label>
+                        <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.tvaRate')}</label>
                         <select 
                           className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm bg-white" 
                           value={newProduct.tvaRate ?? 0.18} 

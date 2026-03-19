@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { requireTenant } from '../middleware/auth.js';
-import { logActivity } from '../../server.js';
+import { requireTenant } from '../middleware/auth';
+import { logActivity } from '../../server';
 
 export const contactsRouter = Router();
 

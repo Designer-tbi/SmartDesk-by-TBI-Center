@@ -1,6 +1,8 @@
 import { Router } from 'express';
-import { requireAuth, requireCompany } from '../middleware/auth.js';
+import { requireAuth, requireCompany } from '../middleware/auth';
 import nodemailer from 'nodemailer';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const invoicesRouter = Router();
 
@@ -117,6 +119,10 @@ invoicesRouter.put('/:id', async (req, res, next) => {
     
     await req.db.query('BEGIN');
     
+    // Fetch previous invoice to check status change
+    const prevInvoiceRes = await req.db.query('SELECT status FROM invoices WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    const prevInvoice = prevInvoiceRes.rows[0];
+    
     await req.db.query(
       'UPDATE invoices SET type = $1, "contactId" = $2, date = $3, "dueDate" = $4, "totalHT" = $5, "tvaTotal" = $6, total = $7, status = $8, notes = $9, "signatureLink" = $10, "signedAt" = $11 WHERE id = $12 AND "companyId" = $13',
       [inv.type, inv.contactId, inv.date, inv.dueDate, inv.totalHT, inv.tvaTotal, inv.total, inv.status, inv.notes || null, inv.signatureLink || null, inv.signedAt || null, id, req.user!.companyId]
@@ -134,6 +140,117 @@ invoicesRouter.put('/:id', async (req, res, next) => {
     }
     
     await req.db.query('COMMIT');
+    
+    // If status changed to Signed, send an email with the PDF
+    if (prevInvoice && prevInvoice.status !== 'Signed' && inv.status === 'Signed') {
+      try {
+        // Fetch contact and company
+        const contactRes = await req.db.query('SELECT * FROM contacts WHERE id = $1 AND "companyId" = $2', [inv.contactId, req.user!.companyId]);
+        const contact = contactRes.rows[0];
+        
+        const companyRes = await req.db.query('SELECT * FROM companies WHERE id = $1', [req.user!.companyId]);
+        const company = companyRes.rows[0];
+        
+        if (contact && contact.email && company) {
+          const doc = new jsPDF();
+          
+          doc.setFontSize(20);
+          doc.text(inv.type === 'Quote' ? 'DEVIS' : 'FACTURE', 14, 22);
+          
+          doc.setFontSize(10);
+          doc.text(`N°: ${inv.id}`, 14, 30);
+          doc.text(`Date: ${inv.date}`, 14, 35);
+          if (inv.dueDate) doc.text(`Échéance: ${inv.dueDate}`, 14, 40);
+          
+          doc.text('Émetteur:', 14, 55);
+          doc.setFont(undefined, 'bold');
+          doc.text(company.name, 14, 60);
+          doc.setFont(undefined, 'normal');
+          if (company.address) doc.text(company.address, 14, 65);
+          if (company.email) doc.text(company.email, 14, 70);
+          if (company.phone) doc.text(company.phone, 14, 75);
+          
+          doc.text('Adressé à:', 120, 55);
+          doc.setFont(undefined, 'bold');
+          doc.text(contact.name, 120, 60);
+          doc.setFont(undefined, 'normal');
+          if (contact.email) doc.text(contact.email, 120, 65);
+          if (contact.phone) doc.text(contact.phone, 120, 70);
+          
+          const tableData = (inv.items || []).map((item: any) => [
+            item.name + (item.description ? `\n${item.description}` : ''),
+            item.quantity.toString(),
+            `${item.price.toLocaleString()} ${company.currency}`,
+            `${item.tvaRate}%`,
+            `${(item.quantity * item.price).toLocaleString()} ${company.currency}`
+          ]);
+          
+          autoTable(doc, {
+            startY: 90,
+            head: [['Description', 'Qté', 'Prix Unitaire', 'TVA', 'Total HT']],
+            body: tableData,
+            theme: 'striped',
+            headStyles: { fillColor: [79, 70, 229] },
+          });
+          
+          const finalY = (doc as any).lastAutoTable.finalY || 90;
+          
+          doc.text(`Total HT: ${inv.totalHT.toLocaleString()} ${company.currency}`, 140, finalY + 10);
+          doc.text(`TVA: ${inv.tvaTotal.toLocaleString()} ${company.currency}`, 140, finalY + 15);
+          doc.setFont(undefined, 'bold');
+          doc.text(`Total TTC: ${inv.total.toLocaleString()} ${company.currency}`, 140, finalY + 20);
+          
+          if (inv.signedAt) {
+            doc.setTextColor(34, 197, 94); // Green
+            doc.text(`Signé le: ${inv.signedAt}`, 14, finalY + 10);
+            doc.text('Signature numérique validée', 14, finalY + 15);
+          }
+          
+          const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+          
+          const transporter = nodemailer.createTransport({
+            host: process.env.SMTP_HOST || "mail.tbi-center.fr",
+            port: parseInt(process.env.SMTP_PORT || '465'),
+            secure: process.env.SMTP_SECURE !== 'false',
+            auth: {
+              user: process.env.SMTP_USER || "demo@tbi-center.fr",
+              pass: process.env.SMTP_PASS || "loub@ki2014D",
+            },
+          });
+          
+          await transporter.sendMail({
+            from: `"${company.name}" <${process.env.SMTP_USER || "demo@tbi-center.fr"}>`,
+            to: contact.email,
+            subject: `Votre ${inv.type === 'Quote' ? 'devis' : 'facture'} signé(e) - ${inv.id}`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+                <h2 style="color: #4f46e5;">Document Signé</h2>
+                <p>Bonjour ${contact.name},</p>
+                <p>Nous vous confirmons la signature de votre ${inv.type === 'Quote' ? 'devis' : 'facture'} <strong>${inv.id}</strong>.</p>
+                <p>Vous trouverez ci-joint une copie au format PDF pour vos archives.</p>
+                <p>Merci pour votre confiance.</p>
+                <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;" />
+                <p style="font-size: 0.8em; color: #64748b;">
+                  ${company.name}<br/>
+                  ${company.address || ''}<br/>
+                  ${company.phone || ''} | ${company.email || ''}
+                </p>
+              </div>
+            `,
+            attachments: [
+              {
+                filename: `${inv.type === 'Quote' ? 'Devis' : 'Facture'}_${inv.id}.pdf`,
+                content: pdfBuffer,
+                contentType: 'application/pdf'
+              }
+            ]
+          });
+        }
+      } catch (emailError) {
+        console.error('Failed to send signed document email:', emailError);
+      }
+    }
+    
     res.json(inv);
   } catch (error) {
     await req.db.query('ROLLBACK');
@@ -197,7 +314,10 @@ invoicesRouter.post('/:id/send-email', async (req, res, next) => {
 
     const itemsHtml = items.map(item => `
       <tr>
-        <td style="padding: 8px; border-bottom: 1px solid #eee;">${item.name}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee;">
+          <strong>${item.name}</strong>
+          ${item.description ? `<br/><span style="font-size: 0.85em; color: #666;">${item.description}</span>` : ''}
+        </td>
         <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
         <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.price.toLocaleString()} ${company.currency}</td>
         <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${(item.quantity * item.price).toLocaleString()} ${company.currency}</td>

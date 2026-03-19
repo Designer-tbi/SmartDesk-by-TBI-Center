@@ -2,8 +2,8 @@ import { Router } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 import nodemailer from 'nodemailer';
-import { requireAuth } from '../middleware/auth.js';
-import { seedDefaultRoles } from '../../db.js';
+import { requireAuth } from '../middleware/auth';
+import { seedDefaultRoles } from '../../db';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
 

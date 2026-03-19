@@ -269,11 +269,11 @@ export const Accounting = ({ user }: { user?: any }) => {
       startY: 60,
       head: [['Libellé', 'Montant (' + currencySymbol + ')']],
       body: [
-        [`${taxLabel} Collectée (Journal)`, (tvaData.collected - tvaFromInvoices).toLocaleString()],
+        [`${taxLabel} ${t('accounting.vatCollected')} (Journal)`, (tvaData.collected - tvaFromInvoices).toLocaleString()],
         [`${taxLabel} sur Factures Payées`, tvaFromInvoices.toLocaleString()],
-        [`TOTAL ${taxLabel} COLLECTÉE`, tvaData.collected.toLocaleString()],
-        [`${taxLabel} Déductible`, tvaData.deductible.toLocaleString()],
-        [`${taxLabel} À PAYER / CRÉDIT`, (tvaData.collected - tvaData.deductible).toLocaleString()],
+        [`TOTAL ${taxLabel} ${t('accounting.vatCollected').toUpperCase()}`, tvaData.collected.toLocaleString()],
+        [`${taxLabel} ${t('accounting.vatDeductible')}`, tvaData.deductible.toLocaleString()],
+        [`${taxLabel} ${t('accounting.vatToPay')}`, (tvaData.collected - tvaData.deductible).toLocaleString()],
       ],
       theme: 'striped',
       headStyles: { fillColor: [79, 70, 229] },
@@ -325,7 +325,7 @@ export const Accounting = ({ user }: { user?: any }) => {
     autoTable(doc, {
       startY: 45,
       head: [['Code', 'Compte', 'Montant']],
-      body: [...actifRows, [{ content: 'TOTAL ACTIF', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: bilanTotals.assets.toLocaleString(), styles: { fontStyle: 'bold' } }]],
+      body: [...actifRows, [{ content: t('accounting.totalAssets'), colSpan: 2, styles: { fontStyle: 'bold' } }, { content: bilanTotals.assets.toLocaleString(), styles: { fontStyle: 'bold' } }]],
     });
 
     doc.text('PASSIF & CAPITAUX', 20, (doc as any).lastAutoTable.finalY + 20);
@@ -336,7 +336,7 @@ export const Accounting = ({ user }: { user?: any }) => {
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 25,
       head: [['Code', 'Compte', 'Montant']],
-      body: [...passifRows, [{ content: 'TOTAL PASSIF', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: bilanTotals.liabilities.toLocaleString(), styles: { fontStyle: 'bold' } }]],
+      body: [...passifRows, [{ content: t('accounting.totalLiabilities'), colSpan: 2, styles: { fontStyle: 'bold' } }, { content: bilanTotals.liabilities.toLocaleString(), styles: { fontStyle: 'bold' } }]],
     });
 
     // Page 3: Compte de Résultat
@@ -353,7 +353,7 @@ export const Accounting = ({ user }: { user?: any }) => {
     autoTable(doc, {
       startY: 45,
       head: [['Code', 'Compte', 'Montant']],
-      body: [...produitRows, [{ content: 'TOTAL PRODUITS', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: resultatTotals.revenue.toLocaleString(), styles: { fontStyle: 'bold' } }]],
+      body: [...produitRows, [{ content: t('accounting.totalRevenue'), colSpan: 2, styles: { fontStyle: 'bold' } }, { content: resultatTotals.revenue.toLocaleString(), styles: { fontStyle: 'bold' } }]],
     });
 
     doc.text('CHARGES', 20, (doc as any).lastAutoTable.finalY + 20);
@@ -364,12 +364,12 @@ export const Accounting = ({ user }: { user?: any }) => {
     autoTable(doc, {
       startY: (doc as any).lastAutoTable.finalY + 25,
       head: [['Code', 'Compte', 'Montant']],
-      body: [...chargeRows, [{ content: 'TOTAL CHARGES', colSpan: 2, styles: { fontStyle: 'bold' } }, { content: resultatTotals.expenses.toLocaleString(), styles: { fontStyle: 'bold' } }]],
+      body: [...chargeRows, [{ content: t('accounting.totalExpenses'), colSpan: 2, styles: { fontStyle: 'bold' } }, { content: resultatTotals.expenses.toLocaleString(), styles: { fontStyle: 'bold' } }]],
     });
 
     const net = resultatTotals.revenue - resultatTotals.expenses;
     doc.setFontSize(14);
-    doc.text(`RÉSULTAT NET : ${net.toLocaleString()} ${currencySymbol}`, 105, (doc as any).lastAutoTable.finalY + 30, { align: 'center' });
+    doc.text(`${t('accounting.netResult')} : ${net.toLocaleString()} ${currencySymbol}`, 105, (doc as any).lastAutoTable.finalY + 30, { align: 'center' });
 
     doc.save(`Liasse_Fiscale_${(companyInfo?.name || 'Entreprise').replace(/\s+/g, '_')}_${year}.pdf`);
   };
@@ -382,21 +382,21 @@ export const Accounting = ({ user }: { user?: any }) => {
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="p-3 bg-emerald-100 text-emerald-600 rounded-xl"><TrendingUp /></div>
               <div>
-                <p className="text-sm text-slate-500">Revenus</p>
+                <p className="text-sm text-slate-500">{t('accounting.revenue')}</p>
                 <p className="text-xl font-bold">{totalIncome.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="p-3 bg-rose-100 text-rose-600 rounded-xl"><TrendingDown /></div>
               <div>
-                <p className="text-sm text-slate-500">Dépenses</p>
+                <p className="text-sm text-slate-500">{t('accounting.expenses')}</p>
                 <p className="text-xl font-bold">{totalExpenses.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
               <div className="p-3 bg-indigo-100 text-indigo-600 rounded-xl"><DollarSign /></div>
               <div>
-                <p className="text-sm text-slate-500">Bénéfice Net</p>
+                <p className="text-sm text-slate-500">{t('accounting.netProfit')}</p>
                 <p className="text-xl font-bold">{netProfit.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>

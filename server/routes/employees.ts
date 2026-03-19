@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireCompany } from '../middleware/auth.js';
+import { requireAuth, requireCompany } from '../middleware/auth';
 
 export const employeesRouter = Router();
 

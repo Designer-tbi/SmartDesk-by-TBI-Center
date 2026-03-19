@@ -18,7 +18,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
-import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addDays, startOfYear, endOfYear, eachMonthOfInterval, addWeeks, subWeeks, addYears, subYears } from 'date-fns';
+import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addDays, startOfYear, endOfYear, eachMonthOfInterval, addWeeks, subWeeks, addYears, subYears, startOfDay, endOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 type ViewType = 'day' | 'week' | 'month' | 'year';
@@ -36,7 +36,7 @@ interface Event {
   assignedToName?: string;
 }
 
-export const Agenda = () => {
+export const Agenda = ({ user }: { user?: any }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<ViewType>('month');
   const [events, setEvents] = useState<Event[]>([]);
@@ -44,6 +44,7 @@ export const Agenda = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     title: '',
@@ -110,32 +111,67 @@ export const Agenda = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const method = selectedEvent ? 'PUT' : 'POST';
-      const url = selectedEvent ? `/api/events/${selectedEvent.id}` : '/api/events';
-      
-      const res = await apiFetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      const start = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 
-      if (res.ok) {
-        setIsModalOpen(false);
-        setSelectedEvent(null);
-        fetchEvents();
+      if (diffHours > 24 && !selectedEvent) {
+        const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
+        const isNightShift = end.getHours() < start.getHours() || (end.getHours() === start.getHours() && end.getMinutes() < start.getMinutes());
+        const daysCount = isNightShift ? days.length - 1 : days.length;
+
+        const promises = [];
+        for (let i = 0; i < daysCount; i++) {
+          const currentDay = days[i];
+          const dailyStart = new Date(currentDay);
+          dailyStart.setHours(start.getHours(), start.getMinutes(), 0, 0);
+          
+          const dailyEnd = new Date(currentDay);
+          dailyEnd.setHours(end.getHours(), end.getMinutes(), 0, 0);
+          if (isNightShift) {
+            dailyEnd.setDate(dailyEnd.getDate() + 1);
+          }
+
+          promises.push(
+            apiFetch('/api/events', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                ...formData,
+                startDate: dailyStart.toISOString(),
+                endDate: dailyEnd.toISOString()
+              })
+            })
+          );
+        }
+
+        await Promise.all(promises);
+      } else {
+        const method = selectedEvent ? 'PUT' : 'POST';
+        const url = selectedEvent ? `/api/events/${selectedEvent.id}` : '/api/events';
+        
+        await apiFetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
       }
+
+      setIsModalOpen(false);
+      setSelectedEvent(null);
+      fetchEvents();
     } catch (err) {
       console.error('Failed to save event:', err);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Supprimer cet événement ?')) return;
     try {
       const res = await apiFetch(`/api/events/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setIsModalOpen(false);
         setSelectedEvent(null);
+        setShowDeleteConfirm(false);
         fetchEvents();
       }
     } catch (err) {
@@ -144,6 +180,7 @@ export const Agenda = () => {
   };
 
   const openAddModal = (date?: Date) => {
+    setShowDeleteConfirm(false);
     const start = date ? format(date, "yyyy-MM-dd'T'09:00") : format(new Date(), "yyyy-MM-dd'T'HH:mm");
     const end = date ? format(date, "yyyy-MM-dd'T'10:00") : format(addDays(new Date(), 0), "yyyy-MM-dd'T'HH:mm");
     
@@ -162,6 +199,7 @@ export const Agenda = () => {
 
   const openEditModal = (event: Event) => {
     setSelectedEvent(event);
+    setShowDeleteConfirm(false);
     setFormData({
       title: event.title,
       description: event.description,
@@ -189,7 +227,11 @@ export const Agenda = () => {
           </div>
         ))}
         {calendarDays.map((day, i) => {
-          const dayEvents = events.filter(e => isSameDay(new Date(e.startDate), day));
+          const dayEvents = events.filter(e => {
+            const start = startOfDay(new Date(e.startDate));
+            const end = endOfDay(new Date(e.endDate));
+            return day >= start && day <= end;
+          });
           return (
             <div 
               key={i} 
@@ -260,11 +302,22 @@ export const Agenda = () => {
                     openAddModal(d);
                   }}></div>
                 ))}
-                {events.filter(e => isSameDay(new Date(e.startDate), day)).map(event => {
+                {events.filter(e => {
+                  const start = startOfDay(new Date(e.startDate));
+                  const end = endOfDay(new Date(e.endDate));
+                  return day >= start && day <= end;
+                }).map(event => {
                   const start = new Date(event.startDate);
                   const end = new Date(event.endDate);
-                  const top = (start.getHours() * 80) + (start.getMinutes() * 80 / 60);
-                  const height = Math.max(40, ((end.getTime() - start.getTime()) / (1000 * 60 * 60)) * 80);
+                  
+                  const isStartDay = isSameDay(start, day);
+                  const isEndDay = isSameDay(end, day);
+                  
+                  const startHour = isStartDay ? start.getHours() + (start.getMinutes() / 60) : 0;
+                  const endHour = isEndDay ? end.getHours() + (end.getMinutes() / 60) : 24;
+                  
+                  const top = startHour * 80;
+                  const height = Math.max(20, (endHour - startHour) * 80);
                   
                   return (
                     <div 
@@ -288,7 +341,11 @@ export const Agenda = () => {
 
   const renderDayView = () => {
     const hours = Array.from({ length: 24 }, (_, i) => i);
-    const dayEvents = events.filter(e => isSameDay(new Date(e.startDate), currentDate));
+    const dayEvents = events.filter(e => {
+      const start = startOfDay(new Date(e.startDate));
+      const end = endOfDay(new Date(e.endDate));
+      return currentDate >= start && currentDate <= end;
+    });
 
     return (
       <div className="flex border border-slate-200 rounded-xl overflow-hidden bg-white">
@@ -310,8 +367,15 @@ export const Agenda = () => {
           {dayEvents.map(event => {
             const start = new Date(event.startDate);
             const end = new Date(event.endDate);
-            const top = (start.getHours() * 80) + (start.getMinutes() * 80 / 60);
-            const height = Math.max(40, ((end.getTime() - start.getTime()) / (1000 * 60 * 60)) * 80);
+            
+            const isStartDay = isSameDay(start, currentDate);
+            const isEndDay = isSameDay(end, currentDate);
+            
+            const startHour = isStartDay ? start.getHours() + (start.getMinutes() / 60) : 0;
+            const endHour = isEndDay ? end.getHours() + (end.getMinutes() / 60) : 24;
+            
+            const top = startHour * 80;
+            const height = Math.max(40, (endHour - startHour) * 80);
             
             return (
               <div 
@@ -620,14 +684,33 @@ export const Agenda = () => {
                 {/* Footer */}
                 <div className="px-10 py-8 bg-slate-50/80 backdrop-blur-md border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-6 shrink-0">
                   {selectedEvent ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(selectedEvent.id)}
-                      className="group flex items-center gap-2 px-8 py-4 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-all w-full sm:w-auto justify-center"
-                    >
-                      <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                      Supprimer l'événement
-                    </button>
+                    showDeleteConfirm ? (
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(selectedEvent.id)}
+                          className="flex-1 sm:flex-none px-4 py-4 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-2xl transition-all text-center"
+                        >
+                          Confirmer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteConfirm(false)}
+                          className="flex-1 sm:flex-none px-4 py-4 text-sm font-bold text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-2xl transition-all text-center"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="group flex items-center gap-2 px-8 py-4 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-all w-full sm:w-auto justify-center"
+                      >
+                        <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        Supprimer l'événement
+                      </button>
+                    )
                   ) : <div className="hidden sm:block" />}
                   
                   <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">

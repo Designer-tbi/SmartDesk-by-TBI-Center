@@ -38,7 +38,7 @@ interface Schedule {
   status: string;
 }
 
-export const Planning = () => {
+export const Planning = ({ user }: { user?: any }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<ViewType>('week');
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -46,6 +46,7 @@ export const Planning = () => {
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     userId: '',
@@ -114,20 +115,52 @@ export const Planning = () => {
     if (!canManage) return;
 
     try {
-      const method = selectedSchedule ? 'PUT' : 'POST';
-      const url = selectedSchedule ? `/api/schedules/${selectedSchedule.id}` : '/api/schedules';
-      
-      const res = await apiFetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      const start = new Date(formData.startDate);
+      const end = new Date(formData.endDate);
+      const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
 
-      if (res.ok) {
-        setIsModalOpen(false);
-        setSelectedSchedule(null);
-        fetchSchedules();
+      if (diffHours > 24 && !selectedSchedule) {
+        // Create a separate schedule for each day
+        const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
+        const isNightShift = end.getHours() < start.getHours() || (end.getHours() === start.getHours() && end.getMinutes() < start.getMinutes());
+        const effectiveDays = isNightShift ? days.slice(0, -1) : days;
+
+        const promises = effectiveDays.map(day => {
+          const dayStart = new Date(day);
+          dayStart.setHours(start.getHours(), start.getMinutes());
+          
+          const dayEnd = new Date(day);
+          dayEnd.setHours(end.getHours(), end.getMinutes());
+          if (isNightShift) {
+            dayEnd.setDate(dayEnd.getDate() + 1);
+          }
+          
+          return apiFetch('/api/schedules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...formData,
+              startDate: format(dayStart, "yyyy-MM-dd'T'HH:mm"),
+              endDate: format(dayEnd, "yyyy-MM-dd'T'HH:mm")
+            })
+          });
+        });
+        
+        await Promise.all(promises);
+      } else {
+        const method = selectedSchedule ? 'PUT' : 'POST';
+        const url = selectedSchedule ? `/api/schedules/${selectedSchedule.id}` : '/api/schedules';
+        
+        await apiFetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
       }
+
+      setIsModalOpen(false);
+      setSelectedSchedule(null);
+      fetchSchedules();
     } catch (err) {
       console.error('Failed to save schedule:', err);
     }
@@ -135,12 +168,12 @@ export const Planning = () => {
 
   const handleDelete = async (id: string) => {
     if (!canManage) return;
-    if (!window.confirm('Supprimer ce planning ?')) return;
     try {
       const res = await apiFetch(`/api/schedules/${id}`, { method: 'DELETE' });
       if (res.ok) {
         setIsModalOpen(false);
         setSelectedSchedule(null);
+        setShowDeleteConfirm(false);
         fetchSchedules();
       }
     } catch (err) {
@@ -150,6 +183,7 @@ export const Planning = () => {
 
   const openAddModal = (date?: Date, userId?: string) => {
     if (!canManage) return;
+    setShowDeleteConfirm(false);
     const start = date ? format(date, "yyyy-MM-dd'T'09:00") : format(new Date(), "yyyy-MM-dd'T'09:00");
     const end = date ? format(date, "yyyy-MM-dd'T'17:00") : format(new Date(), "yyyy-MM-dd'T'17:00");
     
@@ -169,6 +203,7 @@ export const Planning = () => {
   const openEditModal = (schedule: Schedule) => {
     if (!canManage) return;
     setSelectedSchedule(schedule);
+    setShowDeleteConfirm(false);
     setFormData({
       userId: schedule.userId,
       title: schedule.title,
@@ -262,7 +297,12 @@ export const Planning = () => {
                 </div>
               </div>
               {weekDays.map(day => {
-                const daySchedules = schedules.filter(s => s.userId === user.id && isSameDay(new Date(s.startDate), day));
+                const daySchedules = schedules.filter(s => {
+                  if (s.userId !== user.id) return false;
+                  const start = startOfDay(new Date(s.startDate));
+                  const end = endOfDay(new Date(s.endDate));
+                  return day >= start && day <= end;
+                });
                 return (
                   <div 
                     key={day.toString()} 
@@ -320,7 +360,22 @@ export const Planning = () => {
               </div>
               <div className="relative p-1">
                 {schedules
-                  .filter(s => isSameDay(new Date(s.startDate), currentDate) && new Date(s.startDate).getHours() === hour)
+                  .filter(s => {
+                    const start = new Date(s.startDate);
+                    const end = new Date(s.endDate);
+                    const isStartDay = isSameDay(start, currentDate);
+                    const isBetween = currentDate >= startOfDay(start) && currentDate <= endOfDay(end);
+                    
+                    if (!isBetween) return false;
+                    
+                    // If it's the start day, show it at the start hour
+                    if (isStartDay) {
+                      return start.getHours() === hour;
+                    }
+                    
+                    // If it's a subsequent day, show it at 00:00 (or the start of the day)
+                    return hour === 0;
+                  })
                   .map(sch => (
                     <div 
                       key={sch.id}
@@ -365,7 +420,11 @@ export const Planning = () => {
         </div>
         <div className="grid grid-cols-7">
           {calendarDays.map((day, idx) => {
-            const daySchedules = schedules.filter(s => isSameDay(new Date(s.startDate), day));
+            const daySchedules = schedules.filter(s => {
+              const start = startOfDay(new Date(s.startDate));
+              const end = endOfDay(new Date(s.endDate));
+              return day >= start && day <= end;
+            });
             const isCurrentMonth = isSameMonth(day, monthStart);
             const isToday = isSameDay(day, new Date());
 
@@ -707,11 +766,30 @@ export const Planning = () => {
                             Durée totale : {(() => {
                               const start = new Date(formData.startDate);
                               const end = new Date(formData.endDate);
-                              const diff = end.getTime() - start.getTime();
+                              const diffHours = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                              
+                              let diff = end.getTime() - start.getTime();
+                              let daysCount = 1;
+                              
+                              if (diffHours > 24 && !selectedSchedule) {
+                                const days = eachDayOfInterval({ start: startOfDay(start), end: startOfDay(end) });
+                                const isNightShift = end.getHours() < start.getHours() || (end.getHours() === start.getHours() && end.getMinutes() < start.getMinutes());
+                                daysCount = isNightShift ? days.length - 1 : days.length;
+                                
+                                const dailyStart = new Date(start);
+                                const dailyEnd = new Date(start);
+                                dailyEnd.setHours(end.getHours(), end.getMinutes(), 0, 0);
+                                if (isNightShift) {
+                                  dailyEnd.setDate(dailyEnd.getDate() + 1);
+                                }
+                                
+                                diff = (dailyEnd.getTime() - dailyStart.getTime()) * daysCount;
+                              }
+                              
                               if (diff <= 0) return 'Invalide';
                               const hours = Math.floor(diff / (1000 * 60 * 60));
                               const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                              return `${hours}h${minutes > 0 ? minutes.toString().padStart(2, '0') : ''}`;
+                              return `${hours}h${minutes > 0 ? minutes.toString().padStart(2, '0') : ''} ${daysCount > 1 ? `(${daysCount} jours)` : ''}`;
                             })()}
                           </span>
                         </div>
@@ -767,14 +845,33 @@ export const Planning = () => {
                 {/* Footer Fixé */}
                 <div className="px-6 sm:px-10 py-8 bg-slate-50/80 backdrop-blur-sm border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
                   {selectedSchedule ? (
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(selectedSchedule.id)}
-                      className="group flex items-center gap-2 px-6 py-4 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-all w-full sm:w-auto justify-center"
-                    >
-                      <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                      Supprimer
-                    </button>
+                    showDeleteConfirm ? (
+                      <div className="flex items-center gap-2 w-full sm:w-auto">
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(selectedSchedule.id)}
+                          className="flex-1 sm:flex-none px-4 py-4 text-sm font-bold text-white bg-red-500 hover:bg-red-600 rounded-2xl transition-all text-center"
+                        >
+                          Confirmer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowDeleteConfirm(false)}
+                          className="flex-1 sm:flex-none px-4 py-4 text-sm font-bold text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-2xl transition-all text-center"
+                        >
+                          Annuler
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setShowDeleteConfirm(true)}
+                        className="group flex items-center gap-2 px-6 py-4 text-sm font-bold text-red-500 hover:bg-red-50 rounded-2xl transition-all w-full sm:w-auto justify-center"
+                      >
+                        <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        Supprimer
+                      </button>
+                    )
                   ) : <div className="hidden sm:block" />}
                   
                   <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">

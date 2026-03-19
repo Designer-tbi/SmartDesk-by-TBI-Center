@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireTenant } from '../middleware/auth.js';
+import { requireTenant } from '../middleware/auth';
 
 export const companyRouter = Router();
 
@@ -115,6 +115,35 @@ companyRouter.post('/roles', async (req, res, next) => {
     
     await req.db.query('COMMIT');
     res.status(201).json(role);
+  } catch (error) {
+    await req.db.query('ROLLBACK');
+    next(error);
+  }
+});
+
+companyRouter.put('/roles/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, permissions } = req.body;
+    await req.db.query('BEGIN');
+    
+    const roleCheck = await req.db.query('SELECT id FROM roles WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    if (roleCheck.rows.length === 0) {
+      await req.db.query('ROLLBACK');
+      return res.status(404).json({ error: 'Role not found' });
+    }
+    
+    await req.db.query('UPDATE roles SET name = $1 WHERE id = $2 AND "companyId" = $3', [name, id, req.user!.companyId]);
+    await req.db.query('DELETE FROM role_permissions WHERE "roleId" = $1', [id]);
+    
+    if (Array.isArray(permissions)) {
+      for (const permId of permissions) {
+        await req.db.query('INSERT INTO role_permissions ("roleId", "permissionId") VALUES ($1, $2)', [id, permId]);
+      }
+    }
+    
+    await req.db.query('COMMIT');
+    res.json({ id, name, permissions });
   } catch (error) {
     await req.db.query('ROLLBACK');
     next(error);

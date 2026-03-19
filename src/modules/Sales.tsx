@@ -22,6 +22,8 @@ export const Sales = ({ user }: { user: any }) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'Tous' | 'Invoice' | 'Quote'>('Tous');
   const [quoteSubTab, setQuoteSubTab] = useState<'list' | 'templates' | 'signed'>('list');
   const [templates, setTemplates] = useState<QuoteTemplate[]>([]);
@@ -39,6 +41,7 @@ export const Sales = ({ user }: { user: any }) => {
   const [isSending, setIsSending] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   useEffect(() => {
@@ -182,7 +185,7 @@ export const Sales = ({ user }: { user: any }) => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newInvoice.contactId || (newInvoice.items || []).length === 0) {
-      alert("Veuillez sélectionner un client et ajouter au moins un article.");
+      setError("Veuillez sélectionner un client et ajouter au moins un article.");
       return;
     }
 
@@ -197,7 +200,7 @@ export const Sales = ({ user }: { user: any }) => {
           fetchData();
           resetForm();
         } else {
-          setError('Erreur lors de la mise à jour.');
+          setError(t('sales.errorUpdate'));
         }
       } else {
         const prefix = newInvoice.type === 'Invoice' ? 'INV' : 'DEV';
@@ -211,12 +214,12 @@ export const Sales = ({ user }: { user: any }) => {
           fetchData();
           resetForm();
         } else {
-          setError('Erreur lors de la création.');
+          setError(t('sales.errorCreate'));
         }
       }
     } catch (error) {
       console.error('Failed to save invoice:', error);
-      setError('Erreur de connexion.');
+      setError(t('sales.errorConnection'));
     } finally {
       setIsSubmitting(false);
     }
@@ -231,11 +234,11 @@ export const Sales = ({ user }: { user: any }) => {
         fetchData();
         if (viewInvoice?.id === id) setViewInvoice(null);
       } else {
-        setError('Erreur lors de la suppression.');
+        setError(t('sales.errorDelete'));
       }
     } catch (error) {
       console.error('Failed to delete invoice:', error);
-      setError('Erreur de connexion.');
+      setError(t('sales.errorConnection'));
     }
   };
 
@@ -254,14 +257,15 @@ export const Sales = ({ user }: { user: any }) => {
 
       if (response.ok) {
         fetchData();
-        alert(`Le document ${invoice.id} a été envoyé par email au client.`);
+        setSuccessMessage(t('sales.emailSent', { id: invoice.id }));
+        setTimeout(() => setSuccessMessage(null), 3000);
       } else {
         const errorData = await response.json();
-        setError(errorData.error || "Erreur lors de l'envoi de l'email.");
+        setError(errorData.error || t('sales.errorSendEmail'));
       }
     } catch (error) {
       console.error('Failed to send email:', error);
-      setError('Erreur de connexion.');
+      setError(t('sales.errorConnection'));
     } finally {
       setIsSending(null);
     }
@@ -283,11 +287,11 @@ export const Sales = ({ user }: { user: any }) => {
         setSigningQuote(null);
         setHasSignature(false);
       } else {
-        setError('Erreur lors de la signature.');
+        setError(t('sales.errorSignature'));
       }
     } catch (error) {
       console.error('Failed to sign quote:', error);
-      setError('Erreur de connexion.');
+      setError(t('sales.errorConnection'));
     }
   };
 
@@ -329,9 +333,10 @@ export const Sales = ({ user }: { user: any }) => {
     setHasSignature(false);
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
-    alert('Lien de signature copié !');
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
   };
 
   const applyTemplate = (template: QuoteTemplate) => {
@@ -347,24 +352,23 @@ export const Sales = ({ user }: { user: any }) => {
   };
 
   const handleDeleteTemplate = async (id: string) => {
-    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce modèle ?')) {
-      try {
-        const response = await apiFetch(`/api/invoices/quote-templates/${id}`, {
-          method: 'DELETE',
-        });
-        if (response.ok) {
-          fetchData();
-        } else {
-          setError('Erreur lors de la suppression du modèle.');
-        }
-      } catch (error) {
-        console.error('Failed to delete template:', error);
-        setError('Erreur de connexion.');
+    try {
+      const response = await apiFetch(`/api/invoices/quote-templates/${id}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setDeletingTemplateId(null);
+        fetchData();
+      } else {
+        setError(t('sales.errorDeleteTemplate'));
       }
+    } catch (error) {
+      console.error('Failed to delete template:', error);
+      setError(t('sales.errorConnection'));
     }
   };
 
-  const getContactName = (id: string) => contacts.find(c => c.id === id)?.name || 'Client inconnu';
+  const getContactName = (id: string) => contacts.find(c => c.id === id)?.name || t('sales.unknownClient');
   const getContact = (id: string) => contacts.find(c => c.id === id);
 
   return (
@@ -373,6 +377,20 @@ export const Sales = ({ user }: { user: any }) => {
       animate={{ opacity: 1 }}
       className="space-y-6"
     >
+      {error && (
+        <div className="p-4 bg-rose-50 text-rose-600 rounded-2xl text-sm font-bold flex items-center gap-2">
+          <AlertCircle className="w-5 h-5" />
+          {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl text-sm font-bold flex items-center gap-2">
+          <CheckCircle className="w-5 h-5" />
+          {successMessage}
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
@@ -389,7 +407,7 @@ export const Sales = ({ user }: { user: any }) => {
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
-                {f === 'Tous' ? 'Tous' : f === 'Invoice' ? 'Factures' : 'Devis'}
+                {f === 'Tous' ? t('sales.all') : f === 'Invoice' ? t('sales.invoices') : t('sales.quotes')}
               </button>
             ))}
           </div>
@@ -408,7 +426,10 @@ export const Sales = ({ user }: { user: any }) => {
             <label className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 active:scale-95 cursor-pointer">
               <Plus className="w-5 h-5" />
               Réceptionner un Devis
-              <input type="file" className="hidden" onChange={() => alert('Devis réceptionné !')} />
+              <input type="file" className="hidden" onChange={() => {
+                setSuccessMessage('Devis réceptionné !');
+                setTimeout(() => setSuccessMessage(null), 3000);
+              }} />
             </label>
           ) : (
             <button 
@@ -535,8 +556,8 @@ export const Sales = ({ user }: { user: any }) => {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
                           {invoice.type === 'Quote' && invoice.status === 'Sent' && invoice.signatureLink && (
-                            <button onClick={() => copyToClipboard(invoice.signatureLink!)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title="Copier lien signature">
-                              <LinkIcon className="w-4 h-4" />
+                            <button onClick={() => copyToClipboard(invoice.signatureLink!, invoice.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title="Copier lien signature">
+                              {copiedId === invoice.id ? <Check className="w-4 h-4 text-emerald-500" /> : <LinkIcon className="w-4 h-4" />}
                             </button>
                           )}
                           {invoice.type === 'Quote' && invoice.status === 'Sent' && (
@@ -575,7 +596,14 @@ export const Sales = ({ user }: { user: any }) => {
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
                   <button className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
-                  <button onClick={() => handleDeleteTemplate(template.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
+                  {deletingTemplateId === template.id ? (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => handleDeleteTemplate(template.id)} className="p-1.5 text-white bg-red-500 hover:bg-red-600 rounded-lg transition-all text-[10px] font-bold">Oui</button>
+                      <button onClick={() => setDeletingTemplateId(null)} className="p-1.5 text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-lg transition-all text-[10px] font-bold">Non</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setDeletingTemplateId(template.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
+                  )}
                 </div>
               </div>
               <h4 className="font-bold text-slate-900 mb-1">{template.name}</h4>

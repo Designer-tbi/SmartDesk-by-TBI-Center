@@ -204,11 +204,11 @@ export const HR = ({ user }: { user: any }) => {
         fetchData();
         setDeleteConfirmId(null);
       } else {
-        setError('Erreur lors de la suppression.');
+        setError(t('hr.errorDelete'));
       }
     } catch (error) {
       console.error('Failed to delete employee:', error);
-      setError('Erreur de connexion.');
+      setError(t('hr.errorConnection'));
     }
   };
 
@@ -367,7 +367,7 @@ export const HR = ({ user }: { user: any }) => {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    alert('Lien copié dans le presse-papier !');
+    alert(t('hr.linkCopied'));
   };
 
   return (
@@ -382,7 +382,7 @@ export const HR = ({ user }: { user: any }) => {
             }`}
           >
             <Users className="w-4 h-4" />
-            Annuaire
+            {t('hr.directory')}
           </button>
           <button
             onClick={() => setActiveTab('contracts')}
@@ -391,7 +391,7 @@ export const HR = ({ user }: { user: any }) => {
             }`}
           >
             <FileText className="w-4 h-4" />
-            Contrats
+            {t('hr.contracts')}
           </button>
           <button
             onClick={() => setActiveTab('leaves')}
@@ -400,7 +400,7 @@ export const HR = ({ user }: { user: any }) => {
             }`}
           >
             <Coffee className="w-4 h-4" />
-            Congés
+            {t('hr.leaves')}
           </button>
           <button
             onClick={() => setActiveTab('payroll')}
@@ -409,7 +409,7 @@ export const HR = ({ user }: { user: any }) => {
             }`}
           >
             <CreditCard className="w-4 h-4" />
-            Paie
+            {t('hr.payroll')}
           </button>
           <button
             onClick={() => setActiveTab('stats')}
@@ -418,7 +418,7 @@ export const HR = ({ user }: { user: any }) => {
             }`}
           >
             <BarChart3 className="w-4 h-4" />
-            Analyses
+            {t('hr.analytics')}
           </button>
           <button
             onClick={() => setActiveTab('tasks')}
@@ -427,7 +427,7 @@ export const HR = ({ user }: { user: any }) => {
             }`}
           >
             <CheckSquare className="w-4 h-4" />
-            Tâches
+            {t('hr.tasks')}
           </button>
         </div>
         

@@ -5,12 +5,13 @@ import { Users as UsersIcon, Shield, Lock, Plus, Search, MoreVertical, Mail, Shi
 import { apiFetch } from '../lib/api';
 import { ConfirmModal } from '../components/ConfirmModal';
 
-export const Users = () => {
+export const Users = ({ user }: { user?: any }) => {
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [activeTab, setActiveTab] = useState<'users' | 'roles'>('users');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
+  const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmType, setDeleteConfirmType] = useState<'user' | 'role' | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -76,19 +77,33 @@ export const Users = () => {
   const handleAddRole = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const id = `role-${Math.random().toString(36).substr(2, 9)}`;
-      const response = await apiFetch('/api/company/roles', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newRole, id })
-      });
-      if (response.ok) {
-        fetchData();
-        setIsRoleModalOpen(false);
-        setNewRole({ name: '', permissions: [] });
+      if (editingRole) {
+        const response = await apiFetch(`/api/company/roles/${editingRole.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newRole)
+        });
+        if (response.ok) {
+          fetchData();
+          setIsRoleModalOpen(false);
+          setEditingRole(null);
+          setNewRole({ name: '', permissions: [] });
+        }
+      } else {
+        const id = `role-${Math.random().toString(36).substr(2, 9)}`;
+        const response = await apiFetch('/api/company/roles', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...newRole, id })
+        });
+        if (response.ok) {
+          fetchData();
+          setIsRoleModalOpen(false);
+          setNewRole({ name: '', permissions: [] });
+        }
       }
     } catch (error) {
-      console.error('Failed to add role:', error);
+      console.error('Failed to save role:', error);
     }
   };
 
@@ -145,7 +160,15 @@ export const Users = () => {
         </div>
         
         <button 
-          onClick={() => activeTab === 'users' ? setIsUserModalOpen(true) : setIsRoleModalOpen(true)}
+          onClick={() => {
+            if (activeTab === 'users') {
+              setIsUserModalOpen(true);
+            } else {
+              setEditingRole(null);
+              setNewRole({ name: '', permissions: [] });
+              setIsRoleModalOpen(true);
+            }
+          }}
           className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
         >
           <Plus className="w-5 h-5" />
@@ -220,7 +243,15 @@ export const Users = () => {
                   <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                  <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm" title="Modifier">
+                  <button 
+                    onClick={() => {
+                      setEditingRole(role);
+                      setNewRole({ name: role.name, permissions: role.permissions });
+                      setIsRoleModalOpen(true);
+                    }}
+                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm" 
+                    title="Modifier"
+                  >
                     <Edit2 className="w-4 h-4" />
                   </button>
                   <button onClick={() => { setDeleteConfirmId(role.id); setDeleteConfirmType('role'); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm" title="Supprimer">
@@ -297,7 +328,7 @@ export const Users = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <form onSubmit={handleAddRole} className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-6">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold">Nouveau Rôle</h3>
+              <h3 className="text-xl font-bold">{editingRole ? 'Modifier le Rôle' : 'Nouveau Rôle'}</h3>
               <button type="button" onClick={() => setIsRoleModalOpen(false)}><X className="w-6 h-6 text-slate-400" /></button>
             </div>
             <div className="space-y-6">
@@ -315,27 +346,34 @@ export const Users = () => {
               
               <div className="space-y-3">
                 <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Permissions</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
-                  {MOCK_PERMISSIONS.map(perm => (
-                    <div 
-                      key={perm.id}
-                      onClick={() => togglePermission(perm.id)}
-                      className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center gap-3 ${
-                        newRole.permissions.includes(perm.id)
-                          ? "bg-indigo-50 border-indigo-200 text-indigo-700"
-                          : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
-                      }`}
-                    >
-                      <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${
-                        newRole.permissions.includes(perm.id)
-                          ? "bg-indigo-600 border-indigo-600 text-white"
-                          : "bg-white border-slate-300"
-                      }`}>
-                        {newRole.permissions.includes(perm.id) && <Check className="w-3 h-3" />}
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold">{perm.name}</div>
-                        <div className="text-[10px] opacity-70">{perm.module}</div>
+                <div className="max-h-[400px] overflow-y-auto pr-2 custom-scrollbar space-y-6">
+                  {Array.from(new Set(MOCK_PERMISSIONS.map(p => p.module))).map(module => (
+                    <div key={module} className="space-y-3">
+                      <h4 className="text-sm font-bold text-slate-700 border-b border-slate-100 pb-2">{module}</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {MOCK_PERMISSIONS.filter(p => p.module === module).map(perm => (
+                          <div 
+                            key={perm.id}
+                            onClick={() => togglePermission(perm.id)}
+                            className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center gap-3 ${
+                              newRole.permissions.includes(perm.id)
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                                : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
+                            }`}
+                          >
+                            <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${
+                              newRole.permissions.includes(perm.id)
+                                ? "bg-indigo-600 border-indigo-600 text-white"
+                                : "bg-white border-slate-300"
+                            }`}>
+                              {newRole.permissions.includes(perm.id) && <Check className="w-3 h-3" />}
+                            </div>
+                            <div>
+                              <div className="text-xs font-bold">{perm.name}</div>
+                              <div className="text-[10px] opacity-70">{perm.description}</div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -354,7 +392,7 @@ export const Users = () => {
                   type="submit" 
                   className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
                 >
-                  Créer le rôle
+                  {editingRole ? 'Enregistrer les modifications' : 'Créer le rôle'}
                 </button>
               </div>
             </div>

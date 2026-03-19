@@ -2,28 +2,27 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import compression from "compression";
-import { db, seedDatabase, connectionString } from "./db.js";
+import { db, seedDatabase, connectionString } from "./db";
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 
 // Import routers
-// ... existing imports ...
-import { contactsRouter } from './server/routes/contacts.js';
-import { productsRouter } from './server/routes/products.js';
-import { invoicesRouter } from './server/routes/invoices.js';
-import { projectsRouter } from './server/routes/projects.js';
-import { employeesRouter } from './server/routes/employees.js';
-import { accountingRouter } from './server/routes/accounting.js';
-import { statsRouter } from './server/routes/stats.js';
-import { authRouter } from './server/routes/auth.js';
-import { adminRouter } from './server/routes/admin.js';
-import { companyRouter } from './server/routes/company.js';
-import { eventsRouter } from './server/routes/events.js';
-import { schedulesRouter } from './server/routes/schedules.js';
+import { contactsRouter } from './server/routes/contacts';
+import { productsRouter } from './server/routes/products';
+import { invoicesRouter } from './server/routes/invoices';
+import { projectsRouter } from './server/routes/projects';
+import { employeesRouter } from './server/routes/employees';
+import { accountingRouter } from './server/routes/accounting';
+import { statsRouter } from './server/routes/stats';
+import { authRouter } from './server/routes/auth';
+import { adminRouter } from './server/routes/admin';
+import { companyRouter } from './server/routes/company';
+import { eventsRouter } from './server/routes/events';
+import { schedulesRouter } from './server/routes/schedules';
 
 // Import middlewares
-import { dbMiddleware } from './server/middleware/db.js';
-import { errorHandler } from './server/middleware/error.js';
+import { dbMiddleware } from './server/middleware/db';
+import { errorHandler } from './server/middleware/error';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,7 +30,11 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(compression());
 const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+let wss: WebSocketServer | null = null;
+
+if (!process.env.VERCEL) {
+  wss = new WebSocketServer({ server });
+}
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
@@ -39,11 +42,13 @@ app.use(express.json());
 
 // WebSocket broadcast helper
 export const broadcast = (data: any) => {
-  wss.clients.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify(data));
-    }
-  });
+  if (wss) {
+    wss.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(data));
+      }
+    });
+  }
 };
 
 // Activity logging helper
