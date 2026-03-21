@@ -16,5 +16,6 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit) => 
     'x-company-id': companyId || '',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   };
-  return fetch(url, newInit);
+  const safeFetch = (window as any).__safe_fetch__ || fetch;
+  return safeFetch(url, newInit);
 };
