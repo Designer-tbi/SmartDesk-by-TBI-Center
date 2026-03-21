@@ -65,8 +65,10 @@ export const logActivity = async (dbClient: any, userId: string | undefined, com
   }
 };
 
-// Seed database with demo data
-await seedDatabase(db);
+// Seed database with demo data if not on Vercel or explicitly requested
+if (!process.env.VERCEL || process.env.SEED_DB === 'true') {
+  await seedDatabase(db);
+}
 
 // Attach database instance to request
 app.use(dbMiddleware);
@@ -130,8 +132,12 @@ if (!process.env.VERCEL) {
       index: false
     }));
     app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"), {
-        maxAge: '1h' // Cache index.html for a shorter time
+      // For Vercel, we need to handle the case where the file might not exist locally during the function execution
+      // but is served by the Vercel edge. However, since we have a rewrite in vercel.json, 
+      // this catch-all is mostly for local production testing.
+      const indexPath = path.join(distPath, "index.html");
+      res.sendFile(indexPath, {
+        maxAge: '1h'
       });
     });
     server.listen(PORT, "0.0.0.0", () => {
