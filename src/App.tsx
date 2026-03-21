@@ -26,7 +26,7 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
   
   const { t } = useTranslation();
   
-  const getTitle = (path: string) => {
+  const getTitle = React.useCallback((path: string) => {
     switch (path) {
       case '/': return t('header.dashboard');
       case '/crm': return t('header.crm');
@@ -42,10 +42,15 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
       case '/planning': return t('header.planning');
       default: return 'SmartDesk';
     }
-  };
+  }, [t]);
+
+  React.useEffect(() => {
+    const title = getTitle(location.pathname);
+    document.title = `${title} | SmartDesk by TBI Center`;
+  }, [location.pathname, getTitle]);
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-luxury-gray overflow-hidden">
       <Sidebar user={user} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title={getTitle(location.pathname)} onLogout={onLogout} user={user} />
@@ -64,8 +69,8 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
             </AnimatePresence>
           </div>
         </main>
-        <footer className="py-4 text-center text-sm text-slate-500 border-t border-slate-200 bg-white">
-          SmartDesk by <a href="https://tbi-center.fr" target="_blank" rel="noopener noreferrer" className="text-indigo-600 hover:underline font-medium">TBI Center</a>
+        <footer className="py-4 text-center text-sm text-slate-500 border-t border-blue-50 bg-white">
+          SmartDesk by <a href="https://tbi-center.fr" target="_blank" rel="noopener noreferrer" className="text-accent-blue hover:underline font-medium">TBI Center</a>
         </footer>
       </div>
     </div>

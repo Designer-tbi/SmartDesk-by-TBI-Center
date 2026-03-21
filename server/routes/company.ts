@@ -208,7 +208,33 @@ companyRouter.put('/users/:id', async (req, res, next) => {
 companyRouter.delete('/users/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    await req.db.query('DELETE FROM public.users WHERE id = $1 AND "companyId" = $2 AND role != $3', [id, req.user!.companyId, 'super_admin']);
+    try {
+      await req.db.query('BEGIN');
+      
+      // Delete child records first to avoid NO ACTION foreign key constraints
+      const tablesReferencingUsers = [
+        'activity_log',
+        'events',
+        'schedules',
+        'sessions'
+      ];
+      
+      for (const table of tablesReferencingUsers) {
+        if (table === 'events') {
+          await req.db.query(`DELETE FROM public.events WHERE "userId" = $1 OR "assignedTo" = $1`, [id]);
+        } else if (table === 'schedules') {
+          await req.db.query(`DELETE FROM public.schedules WHERE "userId" = $1 OR "createdBy" = $1`, [id]);
+        } else {
+          await req.db.query(`DELETE FROM public.${table} WHERE "userId" = $1`, [id]);
+        }
+      }
+
+      await req.db.query('DELETE FROM public.users WHERE id = $1 AND "companyId" = $2 AND role != $3', [id, req.user!.companyId, 'super_admin']);
+      await req.db.query('COMMIT');
+    } catch (e) {
+      await req.db.query('ROLLBACK');
+      throw e;
+    }
     res.status(204).send();
   } catch (error) {
     next(error);

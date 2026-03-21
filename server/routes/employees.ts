@@ -276,7 +276,27 @@ employeesRouter.put('/:id', async (req, res, next) => {
 employeesRouter.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    await req.db.query('DELETE FROM employees WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    try {
+      await req.db.query('BEGIN');
+      
+      // Delete child records first to avoid NO ACTION foreign key constraints
+      const tablesReferencingEmployees = [
+        'employee_tasks',
+        'leave_requests',
+        'payslips',
+        'contracts'
+      ];
+      
+      for (const table of tablesReferencingEmployees) {
+        await req.db.query(`DELETE FROM public.${table} WHERE "employeeId" = $1`, [id]);
+      }
+
+      await req.db.query('DELETE FROM employees WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+      await req.db.query('COMMIT');
+    } catch (e) {
+      await req.db.query('ROLLBACK');
+      throw e;
+    }
     res.status(204).send();
   } catch (error) {
     next(error);

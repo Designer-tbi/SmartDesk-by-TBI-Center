@@ -136,21 +136,21 @@ export const Inventory = ({ user }: { user: any }) => {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-indigo-50 rounded-xl">
-              <Package className="w-6 h-6 text-indigo-600" />
+            <div className="p-3 bg-soft-blue rounded-xl">
+              <Package className="w-6 h-6 text-accent-blue" />
             </div>
             <div>
               <p className="text-sm text-slate-500 font-medium">{t('inventory.totalProducts')}</p>
-              <p className="text-2xl font-bold text-slate-900">{products.length}</p>
+              <p className="text-2xl font-bold text-primary-blue">{products.length}</p>
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-amber-50 rounded-xl">
-              <AlertTriangle className="w-6 h-6 text-amber-600" />
+            <div className="p-3 bg-rose-50 rounded-xl">
+              <AlertTriangle className="w-6 h-6 text-rose-500" />
             </div>
             <div>
               <p className="text-sm text-slate-500 font-medium">{t('inventory.lowStock')}</p>
@@ -158,7 +158,7 @@ export const Inventory = ({ user }: { user: any }) => {
             </div>
           </div>
         </div>
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-emerald-50 rounded-xl">
               <Tag className="w-6 h-6 text-emerald-600" />
@@ -174,45 +174,45 @@ export const Inventory = ({ user }: { user: any }) => {
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-semibold text-slate-900">{t('inventory.productCatalog')}</h2>
         <div className="flex gap-3">
-          <button onClick={() => setIsCategoryManagerOpen(true)} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+          <button onClick={() => setIsCategoryManagerOpen(true)} className="flex items-center gap-2 px-4 py-2 border border-blue-100 rounded-lg text-sm font-medium text-accent-blue hover:bg-soft-blue transition-colors">
             <Tag className="w-4 h-4" />
             {t('inventory.manageCategories')}
           </button>
-          <button onClick={() => setIsStockMovementOpen(true)} className="flex items-center gap-2 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+          <button onClick={() => setIsStockMovementOpen(true)} className="flex items-center gap-2 px-4 py-2 border border-blue-100 rounded-lg text-sm font-medium text-accent-blue hover:bg-soft-blue transition-colors">
             <ArrowRightLeft className="w-4 h-4" />
             {t('inventory.stockMovement')}
           </button>
-          <button onClick={() => { setEditingProduct(null); setNewProduct({ name: '', sku: '', price: 0, stock: 0, category: '', description: '', type: 'product', tvaRate: 0.18 }); setIsAddProductOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+          <button onClick={() => { setEditingProduct(null); setNewProduct({ name: '', sku: '', price: 0, stock: 0, category: '', description: '', type: 'product', tvaRate: 0.18 }); setIsAddProductOpen(true); }} className="flex items-center gap-2 px-4 py-2 bg-accent-blue text-white rounded-lg text-sm font-medium hover:bg-primary-blue transition-colors shadow-sm shadow-accent-blue/20">
             <Plus className="w-4 h-4" />
             {t('inventory.addProduct')}
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+            <Loader2 className="w-10 h-10 text-accent-blue animate-spin" />
             <p className="text-sm font-medium text-slate-500">{t('inventory.loadingCatalog')}</p>
           </div>
         ) : (
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.product')}</th>
-                <th className="hidden sm:table-cell px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.sku')}</th>
-                <th className="hidden md:table-cell px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.type')}</th>
-                <th className="hidden lg:table-cell px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.category')}</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.unitPrice')}</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">{t('inventory.stock')}</th>
-                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-right">{t('inventory.actions')}</th>
+              <tr className="bg-soft-blue/30 border-b border-blue-100">
+                <th className="px-6 py-4 text-xs font-semibold text-accent-blue uppercase tracking-wider">{t('inventory.product')}</th>
+                <th className="hidden sm:table-cell px-6 py-4 text-xs font-semibold text-accent-blue uppercase tracking-wider">{t('inventory.sku')}</th>
+                <th className="hidden md:table-cell px-6 py-4 text-xs font-semibold text-accent-blue uppercase tracking-wider">{t('inventory.type')}</th>
+                <th className="hidden lg:table-cell px-6 py-4 text-xs font-semibold text-accent-blue uppercase tracking-wider">{t('inventory.category')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-accent-blue uppercase tracking-wider">{t('inventory.unitPrice')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-accent-blue uppercase tracking-wider">{t('inventory.stock')}</th>
+                <th className="px-6 py-4 text-xs font-semibold text-accent-blue uppercase tracking-wider text-right">{t('inventory.actions')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-blue-50">
               {products.length > 0 ? products.map((product) => (
-                <tr key={product.id} className="hover:bg-slate-50 transition-colors group">
+                <tr key={product.id} className="hover:bg-soft-blue/20 transition-colors group">
                   <td className="px-6 py-4">
-                    <div className="text-sm font-semibold text-slate-900">{product.name}</div>
+                    <div className="text-sm font-semibold text-primary-blue group-hover:text-accent-blue transition-colors">{product.name}</div>
                   </td>
                   <td className="hidden sm:table-cell px-6 py-4 text-sm text-slate-500 font-mono">
                     {product.sku}
@@ -221,7 +221,9 @@ export const Inventory = ({ user }: { user: any }) => {
                     {product.type === 'product' ? t('inventory.productType') : t('inventory.serviceType')}
                   </td>
                   <td className="hidden lg:table-cell px-6 py-4 text-sm text-slate-600">
-                    {product.category}
+                    <span className="px-2 py-1 bg-luxury-gray rounded-md text-xs font-medium text-slate-600">
+                      {product.category}
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-sm font-medium text-slate-900">
                     {product.price.toLocaleString()} {currencySymbol}
@@ -236,9 +238,9 @@ export const Inventory = ({ user }: { user: any }) => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                      <button onClick={() => setViewProduct(product)} className="text-slate-400 hover:text-indigo-600 p-1 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.view')}><Eye className="w-4 h-4" /></button>
-                      <button onClick={() => { setEditingProduct(product); setNewProduct(product); setIsAddProductOpen(true); }} className="text-slate-400 hover:text-amber-600 p-1 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
-                      <button onClick={() => setDeleteConfirmId(product.id)} className="text-slate-400 hover:text-red-600 p-1 hover:bg-white rounded-lg transition-all shadow-sm" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
+                      <button onClick={() => setViewProduct(product)} className="text-slate-400 hover:text-accent-blue p-1.5 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-blue-100" title={t('common.view')}><Eye className="w-4 h-4" /></button>
+                      <button onClick={() => { setEditingProduct(product); setNewProduct(product); setIsAddProductOpen(true); }} className="text-slate-400 hover:text-amber-600 p-1.5 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-amber-100" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
+                      <button onClick={() => setDeleteConfirmId(product.id)} className="text-slate-400 hover:text-rose-600 p-1.5 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-rose-100" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -256,74 +258,70 @@ export const Inventory = ({ user }: { user: any }) => {
 
       {/* Add/Edit Product Modal */}
       {isAddProductOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-xl overflow-hidden my-8">
-            <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-blue/40 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-8 border border-blue-100">
+            <div className="px-6 py-5 border-b border-blue-50 flex justify-between items-center bg-soft-blue/30">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 rounded-lg">
-                  <Package className="w-5 h-5 text-indigo-600" />
+                <div className="p-2.5 bg-white rounded-xl shadow-sm border border-blue-100">
+                  <Package className="w-5 h-5 text-accent-blue" />
                 </div>
-                <h3 className="text-lg font-bold text-slate-900">
+                <h3 className="text-xl font-bold text-primary-blue">
                   {editingProduct ? t('inventory.editProduct') : t('inventory.newProduct')}
                 </h3>
               </div>
               <button 
                 onClick={() => setIsAddProductOpen(false)}
-                className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600"
+                className="p-2 hover:bg-white rounded-full transition-all text-slate-400 hover:text-rose-500 hover:shadow-sm"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleSaveProduct} className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleSaveProduct} className="p-8 space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Informations Générales */}
-                <div className="space-y-4 md:col-span-2">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <FileText className="w-3 h-3" />
+                <div className="space-y-5 md:col-span-2">
+                  <h4 className="text-xs font-bold text-accent-blue uppercase tracking-widest flex items-center gap-2">
+                    <FileText className="w-3.5 h-3.5" />
                     {t('inventory.generalInfo')}
                   </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.productName')}</label>
-                      <div className="relative">
-                        <input 
-                          type="text" 
-                          placeholder="Ex: Ordinateur Portable" 
-                          className="w-full pl-3 pr-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm" 
-                          value={newProduct.name || ''} 
-                          onChange={e => setNewProduct({...newProduct, name: e.target.value})} 
-                          required 
-                        />
-                      </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700 ml-1">{t('inventory.productName')}</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ex: Ordinateur Portable" 
+                        className="w-full px-4 py-2.5 bg-luxury-gray border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm" 
+                        value={newProduct.name || ''} 
+                        onChange={e => setNewProduct({...newProduct, name: e.target.value})} 
+                        required 
+                      />
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.skuRef')}</label>
-                      <div className="relative">
-                        <input 
-                          type="text" 
-                          placeholder="Ex: PROD-001" 
-                          className="w-full pl-3 pr-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm font-mono" 
-                          value={newProduct.sku || ''} 
-                          onChange={e => setNewProduct({...newProduct, sku: e.target.value})} 
-                          required 
-                        />
-                      </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700 ml-1">{t('inventory.skuRef')}</label>
+                      <input 
+                        type="text" 
+                        placeholder="Ex: PROD-001" 
+                        className="w-full px-4 py-2.5 bg-luxury-gray border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm font-mono" 
+                        value={newProduct.sku || ''} 
+                        onChange={e => setNewProduct({...newProduct, sku: e.target.value})} 
+                        required 
+                      />
                     </div>
                   </div>
                 </div>
 
                 {/* Catégorie et Type */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Tag className="w-3 h-3" />
+                <div className="space-y-5">
+                  <h4 className="text-xs font-bold text-accent-blue uppercase tracking-widest flex items-center gap-2">
+                    <Tag className="w-3.5 h-3.5" />
                     {t('inventory.classification')}
                   </h4>
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.category')}</label>
+                  <div className="space-y-5">
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700 ml-1">{t('inventory.category')}</label>
                       <select 
-                        className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm bg-white" 
+                        className="w-full px-4 py-2.5 bg-luxury-gray border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm appearance-none cursor-pointer" 
                         value={newProduct.category || ''} 
                         onChange={e => setNewProduct({...newProduct, category: e.target.value})} 
                         required
@@ -332,8 +330,8 @@ export const Inventory = ({ user }: { user: any }) => {
                         {categories.map(c => <option key={c} value={c}>{c}</option>)}
                       </select>
                     </div>
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.resourceType')}</label>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700 ml-1">{t('inventory.resourceType')}</label>
                       <div className="flex gap-4">
                         <label className="flex-1 cursor-pointer">
                           <input 
@@ -343,7 +341,7 @@ export const Inventory = ({ user }: { user: any }) => {
                             checked={newProduct.type === 'product'} 
                             onChange={() => setNewProduct({...newProduct, type: 'product'})} 
                           />
-                          <div className="py-2 text-center border border-slate-200 rounded-xl text-sm font-medium text-slate-600 peer-checked:bg-indigo-50 peer-checked:border-indigo-600 peer-checked:text-indigo-700 transition-all">
+                          <div className="py-2.5 text-center border border-transparent bg-luxury-gray rounded-xl text-sm font-medium text-slate-600 peer-checked:bg-soft-blue peer-checked:border-accent-blue peer-checked:text-accent-blue peer-checked:ring-2 peer-checked:ring-accent-blue/10 transition-all">
                             {t('inventory.productType')}
                           </div>
                         </label>
@@ -355,7 +353,7 @@ export const Inventory = ({ user }: { user: any }) => {
                             checked={newProduct.type === 'service'} 
                             onChange={() => setNewProduct({...newProduct, type: 'service'})} 
                           />
-                          <div className="py-2 text-center border border-slate-200 rounded-xl text-sm font-medium text-slate-600 peer-checked:bg-indigo-50 peer-checked:border-indigo-600 peer-checked:text-indigo-700 transition-all">
+                          <div className="py-2.5 text-center border border-transparent bg-luxury-gray rounded-xl text-sm font-medium text-slate-600 peer-checked:bg-soft-blue peer-checked:border-accent-blue peer-checked:text-accent-blue peer-checked:ring-2 peer-checked:ring-accent-blue/10 transition-all">
                             {t('inventory.serviceType')}
                           </div>
                         </label>
@@ -365,29 +363,29 @@ export const Inventory = ({ user }: { user: any }) => {
                 </div>
 
                 {/* Prix et Stock */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Calculator className="w-3 h-3" />
+                <div className="space-y-5">
+                  <h4 className="text-xs font-bold text-accent-blue uppercase tracking-widest flex items-center gap-2">
+                    <Calculator className="w-3.5 h-3.5" />
                     {t('inventory.priceAndStock')}
                   </h4>
-                  <div className="space-y-4">
+                  <div className="space-y-5">
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.priceHT')} ({currencySymbol})</label>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-700 ml-1">{t('inventory.priceHT')} ({currencySymbol})</label>
                         <input 
                           type="number" 
                           step="0.01"
                           placeholder="0.00" 
-                          className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm" 
+                          className="w-full px-4 py-2.5 bg-luxury-gray border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm" 
                           value={newProduct.price || 0} 
                           onChange={e => setNewProduct({...newProduct, price: parseFloat(e.target.value) || 0})} 
                           required 
                         />
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.tvaRate')}</label>
+                      <div className="space-y-2">
+                        <label className="text-sm font-semibold text-slate-700 ml-1">{t('inventory.tvaRate')}</label>
                         <select 
-                          className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm bg-white" 
+                          className="w-full px-4 py-2.5 bg-luxury-gray border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm appearance-none cursor-pointer" 
                           value={newProduct.tvaRate ?? 0.18} 
                           onChange={e => setNewProduct({...newProduct, tvaRate: parseFloat(e.target.value)})}
                         >
@@ -399,41 +397,39 @@ export const Inventory = ({ user }: { user: any }) => {
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-4 p-3 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="grid grid-cols-2 gap-4 p-4 bg-soft-blue/20 rounded-2xl border border-blue-100/50">
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t('inventory.taxAmount', { taxLabel })}</p>
-                        <p className="text-sm font-bold text-slate-700">{tvaAmount.toLocaleString()} {currencySymbol}</p>
+                        <p className="text-[10px] font-bold text-accent-blue uppercase tracking-widest mb-1">{t('inventory.taxAmount', { taxLabel })}</p>
+                        <p className="text-sm font-bold text-primary-blue">{tvaAmount.toLocaleString()} {currencySymbol}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">{t('inventory.totalTTC')}</p>
-                        <p className="text-sm font-bold text-indigo-600">{totalTTC.toLocaleString()} {currencySymbol}</p>
+                        <p className="text-[10px] font-bold text-accent-blue uppercase tracking-widest mb-1">{t('inventory.totalTTC')}</p>
+                        <p className="text-sm font-bold text-accent-blue">{totalTTC.toLocaleString()} {currencySymbol}</p>
                       </div>
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.initialStock')}</label>
-                      <div className="relative">
-                        <input 
-                          type="number" 
-                          placeholder="0" 
-                          className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm" 
-                          value={newProduct.stock || 0} 
-                          onChange={e => setNewProduct({...newProduct, stock: parseInt(e.target.value) || 0})} 
-                          required 
-                        />
-                      </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-semibold text-slate-700 ml-1">{t('inventory.initialStock')}</label>
+                      <input 
+                        type="number" 
+                        placeholder="0" 
+                        className="w-full px-4 py-2.5 bg-luxury-gray border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm" 
+                        value={newProduct.stock || 0} 
+                        onChange={e => setNewProduct({...newProduct, stock: parseInt(e.target.value) || 0})} 
+                        required 
+                      />
                     </div>
                   </div>
                 </div>
 
                 {/* Description */}
-                <div className="space-y-4 md:col-span-2">
-                  <div className="space-y-1.5">
-                    <label className="text-sm font-medium text-slate-700 ml-1">{t('inventory.description')}</label>
+                <div className="space-y-5 md:col-span-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-semibold text-slate-700 ml-1">{t('inventory.description')}</label>
                     <textarea 
                       placeholder={t('inventory.descriptionPlaceholder')} 
                       rows={3}
-                      className="w-full px-3 py-2 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all text-sm resize-none" 
+                      className="w-full px-4 py-3 bg-luxury-gray border border-transparent rounded-2xl focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm resize-none" 
                       value={newProduct.description || ''} 
                       onChange={e => setNewProduct({...newProduct, description: e.target.value})} 
                     />
@@ -441,18 +437,18 @@ export const Inventory = ({ user }: { user: any }) => {
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-3">
+              <div className="pt-6 flex gap-4">
                 <button 
                   type="button"
                   onClick={() => setIsAddProductOpen(false)}
-                  className="flex-1 px-4 py-2.5 border border-slate-200 text-slate-600 rounded-xl font-semibold hover:bg-slate-50 transition-all"
+                  className="flex-1 px-6 py-3 border border-blue-100 text-slate-600 rounded-xl font-bold hover:bg-soft-blue transition-all"
                 >
                   {t('common.cancel')}
                 </button>
                 <button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="flex-[2] bg-indigo-600 text-white py-2.5 rounded-xl font-semibold hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex-[2] bg-accent-blue text-white py-3 rounded-xl font-bold hover:bg-primary-blue transition-all shadow-lg shadow-accent-blue/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
                   {editingProduct ? t('common.update') : t('inventory.saveProduct')}
@@ -465,23 +461,38 @@ export const Inventory = ({ user }: { user: any }) => {
 
       {/* Category Manager Modal */}
       {isCategoryManagerOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-2xl shadow-xl p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-blue/40 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-2xl shadow-2xl p-8 space-y-6 border border-blue-100">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold">{t('inventory.manageCategories')}</h3>
-              <button onClick={() => setIsCategoryManagerOpen(false)}><X className="w-5 h-5 text-slate-400"/></button>
+              <h3 className="text-xl font-bold text-primary-blue">{t('inventory.manageCategories')}</h3>
+              <button onClick={() => setIsCategoryManagerOpen(false)} className="p-2 hover:bg-soft-blue rounded-full transition-colors text-slate-400 hover:text-rose-500">
+                <X className="w-5 h-5"/>
+              </button>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-3 max-h-[40vh] overflow-y-auto pr-2 custom-scrollbar">
               {categories.map(cat => (
-                <div key={cat} className="flex justify-between items-center p-2 border rounded-lg">
-                  {cat}
-                  <button onClick={() => setDeleteCategoryConfirm(cat)} className="text-red-500 hover:bg-red-50 p-1 rounded-lg transition-colors"><Trash2 className="w-4 h-4"/></button>
+                <div key={cat} className="flex justify-between items-center p-3 bg-luxury-gray rounded-xl border border-transparent hover:border-blue-100 transition-all group">
+                  <span className="text-sm font-medium text-slate-700">{cat}</span>
+                  <button onClick={() => setDeleteCategoryConfirm(cat)} className="text-slate-400 hover:text-rose-500 p-1.5 hover:bg-white rounded-lg transition-all opacity-0 group-hover:opacity-100 shadow-sm">
+                    <Trash2 className="w-4 h-4"/>
+                  </button>
                 </div>
               ))}
-              <div className="flex gap-2">
-                <input type="text" placeholder={t('inventory.newCategory')} className="flex-1 p-2 border rounded-lg" value={newCategory || ''} onChange={e => setNewCategory(e.target.value)} />
-                <button onClick={() => { if(newCategory && !categories.includes(newCategory)) { setCategories([...categories, newCategory]); setNewCategory(''); } }} className="px-3 bg-indigo-600 text-white rounded-lg">{t('common.add')}</button>
-              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <input 
+                type="text" 
+                placeholder={t('inventory.newCategory')} 
+                className="flex-1 px-4 py-2.5 bg-luxury-gray border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm" 
+                value={newCategory || ''} 
+                onChange={e => setNewCategory(e.target.value)} 
+              />
+              <button 
+                onClick={() => { if(newCategory && !categories.includes(newCategory)) { setCategories([...categories, newCategory]); setNewCategory(''); } }} 
+                className="px-6 bg-accent-blue text-white rounded-xl font-bold hover:bg-primary-blue transition-all shadow-md shadow-accent-blue/20"
+              >
+                {t('common.add')}
+              </button>
             </div>
           </div>
         </div>
@@ -489,21 +500,57 @@ export const Inventory = ({ user }: { user: any }) => {
 
       {/* Product Preview Modal */}
       {viewProduct && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-2xl shadow-xl p-6 space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold">{t('inventory.productDetails')}</h3>
-              <button onClick={() => setViewProduct(null)}><X className="w-5 h-5 text-slate-400"/></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-blue/40 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-2xl shadow-2xl overflow-hidden border border-blue-100">
+            <div className="px-6 py-5 bg-soft-blue/30 border-b border-blue-50 flex justify-between items-center">
+              <h3 className="text-xl font-bold text-primary-blue">{t('inventory.productDetails')}</h3>
+              <button onClick={() => setViewProduct(null)} className="p-2 hover:bg-white rounded-full transition-colors text-slate-400 hover:text-rose-500">
+                <X className="w-5 h-5"/>
+              </button>
             </div>
-            <div className="space-y-2">
-              <p><strong>{t('inventory.productName')}:</strong> {viewProduct.name}</p>
-              <p><strong>{t('inventory.sku')}:</strong> {viewProduct.sku}</p>
-              <p><strong>{t('inventory.category')}:</strong> {viewProduct.category}</p>
-              <p><strong>{t('inventory.type')}:</strong> {viewProduct.type === 'product' ? t('inventory.productType') : t('inventory.serviceType')}</p>
-              <p><strong>{t('inventory.priceHT')}:</strong> {viewProduct.price.toLocaleString()} {currencySymbol}</p>
-              <p><strong>{t('inventory.tvaRate')}:</strong> {(viewProduct.tvaRate * 100).toFixed(0)}%</p>
-              <p><strong>{t('inventory.stock')}:</strong> {viewProduct.stock}</p>
-              <p><strong>{t('inventory.description')}:</strong> {viewProduct.description || t('inventory.noDescription')}</p>
+            <div className="p-8 space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-accent-blue uppercase tracking-widest">{t('inventory.productName')}</p>
+                  <p className="text-base font-semibold text-slate-900">{viewProduct.name}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-accent-blue uppercase tracking-widest">{t('inventory.sku')}</p>
+                  <p className="text-base font-mono text-slate-600">{viewProduct.sku}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-accent-blue uppercase tracking-widest">{t('inventory.category')}</p>
+                  <p className="text-base font-medium text-slate-700">{viewProduct.category}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-accent-blue uppercase tracking-widest">{t('inventory.type')}</p>
+                  <p className="text-base font-medium text-slate-700">{viewProduct.type === 'product' ? t('inventory.productType') : t('inventory.serviceType')}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-accent-blue uppercase tracking-widest">{t('inventory.priceHT')}</p>
+                  <p className="text-base font-bold text-primary-blue">{viewProduct.price.toLocaleString()} {currencySymbol}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-accent-blue uppercase tracking-widest">{t('inventory.tvaRate')}</p>
+                  <p className="text-base font-medium text-slate-700">{(viewProduct.tvaRate * 100).toFixed(0)}%</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-accent-blue uppercase tracking-widest">{t('inventory.stock')}</p>
+                  <p className={`text-base font-bold ${viewProduct.stock < 10 ? 'text-rose-600' : 'text-emerald-600'}`}>{viewProduct.stock}</p>
+                </div>
+              </div>
+              <div className="space-y-1 pt-4 border-t border-blue-50">
+                <p className="text-[10px] font-bold text-accent-blue uppercase tracking-widest">{t('inventory.description')}</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{viewProduct.description || t('inventory.noDescription')}</p>
+              </div>
+              <div className="pt-4">
+                <button 
+                  onClick={() => setViewProduct(null)}
+                  className="w-full py-3 bg-luxury-gray text-slate-700 rounded-xl font-bold hover:bg-soft-blue transition-all"
+                >
+                  {t('common.close')}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -511,23 +558,71 @@ export const Inventory = ({ user }: { user: any }) => {
 
       {/* Stock Movement Modal */}
       {isStockMovementOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-2xl shadow-xl p-6 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-blue/40 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-2xl shadow-2xl p-8 space-y-6 border border-blue-100">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-bold">{t('inventory.stockMovementTitle')}</h3>
-              <button onClick={() => setIsStockMovementOpen(false)}><X className="w-5 h-5 text-slate-400"/></button>
+              <h3 className="text-xl font-bold text-primary-blue">{t('inventory.stockMovementTitle')}</h3>
+              <button onClick={() => setIsStockMovementOpen(false)} className="p-2 hover:bg-soft-blue rounded-full transition-colors text-slate-400 hover:text-rose-500">
+                <X className="w-5 h-5"/>
+              </button>
             </div>
-            <form onSubmit={handleMovement} className="space-y-4">
-              <select className="w-full p-2 border rounded-lg" onChange={e => setMovement({...movement, productId: e.target.value})} required>
-                <option value="">{t('inventory.selectProduct')}</option>
-                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-              <input type="number" placeholder={t('inventory.quantity')} className="w-full p-2 border rounded-lg" onChange={e => setMovement({...movement, quantity: parseInt(e.target.value)})} required />
-              <select className="w-full p-2 border rounded-lg" onChange={e => setMovement({...movement, type: e.target.value as 'IN' | 'OUT'})}>
-                <option value="IN">{t('inventory.in')}</option>
-                <option value="OUT">{t('inventory.out')}</option>
-              </select>
-              <button type="submit" className="w-full bg-indigo-600 text-white py-2 rounded-lg font-bold">{t('inventory.validateMovement')}</button>
+            <form onSubmit={handleMovement} className="space-y-5">
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 ml-1">{t('inventory.selectProduct')}</label>
+                <select 
+                  className="w-full px-4 py-2.5 bg-luxury-gray border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm appearance-none cursor-pointer" 
+                  onChange={e => setMovement({...movement, productId: e.target.value})} 
+                  required
+                >
+                  <option value="">{t('inventory.selectProduct')}</option>
+                  {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 ml-1">{t('inventory.quantity')}</label>
+                <input 
+                  type="number" 
+                  placeholder={t('inventory.quantity')} 
+                  className="w-full px-4 py-2.5 bg-luxury-gray border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm" 
+                  onChange={e => setMovement({...movement, quantity: parseInt(e.target.value)})} 
+                  required 
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 ml-1">{t('inventory.movementType')}</label>
+                <div className="flex gap-4">
+                  <label className="flex-1 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="moveType" 
+                      className="peer hidden" 
+                      checked={movement.type === 'IN'} 
+                      onChange={() => setMovement({...movement, type: 'IN'})} 
+                    />
+                    <div className="py-2.5 text-center border border-transparent bg-luxury-gray rounded-xl text-sm font-medium text-slate-600 peer-checked:bg-emerald-50 peer-checked:border-emerald-500 peer-checked:text-emerald-700 peer-checked:ring-2 peer-checked:ring-emerald-500/10 transition-all">
+                      {t('inventory.in')}
+                    </div>
+                  </label>
+                  <label className="flex-1 cursor-pointer">
+                    <input 
+                      type="radio" 
+                      name="moveType" 
+                      className="peer hidden" 
+                      checked={movement.type === 'OUT'} 
+                      onChange={() => setMovement({...movement, type: 'OUT'})} 
+                    />
+                    <div className="py-2.5 text-center border border-transparent bg-luxury-gray rounded-xl text-sm font-medium text-slate-600 peer-checked:bg-rose-50 peer-checked:border-rose-500 peer-checked:text-rose-700 peer-checked:ring-2 peer-checked:ring-rose-500/10 transition-all">
+                      {t('inventory.out')}
+                    </div>
+                  </label>
+                </div>
+              </div>
+              <button 
+                type="submit" 
+                className="w-full bg-accent-blue text-white py-3 rounded-xl font-bold hover:bg-primary-blue transition-all shadow-lg shadow-accent-blue/20 mt-4"
+              >
+                {t('inventory.validateMovement')}
+              </button>
             </form>
           </div>
         </div>

@@ -882,7 +882,7 @@ export const HR = ({ user }: { user: any }) => {
             <div className="flex items-center gap-4">
               <button onClick={() => setCurrentDate(subMonths(currentDate, 1))} className="p-2 hover:bg-slate-100 rounded-xl transition-all"><ChevronLeft className="w-5 h-5" /></button>
               <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">
-                {format(currentDate, 'MMMM yyyy', { locale: fr })}
+                {format(currentDate, 'MMMM yyyy', { locale: dateLocale })}
               </h3>
               <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 hover:bg-slate-100 rounded-xl transition-all"><ChevronRight className="w-5 h-5" /></button>
             </div>
@@ -946,7 +946,7 @@ export const HR = ({ user }: { user: any }) => {
                 return (
                   <div key={idx} className="space-y-4">
                     <div className={`p-3 rounded-2xl text-center border ${isSameDay(day, new Date()) ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-white text-slate-900 border-slate-200 shadow-sm'}`}>
-                      <div className="text-[10px] font-black uppercase tracking-widest opacity-60">{format(day, 'EEE', { locale: fr })}</div>
+                      <div className="text-[10px] font-black uppercase tracking-widest opacity-60">{format(day, 'EEE', { locale: dateLocale })}</div>
                       <div className="text-lg font-black">{format(day, 'd')}</div>
                     </div>
                     <div className="space-y-3">
@@ -985,7 +985,7 @@ export const HR = ({ user }: { user: any }) => {
           {taskView === 'day' && (
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <h3 className="font-bold text-slate-900">{t('hr.tasksOfDate', { date: format(currentDate, 'd MMMM yyyy', { locale: fr }) })}</h3>
+                <h3 className="font-bold text-slate-900">{t('hr.tasksOfDate', { date: format(currentDate, 'd MMMM yyyy', { locale: dateLocale }) })}</h3>
                 <button onClick={() => setIsTaskModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all">
                   <Plus className="w-4 h-4" /> {t('hr.add')}
                 </button>

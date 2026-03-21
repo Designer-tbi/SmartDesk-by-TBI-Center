@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from '../lib/i18n';
 import { apiFetch } from '../lib/api';
 import { useWebSocket } from '../lib/websocket';
-import { Building2, Users, Activity, Trash2, Edit2, Plus, CheckCircle2, XCircle, X, Search, Clock } from 'lucide-react';
+import { Building2, Users, Activity, Trash2, Edit2, Plus, CheckCircle2, XCircle, X, Search, Clock, PauseCircle, PlayCircle } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const SuperAdmin = () => {
@@ -140,6 +140,25 @@ export const SuperAdmin = () => {
       setError(t('admin.error.connection'));
     } finally {
       setUserToDelete(null);
+    }
+  };
+
+  const handleToggleCompanyStatus = async (company: any) => {
+    try {
+      const newStatus = company.status === 'active' ? 'inactive' : 'active';
+      const res = await apiFetch(`/api/admin/companies/${company.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...company, status: newStatus })
+      });
+
+      if (res.ok) {
+        fetchData();
+      } else {
+        setError(t('admin.error.save'));
+      }
+    } catch (err) {
+      setError(t('admin.error.connection'));
     }
   };
 
@@ -403,6 +422,17 @@ export const SuperAdmin = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <button 
+                            onClick={() => handleToggleCompanyStatus(company)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              company.status === 'active' 
+                                ? 'text-amber-500 hover:text-amber-600 hover:bg-amber-50' 
+                                : 'text-emerald-500 hover:text-emerald-600 hover:bg-emerald-50'
+                            }`}
+                            title={company.status === 'active' ? t('admin.suspendCompany') : t('admin.activateCompany')}
+                          >
+                            {company.status === 'active' ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
+                          </button>
                           <button 
                             onClick={() => handleOpenUserModal(company)}
                             className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"

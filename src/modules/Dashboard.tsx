@@ -11,21 +11,21 @@ import {
 import { motion } from 'framer-motion';
 import { useTranslation } from '../lib/i18n';
 
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ec4899'];
+const COLORS = ['#2563eb', '#3b82f6', '#1e3a8a', '#60a5fa'];
 
 const StatCard = ({ title, value, change, icon: Icon, trend, delay }: any) => (
   <motion.div 
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay, duration: 0.5 }}
-    className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:shadow-indigo-500/5 transition-all group relative overflow-hidden"
+    className="bg-white p-6 rounded-3xl border border-blue-100 shadow-sm hover:shadow-xl hover:shadow-accent-blue/5 transition-all group relative overflow-hidden"
   >
     <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity">
       <Icon className="w-24 h-24 -mr-8 -mt-8" />
     </div>
     
     <div className="flex items-center justify-between mb-6 relative z-10">
-      <div className="p-3 bg-slate-50 rounded-2xl group-hover:bg-indigo-600 group-hover:text-white transition-all shadow-inner">
+      <div className="p-3 bg-luxury-gray rounded-2xl group-hover:bg-accent-blue group-hover:text-white transition-all shadow-inner">
         <Icon className="w-5 h-5" />
       </div>
       <div className={`flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${trend === 'up' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
@@ -76,7 +76,7 @@ export const Dashboard = ({ user }: { user: any }) => {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4 h-full">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <Loader2 className="w-10 h-10 text-accent-blue animate-spin" />
         <p className="text-sm font-medium text-slate-500 font-mono uppercase tracking-widest">{t('dashboard.loading')}</p>
       </div>
     );
@@ -123,11 +123,11 @@ export const Dashboard = ({ user }: { user: any }) => {
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-black text-slate-900 tracking-tight">{t('nav.dashboard')}</h1>
+          <h1 className="text-3xl font-black text-primary-blue tracking-tight">{t('nav.dashboard')}</h1>
           <p className="text-slate-500 text-sm font-medium mt-1">{t('dashboard.welcome', { name: user?.name || 'User' })}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
+          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-blue-100 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-soft-blue transition-colors shadow-sm">
             <Calendar className="w-4 h-4" />
             {new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
           </button>
@@ -149,7 +149,7 @@ export const Dashboard = ({ user }: { user: any }) => {
               };
               fetchStats();
             }}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200"
+            className="flex items-center gap-2 px-4 py-2 bg-accent-blue text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-accent-blue/90 transition-colors shadow-lg shadow-accent-blue/20"
           >
             <Zap className="w-4 h-4" />
             {t('common.refresh')}
@@ -171,16 +171,16 @@ export const Dashboard = ({ user }: { user: any }) => {
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.5 }}
-          className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm relative overflow-hidden"
+          className="lg:col-span-2 bg-white p-8 rounded-[2.5rem] border border-blue-100 shadow-sm relative overflow-hidden"
         >
           <div className="flex items-center justify-between mb-10">
             <div>
-              <h3 className="text-xl font-black text-slate-900 tracking-tight">{t('dashboard.salesPerformance')}</h3>
+              <h3 className="text-xl font-black text-primary-blue tracking-tight">{t('dashboard.salesPerformance')}</h3>
               <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest mt-1">{t('dashboard.monthlyOverview')}</p>
             </div>
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-indigo-600 shadow-sm shadow-indigo-200"></div>
+                <div className="w-3 h-3 rounded-full bg-accent-blue shadow-sm shadow-accent-blue/20"></div>
                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('dashboard.sales')}</span>
               </div>
               <div className="flex items-center gap-2">
@@ -195,11 +195,11 @@ export const Dashboard = ({ user }: { user: any }) => {
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eff6ff" />
                 <XAxis 
                   dataKey="name" 
                   axisLine={false} 
@@ -227,7 +227,7 @@ export const Dashboard = ({ user }: { user: any }) => {
                 <Area 
                   type="monotone" 
                   dataKey="sales" 
-                  stroke="#6366f1" 
+                  stroke="#2563eb" 
                   strokeWidth={4}
                   fillOpacity={1} 
                   fill="url(#colorSales)" 
@@ -250,10 +250,10 @@ export const Dashboard = ({ user }: { user: any }) => {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.6 }}
-          className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col"
+          className="bg-white p-8 rounded-[2.5rem] border border-blue-100 shadow-sm flex flex-col"
         >
           <div className="flex items-center justify-between mb-10">
-            <h3 className="text-xl font-black text-slate-900 tracking-tight">{t('dashboard.distribution')}</h3>
+            <h3 className="text-xl font-black text-primary-blue tracking-tight">{t('dashboard.distribution')}</h3>
             <button className="p-2 hover:bg-slate-50 rounded-xl transition-colors">
               <MoreHorizontal className="w-5 h-5 text-slate-400" />
             </button>
@@ -325,16 +325,16 @@ export const Dashboard = ({ user }: { user: any }) => {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm"
+          className="bg-white p-8 rounded-[2.5rem] border border-blue-100 shadow-sm"
         >
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-xl">
+              <div className="p-2 bg-soft-blue text-accent-blue rounded-xl">
                 <Activity className="w-5 h-5" />
               </div>
-              <h3 className="text-xl font-black text-slate-900 tracking-tight">{t('dashboard.recentActivity')}</h3>
+              <h3 className="text-xl font-black text-primary-blue tracking-tight">{t('dashboard.recentActivity')}</h3>
             </div>
-            <button className="text-[10px] font-black text-indigo-600 uppercase tracking-widest hover:underline">
+            <button className="text-[10px] font-black text-accent-blue uppercase tracking-widest hover:underline">
               {t('common.viewAll')}
             </button>
           </div>
@@ -342,7 +342,7 @@ export const Dashboard = ({ user }: { user: any }) => {
           <div className="space-y-6">
             {stats.activities?.length > 0 ? (
               stats.activities.slice(0, 5).map((activity: any, i) => (
-                <div key={i} className="flex items-start gap-4 p-4 rounded-2xl hover:bg-slate-50 transition-all border border-transparent hover:border-slate-100 group">
+                <div key={i} className="flex items-start gap-4 p-4 rounded-2xl hover:bg-soft-blue/10 transition-all border border-transparent hover:border-blue-50 group">
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-600 font-black text-lg shadow-inner group-hover:bg-white group-hover:shadow-md transition-all">
                     {activity.user_name?.charAt(0) || 'A'}
                   </div>
@@ -356,7 +356,7 @@ export const Dashboard = ({ user }: { user: any }) => {
                       </span>
                     </div>
                     <p className="text-sm text-slate-500 mt-1">
-                      {activity.action} <span className="font-black text-indigo-600 tracking-tight">{activity.details}</span>
+                      {activity.action} <span className="font-black text-accent-blue tracking-tight">{activity.details}</span>
                     </p>
                     <div className="flex items-center gap-2 mt-2">
                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>

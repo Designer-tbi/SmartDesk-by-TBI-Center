@@ -55,6 +55,19 @@ adminRouter.get('/activity', async (req, res, next) => {
   }
 });
 
+adminRouter.get('/test-schema', async (req, res, next) => {
+  try {
+    const result = await req.db.query(`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'companies'
+    `);
+    res.json(result.rows.map(r => r.column_name));
+  } catch (error) {
+    next(error);
+  }
+});
+
 adminRouter.get('/companies', async (req, res, next) => {
   try {
     const companies = await req.db.query('SELECT * FROM public.companies');
@@ -65,22 +78,21 @@ adminRouter.get('/companies', async (req, res, next) => {
 });
 
 adminRouter.post('/companies', async (req, res, next) => {
-  const client = req.db;
   try {
     const { id, name, type, status, adminName, adminEmail, adminPassword, adminPhone } = req.body;
     const schemaName = `tenant_${id.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase()}`;
     
-    await client.query('BEGIN');
+    await req.db.query('BEGIN');
     
     // Create company
-    await client.query('INSERT INTO public.companies (id, name, type, status, phone, email, "createdAt", "schemaName") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+    await req.db.query('INSERT INTO public.companies (id, name, type, status, phone, email, "createdAt", "schemaName") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
       [id, name, type, status || 'active', adminPhone || null, adminEmail || null, new Date().toISOString(), schemaName]);
     
     // Initialize schema
     await initializeTenantSchema(schemaName);
 
     // Seed default roles
-    await seedDefaultRoles(client, id);
+    await seedDefaultRoles(req.db, id);
 
     // Create admin user if details provided
     if (adminEmail && adminPassword) {
@@ -88,14 +100,14 @@ adminRouter.post('/companies', async (req, res, next) => {
       const hashedPassword = await bcrypt.hash(adminPassword, 10);
       // Assign the default admin role
       const adminRoleId = `role_admin_${id}`;
-      await client.query('INSERT INTO public.users (id, "companyId", email, password, role, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+      await req.db.query('INSERT INTO public.users (id, "companyId", email, password, role, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
         [userId, id, adminEmail, hashedPassword, adminRoleId, adminName || name, 'Active']);
     }
     
-    await client.query('COMMIT');
+    await req.db.query('COMMIT');
     res.status(201).json({ id, name, type, status: status || 'active', schemaName });
   } catch (error) {
-    await client.query('ROLLBACK');
+    await req.db.query('ROLLBACK');
     next(error);
   }
 });
@@ -115,29 +127,73 @@ adminRouter.put('/companies/:id', async (req, res, next) => {
 adminRouter.delete('/companies/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const client = req.db;
     try {
-      const companyRes = await client.query('SELECT "schemaName" FROM public.companies WHERE id = $1', [id]);
+      const companyRes = await req.db.query('SELECT "schemaName" FROM public.companies WHERE id = $1', [id]);
       const schemaName = companyRes.rows[0]?.schemaName;
 
-      await client.query('BEGIN');
+      await req.db.query('BEGIN');
       
-      // If we have a schema, we should probably drop it or just delete data
-      // For now, let's just delete the company and its users (global tables)
-      // The schema could be archived or dropped
-      if (schemaName) {
-        await client.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+      // Delete child tables first to avoid foreign key constraint violations
+      // since the database schema has 'NO ACTION' instead of 'CASCADE' for many tables
+      
+      // 1. Delete items that reference other tables
+      await req.db.query('DELETE FROM public.role_permissions WHERE "roleId" IN (SELECT id FROM public.roles WHERE "companyId" = $1)', [id]);
+      await req.db.query('DELETE FROM public.journal_items WHERE "journalEntryId" IN (SELECT id FROM public.journal_entries WHERE "companyId" = $1)', [id]);
+      await req.db.query('DELETE FROM public.invoice_items WHERE "invoiceId" IN (SELECT id FROM public.invoices WHERE "companyId" = $1)', [id]);
+      await req.db.query('DELETE FROM public.quote_template_items WHERE "templateId" IN (SELECT id FROM public.quote_templates WHERE "companyId" = $1)', [id]);
+      
+      // 2. Delete tables that reference employees or users
+      const tablesReferencingUsersOrEmployees = [
+        'employee_tasks',
+        'leave_requests',
+        'payslips',
+        'contracts',
+        'activity_log',
+        'events',
+        'schedules',
+        'sessions'
+      ];
+      for (const table of tablesReferencingUsersOrEmployees) {
+        await req.db.query(`DELETE FROM public.${table} WHERE "companyId" = $1`, [id]);
       }
 
-      await client.query('DELETE FROM public.users WHERE "companyId" = $1', [id]);
-      await client.query('DELETE FROM public.companies WHERE id = $1', [id]);
-      await client.query('COMMIT');
+      // 3. Delete tables that reference companies directly
+      const tablesReferencingCompanies = [
+        'roles',
+        'journal_entries',
+        'quote_templates',
+        'invoices',
+        'projects',
+        'products',
+        'contract_templates',
+        'transactions'
+      ];
+      for (const table of tablesReferencingCompanies) {
+        await req.db.query(`DELETE FROM public.${table} WHERE "companyId" = $1`, [id]);
+      }
+
+      // 4. Delete core entities
+      await req.db.query('DELETE FROM public.employees WHERE "companyId" = $1', [id]);
+      await req.db.query('DELETE FROM public.contacts WHERE "companyId" = $1', [id]);
+      await req.db.query('DELETE FROM public.users WHERE "companyId" = $1', [id]);
+      
+      // 5. Finally delete the company
+      await req.db.query('DELETE FROM public.companies WHERE id = $1', [id]);
+      
+      // 6. Drop the schema if it exists
+      if (schemaName) {
+        await req.db.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+      }
+
+      await req.db.query('COMMIT');
     } catch (e) {
-      await client.query('ROLLBACK');
+      await req.db.query('ROLLBACK');
+      console.error('Error deleting company:', e);
       throw e;
     }
     res.status(204).send();
   } catch (error) {
+    console.error('Outer error deleting company:', error);
     next(error);
   }
 });
@@ -166,7 +222,35 @@ adminRouter.post('/companies/:companyId/users', async (req, res, next) => {
 
 adminRouter.delete('/users/:id', async (req, res, next) => {
   try {
-    await req.db.query('DELETE FROM public.users WHERE id = $1 AND role != $2', [req.params.id, 'super_admin']);
+    const userId = req.params.id;
+    try {
+      await req.db.query('BEGIN');
+      
+      // Delete child records first to avoid NO ACTION foreign key constraints
+      const tablesReferencingUsers = [
+        'activity_log',
+        'events',
+        'schedules',
+        'sessions'
+      ];
+      
+      for (const table of tablesReferencingUsers) {
+        // Some tables might reference user via different columns
+        if (table === 'events') {
+          await req.db.query(`DELETE FROM public.events WHERE "userId" = $1 OR "assignedTo" = $1`, [userId]);
+        } else if (table === 'schedules') {
+          await req.db.query(`DELETE FROM public.schedules WHERE "userId" = $1 OR "createdBy" = $1`, [userId]);
+        } else {
+          await req.db.query(`DELETE FROM public.${table} WHERE "userId" = $1`, [userId]);
+        }
+      }
+
+      await req.db.query('DELETE FROM public.users WHERE id = $1 AND role != $2', [userId, 'super_admin']);
+      await req.db.query('COMMIT');
+    } catch (e) {
+      await req.db.query('ROLLBACK');
+      throw e;
+    }
     res.status(204).send();
   } catch (error) {
     next(error);

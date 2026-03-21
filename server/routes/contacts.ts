@@ -47,7 +47,19 @@ contactsRouter.put('/:id', async (req, res, next) => {
 contactsRouter.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    await req.db.query('DELETE FROM contacts WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    try {
+      await req.db.query('BEGIN');
+      
+      // Set contactId to NULL in referencing tables to avoid NO ACTION foreign key constraints
+      await req.db.query('UPDATE public.invoices SET "contactId" = NULL WHERE "contactId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+      await req.db.query('UPDATE public.projects SET "contactId" = NULL WHERE "contactId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+
+      await req.db.query('DELETE FROM contacts WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+      await req.db.query('COMMIT');
+    } catch (e) {
+      await req.db.query('ROLLBACK');
+      throw e;
+    }
     
     await logActivity(req.db, req.user!.id, req.user!.companyId, 'DELETE_CONTACT', `Contact supprimé (ID: ${id})`);
     

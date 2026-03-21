@@ -92,7 +92,15 @@ accountingRouter.delete('/journal-entries/:id', ...requireTenant, async (req, re
     const { id } = req.params;
     
     await req.db.query('BEGIN');
-    await req.db.query('DELETE FROM journal_items WHERE "journalEntryId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    
+    // Ensure journal entry belongs to company
+    const entryCheck = await req.db.query('SELECT id FROM journal_entries WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    if (entryCheck.rows.length === 0) {
+      await req.db.query('ROLLBACK');
+      return res.status(404).json({ error: 'Journal entry not found' });
+    }
+    
+    await req.db.query('DELETE FROM journal_items WHERE "journalEntryId" = $1', [id]);
     await req.db.query('DELETE FROM journal_entries WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     await req.db.query('COMMIT');
     
