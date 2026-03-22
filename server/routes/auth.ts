@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import jwt from 'jsonwebtoken';
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { requireAuth } from '../middleware/auth';
 import { seedDefaultRoles } from '../../db';
@@ -228,8 +228,8 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
       const hashedCode = bcrypt.hashSync(code, 10);
       await db.query(`
         INSERT INTO users (id, "companyId", email, password, role, name)
-        VALUES ($1, $2, $3, $4, 'admin', $5)
-      `, [userId, companyId, email, hashedCode, `${prenom} ${nom}`]);
+        VALUES ($1, $2, $3, $4, $5, $6)
+      `, [userId, companyId, email, hashedCode, `role_admin_${companyId}`, `${prenom} ${nom}`]);
       
       await db.query('COMMIT');
     } catch (e) {

@@ -183,7 +183,7 @@ companyRouter.get('/users', async (req, res, next) => {
 companyRouter.post('/users', async (req, res, next) => {
   try {
     const { id, email, password, role, name, status } = req.body;
-    const bcrypt = await import('bcrypt');
+    const bcrypt = await import('bcryptjs');
     const hashedPassword = await bcrypt.hash(password, 10);
     await req.db.query('INSERT INTO public.users (id, "companyId", email, password, role, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [id, req.user!.companyId, email, hashedPassword, role, name, status || 'Active']);

@@ -24,9 +24,6 @@ import { schedulesRouter } from './server/routes/schedules';
 import { dbMiddleware } from './server/middleware/db';
 import { errorHandler } from './server/middleware/error';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
 app.use(compression());
 const server = http.createServer(app);
@@ -66,11 +63,10 @@ export const logActivity = async (dbClient: any, userId: string | undefined, com
 };
 
 // Always ensure the database is seeded, even on Vercel
-try {
-  await seedDatabase(db);
-} catch (err) {
+// We do this asynchronously to avoid blocking the server startup
+seedDatabase(db).catch(err => {
   console.error('Failed to seed database:', err);
-}
+});
 
 // Attach database instance to request
 app.use(dbMiddleware);
