@@ -37,9 +37,10 @@ invoicesRouter.post('/quote-templates', async (req, res, next) => {
     
     if (Array.isArray(tmpl.items)) {
       for (const item of tmpl.items) {
+        const productId = item.productId && item.productId !== '' ? item.productId : null;
         await req.db.query(
           'INSERT INTO quote_template_items ("companyId", "templateId", "productId", name, description, quantity, price, "tvaRate", "tvaAmount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-          [req.user!.companyId, tmpl.id, item.productId, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount]
+          [req.user!.companyId, tmpl.id, productId, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount]
         );
       }
     }
@@ -87,65 +88,92 @@ invoicesRouter.get('/', async (req, res, next) => {
 invoicesRouter.post('/', async (req, res, next) => {
   try {
     const inv = req.body;
+    console.log('POST /api/invoices - Request body:', JSON.stringify(inv, null, 2));
     
+    if (!req.user?.companyId) {
+      console.error('POST /api/invoices - Missing companyId in req.user');
+      return res.status(400).json({ error: 'Missing company context' });
+    }
+
     await req.db.query('BEGIN');
     
-    await req.db.query(
-      'INSERT INTO invoices (id, "companyId", type, "contactId", date, "dueDate", "totalHT", "tvaTotal", total, status, notes, "signatureLink", "signedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)',
-      [inv.id, req.user!.companyId, inv.type, inv.contactId, inv.date, inv.dueDate, inv.totalHT, inv.tvaTotal, inv.total, inv.status, inv.notes || null, inv.signatureLink || null, inv.signedAt || null]
-    );
-    
-    if (Array.isArray(inv.items)) {
-      for (const item of inv.items) {
-        await req.db.query(
-          'INSERT INTO invoice_items ("companyId", "invoiceId", "productId", name, description, quantity, price, "tvaRate", "tvaAmount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-          [req.user!.companyId, inv.id, item.productId, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount]
-        );
+    try {
+      const contactId = inv.contactId && inv.contactId !== '' ? inv.contactId : null;
+      
+      await req.db.query(
+        'INSERT INTO invoices (id, "companyId", type, "contactId", date, "dueDate", "totalHT", "tvaTotal", total, status, notes, "signatureLink", "signedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)',
+        [inv.id, req.user.companyId, inv.type, contactId, inv.date, inv.dueDate, inv.totalHT, inv.tvaTotal, inv.total, inv.status, inv.notes || null, inv.signatureLink || null, inv.signedAt || null]
+      );
+      
+      if (Array.isArray(inv.items)) {
+        for (const item of inv.items) {
+          const productId = item.productId && item.productId !== '' ? item.productId : null;
+          await req.db.query(
+            'INSERT INTO invoice_items ("companyId", "invoiceId", "productId", name, description, quantity, price, "tvaRate", "tvaAmount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+            [req.user.companyId, inv.id, productId, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount]
+          );
+        }
       }
+      
+      await req.db.query('COMMIT');
+      console.log('POST /api/invoices - Success');
+      res.status(201).json(inv);
+    } catch (dbError) {
+      await req.db.query('ROLLBACK');
+      console.error('POST /api/invoices - Database Error:', dbError);
+      throw dbError;
     }
-    
-    await req.db.query('COMMIT');
-    res.status(201).json(inv);
   } catch (error) {
-    await req.db.query('ROLLBACK');
+    console.error('POST /api/invoices - Catch Error:', error);
     next(error);
   }
 });
 
 invoicesRouter.put('/:id', async (req, res, next) => {
+  const { id } = req.params;
+  const inv = req.body;
   try {
-    const { id } = req.params;
-    const inv = req.body;
+    console.log(`PUT /api/invoices/${id} - Request body:`, JSON.stringify(inv, null, 2));
+
+    if (!req.user?.companyId) {
+      console.error(`PUT /api/invoices/${id} - Missing companyId in req.user`);
+      return res.status(400).json({ error: 'Missing company context' });
+    }
     
     await req.db.query('BEGIN');
     
-    // Fetch previous invoice to check status change
-    const prevInvoiceRes = await req.db.query('SELECT status FROM invoices WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
-    const prevInvoice = prevInvoiceRes.rows[0];
-    
-    await req.db.query(
-      'UPDATE invoices SET type = $1, "contactId" = $2, date = $3, "dueDate" = $4, "totalHT" = $5, "tvaTotal" = $6, total = $7, status = $8, notes = $9, "signatureLink" = $10, "signedAt" = $11 WHERE id = $12 AND "companyId" = $13',
-      [inv.type, inv.contactId, inv.date, inv.dueDate, inv.totalHT, inv.tvaTotal, inv.total, inv.status, inv.notes || null, inv.signatureLink || null, inv.signedAt || null, id, req.user!.companyId]
-    );
-    
-    await req.db.query('DELETE FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
-    
-    if (Array.isArray(inv.items)) {
-      for (const item of inv.items) {
-        await req.db.query(
-          'INSERT INTO invoice_items ("companyId", "invoiceId", "productId", name, description, quantity, price, "tvaRate", "tvaAmount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-          [req.user!.companyId, id, item.productId, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount]
-        );
+    try {
+      // Fetch previous invoice to check status change
+      const prevInvoiceRes = await req.db.query('SELECT status FROM invoices WHERE id = $1 AND "companyId" = $2', [id, req.user.companyId]);
+      const prevInvoice = prevInvoiceRes.rows[0];
+      
+      const contactId = inv.contactId && inv.contactId !== '' ? inv.contactId : null;
+
+      await req.db.query(
+        'UPDATE invoices SET type = $1, "contactId" = $2, date = $3, "dueDate" = $4, "totalHT" = $5, "tvaTotal" = $6, total = $7, status = $8, notes = $9, "signatureLink" = $10, "signedAt" = $11 WHERE id = $12 AND "companyId" = $13',
+        [inv.type, contactId, inv.date, inv.dueDate, inv.totalHT, inv.tvaTotal, inv.total, inv.status, inv.notes || null, inv.signatureLink || null, inv.signedAt || null, id, req.user.companyId]
+      );
+      
+      await req.db.query('DELETE FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2', [id, req.user.companyId]);
+      
+      if (Array.isArray(inv.items)) {
+        for (const item of inv.items) {
+          const productId = item.productId && item.productId !== '' ? item.productId : null;
+          await req.db.query(
+            'INSERT INTO invoice_items ("companyId", "invoiceId", "productId", name, description, quantity, price, "tvaRate", "tvaAmount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+            [req.user.companyId, id, productId, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount]
+          );
+        }
       }
-    }
-    
-    await req.db.query('COMMIT');
+      
+      await req.db.query('COMMIT');
+      console.log(`PUT /api/invoices/${id} - Success`);
     
     // If status changed to Signed, send an email with the PDF
     if (prevInvoice && prevInvoice.status !== 'Signed' && inv.status === 'Signed') {
       try {
         // Fetch contact and company
-        const contactRes = await req.db.query('SELECT * FROM contacts WHERE id = $1 AND "companyId" = $2', [inv.contactId, req.user!.companyId]);
+        const contactRes = await req.db.query('SELECT * FROM contacts WHERE id = $1 AND "companyId" = $2', [contactId, req.user!.companyId]);
         const contact = contactRes.rows[0];
         
         const companyRes = await req.db.query('SELECT * FROM companies WHERE id = $1', [req.user!.companyId]);
@@ -252,8 +280,13 @@ invoicesRouter.put('/:id', async (req, res, next) => {
     }
     
     res.json(inv);
+    } catch (dbError) {
+      await req.db.query('ROLLBACK');
+      console.error(`PUT /api/invoices/${id} - Database Error:`, dbError);
+      throw dbError;
+    }
   } catch (error) {
-    await req.db.query('ROLLBACK');
+    console.error(`PUT /api/invoices/${id} - Catch Error:`, error);
     next(error);
   }
 });

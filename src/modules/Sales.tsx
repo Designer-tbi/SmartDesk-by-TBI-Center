@@ -189,6 +189,7 @@ export const Sales = ({ user }: { user: any }) => {
       return;
     }
 
+    setIsSubmitting(true);
     try {
       if (editingInvoiceId) {
         const response = await apiFetch(`/api/invoices/${editingInvoiceId}`, {
