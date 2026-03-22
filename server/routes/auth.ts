@@ -301,12 +301,16 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
       console.log('Demo emails sent successfully');
     } catch (mailError: any) {
       console.error('Nodemailer Error:', mailError);
-      throw new Error(`Erreur lors de l'envoi de l'email: ${mailError.message}`);
+      // We don't throw here so the user can still log in using the code displayed in the UI
     }
 
-    res.status(200).json({ success: true, message: 'Emails sent successfully' });
+    res.status(200).json({ 
+      success: true, 
+      message: 'Compte créé avec succès',
+      code: code // Return the code so the frontend can display it if email fails
+    });
   } catch (error: any) {
     console.error('Error in send-demo-email route:', error);
-    res.status(500).json({ error: error.message || 'Failed to send emails' });
+    res.status(500).json({ error: error.message || 'Failed to create demo account' });
   }
 });

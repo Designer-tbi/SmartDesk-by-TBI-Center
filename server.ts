@@ -65,9 +65,11 @@ export const logActivity = async (dbClient: any, userId: string | undefined, com
   }
 };
 
-// Seed database with demo data if not on Vercel or explicitly requested
-if (!process.env.VERCEL || process.env.SEED_DB === 'true') {
+// Always ensure the database is seeded, even on Vercel
+try {
   await seedDatabase(db);
+} catch (err) {
+  console.error('Failed to seed database:', err);
 }
 
 // Attach database instance to request

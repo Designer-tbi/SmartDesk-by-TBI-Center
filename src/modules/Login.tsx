@@ -95,7 +95,12 @@ export const Login = ({ onLogin }: LoginProps) => {
       });
       
       if (response.ok) {
-        setSuccessMessage('Un code de connexion a été envoyé à votre adresse email.');
+        const data = await response.json();
+        if (data.code) {
+          setSuccessMessage(`Compte créé ! Votre code de connexion est : ${data.code}`);
+        } else {
+          setSuccessMessage('Un code de connexion a été envoyé à votre adresse email.');
+        }
         setIsRegistering(false);
         setEmail(regForm.email);
       } else {
