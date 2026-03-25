@@ -1,6 +1,5 @@
 import express from "express";
 import path from "path";
-import { fileURLToPath } from "url";
 import compression from "compression";
 import { db, seedDatabase, connectionString } from "./db";
 import { WebSocketServer, WebSocket } from 'ws';
@@ -110,7 +109,8 @@ export default app;
 // Only start the server if not running on Vercel
 if (!process.env.VERCEL) {
   if (process.env.NODE_ENV !== "production") {
-    import("vite").then(({ createServer: createViteServer }) => {
+    const viteModule = "vite";
+    import(viteModule).then(({ createServer: createViteServer }) => {
       createViteServer({
         server: { middlewareMode: true },
         appType: "spa",

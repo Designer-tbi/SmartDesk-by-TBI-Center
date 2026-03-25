@@ -1,6 +1,4 @@
 import { Pool } from 'pg';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 
 const rawConnectionString = process.env.DATABASE_URL;
@@ -371,6 +369,19 @@ const initSql = `
     FOREIGN KEY ("employeeId") REFERENCES employees(id) ON DELETE CASCADE
   );
 
+  -- Schema updates for existing tables
+  ALTER TABLE companies ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
+  ALTER TABLE journal_items ADD COLUMN IF NOT EXISTS "companyId" TEXT;
+  ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS "companyId" TEXT;
+  ALTER TABLE transactions ADD COLUMN IF NOT EXISTS "companyId" TEXT;
+  ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS "companyId" TEXT;
+  ALTER TABLE quote_templates ADD COLUMN IF NOT EXISTS "companyId" TEXT;
+  ALTER TABLE quote_template_items ADD COLUMN IF NOT EXISTS "companyId" TEXT;
+
   -- Indexes for multi-company isolation and performance
   CREATE INDEX IF NOT EXISTS idx_users_company ON users("companyId");
   CREATE INDEX IF NOT EXISTS idx_contacts_company ON contacts("companyId");
@@ -395,14 +406,6 @@ const initSql = `
   CREATE INDEX IF NOT EXISTS idx_journal_items_entry_id ON journal_items("journalEntryId");
   CREATE INDEX IF NOT EXISTS idx_events_start_date ON events("startDate");
   CREATE INDEX IF NOT EXISTS idx_schedules_start_date ON schedules("startDate");
-
-  -- Schema updates for existing tables
-  ALTER TABLE companies ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
-  ALTER TABLE users ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
-  ALTER TABLE users ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
-  ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMPTZ DEFAULT NOW();
-  ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMPTZ DEFAULT NOW();
-  -- ... more alter statements can be added if needed, but initializeDatabase handles it.
 `;
 
 // Initialize database
