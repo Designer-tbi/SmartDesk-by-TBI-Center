@@ -36,16 +36,30 @@ import { errorHandler } from './server/middleware/error';
 
 const app = express();
 app.use(compression());
-const server = http.createServer(app);
-let wss: WebSocketServer | null = null;
+app.use(express.json());
 
+// Diagnostic logging for Vercel
+app.use((req, res, next) => {
+  if (process.env.VERCEL) {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+  }
+  next();
+});
+
+const server = http.createServer(app);
+let wss: any = null;
+
+// Only start WebSocket server if not running on Vercel
 if (!process.env.VERCEL) {
-  wss = new WebSocketServer({ server });
+  import('ws').then(({ WebSocketServer }) => {
+    wss = new WebSocketServer({ server });
+    console.log('WebSocket server started');
+  }).catch(err => {
+    console.error('Failed to start WebSocket server:', err);
+  });
 }
 
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-
-app.use(express.json());
 
 // WebSocket broadcast helper
 export const broadcast = (data: any) => {
@@ -121,8 +135,8 @@ app.use('/api/company', companyRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/schedules', schedulesRouter);
 
-// Global Error Handler for API routes
-app.use('/api', errorHandler);
+// Global Error Handler
+app.use(errorHandler);
 
 // Export the app for Vercel serverless functions
 export default app;
