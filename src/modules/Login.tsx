@@ -48,13 +48,13 @@ export const Login = ({ onLogin }: LoginProps) => {
         localStorage.removeItem('selectedCompanyId');
         onLogin(data.user);
       } else {
+        const text = await response.text();
         let errorMessage = t('login.invalidCredentials');
         try {
-          const errorData = await response.json();
+          const errorData = JSON.parse(text);
           errorMessage = errorData.error || errorMessage;
         } catch (e) {
-          const errorText = await response.text();
-          console.error('Non-JSON error response:', errorText);
+          console.error('Non-JSON error response:', text);
           errorMessage = `Erreur serveur (${response.status})`;
         }
         setError(errorMessage);
@@ -88,13 +88,13 @@ export const Login = ({ onLogin }: LoginProps) => {
         localStorage.removeItem('selectedCompanyId');
         onLogin(data.user);
       } else {
+        const text = await response.text();
         let errorMessage = t('login.invalidCredentials');
         try {
-          const data = await response.json();
+          const data = JSON.parse(text);
           errorMessage = data.error || errorMessage;
         } catch (e) {
-          const errorText = await response.text();
-          console.error('Non-JSON error response:', errorText);
+          console.error('Non-JSON error response:', text);
           errorMessage = `Erreur serveur (${response.status})`;
         }
         setError(errorMessage);
@@ -123,7 +123,8 @@ export const Login = ({ onLogin }: LoginProps) => {
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const text = await response.text();
+        const data = JSON.parse(text);
         if (data.code) {
           setSuccessMessage(t('login.accountCreated', { code: data.code }));
         } else {
@@ -132,8 +133,14 @@ export const Login = ({ onLogin }: LoginProps) => {
         setIsRegistering(false);
         setEmail(regForm.email);
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || t('login.invalidCredentials'));
+        const text = await response.text();
+        try {
+          const errorData = JSON.parse(text);
+          setError(errorData.error || t('login.invalidCredentials'));
+        } catch (e) {
+          console.error('Non-JSON error response:', text);
+          setError(`Erreur serveur (${response.status})`);
+        }
       }
     } catch (err) {
       setError(t('login.connectionError'));
