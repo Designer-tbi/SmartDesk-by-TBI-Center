@@ -1,47 +1,16 @@
-import express from "express";
-import path from "path";
-import compression from "compression";
-import { db, seedDatabase, connectionString } from "./db";
+import app from "./app";
+import { db, seedDatabase } from "./db";
 import http from 'http';
+import path from "path";
+import express from "express";
 
 // Global error handlers to prevent Node.js process from crashing
 const handleFatalError = (err: any, type: string) => {
   console.error(`FATAL ${type}:`, err);
-  // On Vercel, we just log. In a real server, we might restart.
 };
 
 process.on('uncaughtException', (err) => handleFatalError(err, 'uncaughtException'));
 process.on('unhandledRejection', (reason) => handleFatalError(reason, 'unhandledRejection'));
-
-// Import routers
-import { contactsRouter } from './server/routes/contacts';
-import { productsRouter } from './server/routes/products';
-import { invoicesRouter } from './server/routes/invoices';
-import { projectsRouter } from './server/routes/projects';
-import { employeesRouter } from './server/routes/employees';
-import { accountingRouter } from './server/routes/accounting';
-import { statsRouter } from './server/routes/stats';
-import { authRouter } from './server/routes/auth';
-import { adminRouter } from './server/routes/admin';
-import { companyRouter } from './server/routes/company';
-import { eventsRouter } from './server/routes/events';
-import { schedulesRouter } from './server/routes/schedules';
-
-// Import middlewares
-import { dbMiddleware } from './server/middleware/db';
-import { errorHandler } from './server/middleware/error';
-
-const app = express();
-app.use(compression());
-app.use(express.json());
-
-// Diagnostic logging for Vercel
-app.use((req, res, next) => {
-  if (process.env.VERCEL) {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-  }
-  next();
-});
 
 const server = http.createServer(app);
 let wss: any = null;
@@ -90,59 +59,6 @@ if (!process.env.VERCEL) {
   });
 }
 
-// Attach database instance to request
-app.use(dbMiddleware);
-
-// API Routes
-// ... existing routes ...
-app.get('/api/health', async (req, res) => {
-  try {
-    const tablesRes = await db.query("SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'");
-    res.json({ 
-      status: 'ok', 
-      environment: process.env.NODE_ENV,
-      vercel: !!process.env.VERCEL,
-      database: connectionString.includes('neon.tech') ? 'neon' : 'custom',
-      tables: tablesRes.rows.map(r => r.table_name)
-    });
-  } catch (err) {
-    res.status(500).json({ status: 'error', error: String(err) });
-  }
-});
-
-app.post('/api/seed', async (req, res) => {
-  try {
-    await seedDatabase(db);
-    res.json({ status: 'ok', message: 'Database seeded successfully' });
-  } catch (err) {
-    res.status(500).json({ status: 'error', error: String(err) });
-  }
-});
-
-app.use('/api/contacts', contactsRouter);
-app.use('/api/products', productsRouter);
-app.use('/api/invoices', invoicesRouter);
-app.use('/api/projects', projectsRouter);
-app.use('/api/employees', employeesRouter);
-app.use('/api', accountingRouter); // accounting routes are /api/transactions and /api/journal-entries
-app.use('/api/stats', statsRouter);
-app.use('/api/auth', authRouter); // auth routes are /api/auth/send-demo-email and /api/auth/login
-app.use('/api/admin', adminRouter);
-app.use('/api/company', companyRouter);
-app.use('/api/events', eventsRouter);
-app.use('/api/schedules', schedulesRouter);
-
-// 404 handler for API routes
-app.use('/api/*', (req, res) => {
-  res.status(404).json({ 
-    error: 'Route non trouvée',
-    path: req.originalUrl
-  });
-});
-
-// Global Error Handler
-app.use(errorHandler);
-
 // Export the app for Vercel serverless functions
 export default app;
 
@@ -163,21 +79,16 @@ if (!process.env.VERCEL) {
     });
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    // Cache static assets for 1 year
     app.use(express.static(distPath, {
       maxAge: '1y',
       immutable: true,
       index: false
     }));
+
     app.get("*", (req, res) => {
-      // For Vercel, we need to handle the case where the file might not exist locally during the function execution
-      // but is served by the Vercel edge. However, since we have a rewrite in vercel.json, 
-      // this catch-all is mostly for local production testing.
-      const indexPath = path.join(distPath, "index.html");
-      res.sendFile(indexPath, {
-        maxAge: '1h'
-      });
+      res.sendFile(path.join(distPath, "index.html"));
     });
+
     server.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });
