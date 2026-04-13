@@ -1,8 +1,8 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion } from 'motion/react';
 import { apiFetch } from './lib/api';
 import { I18nProvider, useTranslation } from './lib/i18n';
 
@@ -23,10 +23,11 @@ const SuperAdmin = lazy(() => import('./modules/SuperAdmin').then(m => ({ defaul
 
 const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, onLogout?: () => void, user: any }) => {
   const location = useLocation();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   const { t } = useTranslation();
   
-  const getTitle = React.useCallback((path: string) => {
+  const getTitle = useCallback((path: string) => {
     switch (path) {
       case '/': return t('header.dashboard');
       case '/crm': return t('header.crm');
@@ -44,16 +45,16 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
     }
   }, [t]);
 
-  React.useEffect(() => {
+  useEffect(() => {
     const title = getTitle(location.pathname);
     document.title = `${title} | SmartDesk by TBI Center`;
   }, [location.pathname, getTitle]);
 
   return (
     <div className="flex h-screen bg-luxury-gray overflow-hidden">
-      <Sidebar user={user} />
+      <Sidebar user={user} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header title={getTitle(location.pathname)} onLogout={onLogout} user={user} />
+        <Header title={getTitle(location.pathname)} onLogout={onLogout} user={user} onMenuClick={() => setIsSidebarOpen(true)} />
         <main className="flex-1 overflow-auto p-8">
           <div className="max-w-7xl mx-auto w-full">
             <AnimatePresence mode="wait">
@@ -69,8 +70,8 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
             </AnimatePresence>
           </div>
         </main>
-        <footer className="py-4 text-center text-sm text-slate-500 border-t border-blue-50 bg-white">
-          SmartDesk by <a href="https://tbi-center.fr" target="_blank" rel="noopener noreferrer" className="text-accent-blue hover:underline font-medium">TBI Center</a>
+        <footer className="py-4 text-center text-sm text-slate-500 border-t border-red-50 bg-white">
+          SmartDesk by <a href="https://tbi-center.fr" target="_blank" rel="noopener noreferrer" className="text-accent-red hover:underline font-medium">TBI Center</a>
         </footer>
       </div>
     </div>
@@ -80,7 +81,17 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
 const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
   const { setLanguage } = useTranslation();
 
-  React.useEffect(() => {
+  useEffect(() => {
+    const handleAuthError = () => {
+      localStorage.removeItem('token');
+      setUser(null);
+    };
+
+    window.addEventListener('auth-error', handleAuthError);
+    return () => window.removeEventListener('auth-error', handleAuthError);
+  }, [setUser]);
+
+  useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       apiFetch('/api/auth/me')
@@ -144,8 +155,8 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
 };
 
 export default function App() {
-  const [user, setUser] = React.useState<any>(null);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   return (
     <I18nProvider>

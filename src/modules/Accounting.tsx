@@ -230,7 +230,7 @@ export const Accounting = ({ user }: { user?: any }) => {
     const totalDebit = newEntry.items.reduce((sum, item) => sum + item.debit, 0);
     const totalCredit = newEntry.items.reduce((sum, item) => sum + item.credit, 0);
     if (totalDebit !== totalCredit || totalDebit === 0) {
-      alert('L\'écriture n\'est pas équilibrée ou le montant est nul.');
+      alert(t('accounting.unbalancedError'));
       return;
     }
     try {
@@ -273,11 +273,11 @@ export const Accounting = ({ user }: { user?: any }) => {
         await fetchData();
         setIsResetConfirmOpen(false);
       } else {
-        alert('Erreur lors de la réinitialisation des données.');
+        alert(t('accounting.resetError'));
       }
     } catch (error) {
       console.error('Failed to reset accounting data:', error);
-      alert('Erreur de connexion.');
+      alert(t('accounting.connectionError'));
     } finally {
       setIsResetting(false);
     }
@@ -295,7 +295,7 @@ export const Accounting = ({ user }: { user?: any }) => {
 
   const handleGenerateEntry = async () => {
     if (!newEntry.description) {
-      alert('Veuillez saisir une description pour générer l\'écriture.');
+      alert(t('accounting.descriptionRequired'));
       return;
     }
     setIsGenerating(true);
@@ -304,8 +304,8 @@ export const Accounting = ({ user }: { user?: any }) => {
       const suggested = await suggestAccountingEntry(newEntry.description, amount);
       setNewEntry({ ...newEntry, description: suggested.description, items: suggested.items });
     } catch (error) {
-      console.error('Erreur lors de la génération:', error);
-      alert('Erreur lors de la génération automatique.');
+      console.error('Error generating entry:', error);
+      alert(t('accounting.generateError'));
     } finally {
       setIsGenerating(false);
     }
@@ -447,30 +447,30 @@ export const Accounting = ({ user }: { user?: any }) => {
       case 'Dashboard': return (
         <div className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="bg-white p-6 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
               <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><TrendingUp /></div>
               <div>
                 <p className="text-sm text-slate-500 font-medium">{t('accounting.revenue')}</p>
                 <p className="text-xl font-bold text-slate-900">{totalIncome.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
-            <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+            <div className="bg-white p-6 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
               <div className="p-3 bg-rose-50 text-rose-600 rounded-xl"><TrendingDown /></div>
               <div>
                 <p className="text-sm text-slate-500 font-medium">{t('accounting.expenses')}</p>
                 <p className="text-xl font-bold text-slate-900">{totalExpenses.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
-            <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
-              <div className="p-3 bg-soft-blue text-accent-blue rounded-xl"><DollarSign /></div>
+            <div className="bg-white p-6 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-shadow">
+              <div className="p-3 bg-soft-red text-accent-red rounded-xl"><DollarSign /></div>
               <div>
                 <p className="text-sm text-slate-500 font-medium">{t('accounting.netProfit')}</p>
-                <p className="text-xl font-bold text-primary-blue">{netProfit.toLocaleString()} {currencySymbol}</p>
+                <p className="text-xl font-bold text-accent-red">{netProfit.toLocaleString()} {currencySymbol}</p>
               </div>
             </div>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm h-80">
-            <h3 className="text-lg font-bold mb-4 text-primary-blue">{t('accounting.performance')}</h3>
+          <div className="bg-white p-6 rounded-2xl border border-red-100 shadow-sm h-80">
+            <h3 className="text-lg font-bold mb-4 text-accent-red">{t('accounting.performance')}</h3>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={performanceData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -489,7 +489,7 @@ export const Accounting = ({ user }: { user?: any }) => {
       case 'Journal': return (
         <div className="space-y-4">
           <div className="flex gap-2">
-            <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-accent-blue text-white px-4 py-2 rounded-lg hover:bg-primary-blue transition-all shadow-sm shadow-accent-blue/20">
+            <button onClick={() => setIsModalOpen(true)} className="flex items-center gap-2 bg-accent-red text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-all shadow-sm shadow-accent-red/20">
               <Plus className="w-4 h-4" /> {t('accounting.newEntry')}
             </button>
             <button 
@@ -501,22 +501,22 @@ export const Accounting = ({ user }: { user?: any }) => {
               {t('accounting.automateFromInvoices')}
             </button>
           </div>
-          <div className="overflow-hidden rounded-xl border border-blue-50">
+          <div className="overflow-hidden rounded-xl border border-red-50">
             <table className="w-full text-left">
-              <thead className="bg-soft-blue/30 border-b border-blue-50">
+              <thead className="bg-soft-red/30 border-b border-red-50">
                 <tr>
-                  <th className="p-4 text-sm font-bold text-accent-blue">{t('accounting.date')}</th>
-                  <th className="p-4 text-sm font-bold text-accent-blue">{t('accounting.description')}</th>
-                  <th className="p-4 text-sm font-bold text-accent-blue">{t('accounting.debit')}</th>
-                  <th className="p-4 text-sm font-bold text-accent-blue">{t('accounting.credit')}</th>
-                  <th className="p-4 text-sm font-bold text-accent-blue text-right">{t('accounting.actions')}</th>
+                  <th className="p-4 text-sm font-bold text-accent-red">{t('accounting.date')}</th>
+                  <th className="p-4 text-sm font-bold text-accent-red">{t('accounting.description')}</th>
+                  <th className="p-4 text-sm font-bold text-accent-red">{t('accounting.debit')}</th>
+                  <th className="p-4 text-sm font-bold text-accent-red">{t('accounting.credit')}</th>
+                  <th className="p-4 text-sm font-bold text-accent-red text-right">{t('accounting.actions')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-blue-50">
+              <tbody className="divide-y divide-red-50">
                 {journalEntries.map(entry => (
                   <React.Fragment key={entry.id}>
                     {entry.items.map((item, idx) => (
-                      <tr key={`${entry.id}-${idx}`} className="hover:bg-soft-blue/10 transition-colors group">
+                      <tr key={`${entry.id}-${idx}`} className="hover:bg-soft-red/10 transition-colors group">
                         <td className="p-4 text-sm font-medium text-slate-600">{idx === 0 ? entry.date : ''}</td>
                         <td className="p-4 text-sm font-medium text-slate-900">{idx === 0 ? entry.description : ''}</td>
                         <td className="p-4 text-sm font-semibold text-slate-700">{item.debit > 0 ? item.debit.toLocaleString() : '-'}</td>
@@ -524,7 +524,7 @@ export const Accounting = ({ user }: { user?: any }) => {
                         <td className="p-4 text-sm text-right">
                           {idx === 0 && (
                             <div className="flex justify-end gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                              <button onClick={() => openEdit(entry)} className="p-1.5 text-slate-400 hover:text-accent-blue hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-blue-100" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
+                              <button onClick={() => openEdit(entry)} className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-red-100" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
                               <button onClick={() => setDeleteConfirmId(entry.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-rose-100" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
                             </div>
                           )}
@@ -539,19 +539,19 @@ export const Accounting = ({ user }: { user?: any }) => {
         </div>
       );
       case 'PCG': return (
-        <div className="overflow-hidden rounded-xl border border-blue-50">
+        <div className="overflow-hidden rounded-xl border border-red-50">
           <table className="w-full text-left">
-            <thead className="bg-soft-blue/30 border-b border-blue-50">
+            <thead className="bg-soft-red/30 border-b border-red-50">
               <tr>
-                <th className="p-4 text-sm font-bold text-accent-blue">{t('accounting.code')}</th>
-                <th className="p-4 text-sm font-bold text-accent-blue">{t('accounting.name')}</th>
-                <th className="p-4 text-sm font-bold text-accent-blue">{t('accounting.type')}</th>
+                <th className="p-4 text-sm font-bold text-accent-red">{t('accounting.code')}</th>
+                <th className="p-4 text-sm font-bold text-accent-red">{t('accounting.name')}</th>
+                <th className="p-4 text-sm font-bold text-accent-red">{t('accounting.type')}</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-blue-50">
+            <tbody className="divide-y divide-red-50">
               {PCG.map(acc => (
-                <tr key={acc.code} className="hover:bg-soft-blue/10 transition-colors">
-                  <td className="p-4 text-sm font-mono text-accent-blue">{acc.code}</td>
+                <tr key={acc.code} className="hover:bg-soft-red/10 transition-colors">
+                  <td className="p-4 text-sm font-mono text-accent-red">{acc.code}</td>
                   <td className="p-4 text-sm font-medium text-slate-700">{acc.name}</td>
                   <td className="p-4 text-sm">
                     <span className="px-2 py-1 bg-luxury-gray rounded-md text-xs font-medium text-slate-600">
@@ -566,36 +566,36 @@ export const Accounting = ({ user }: { user?: any }) => {
       );
       case 'Bilan': return (
         <div className="space-y-6">
-          <h3 className="text-xl font-bold text-primary-blue">{t('accounting.bilan')}</h3>
+          <h3 className="text-xl font-bold text-accent-red">{t('accounting.bilan')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-luxury-gray/50 p-6 rounded-2xl border border-blue-50">
-              <h4 className="font-bold text-accent-blue mb-4 uppercase tracking-widest text-xs">{t('accounting.actif')}</h4>
+            <div className="bg-luxury-gray/50 p-6 rounded-2xl border border-red-50">
+              <h4 className="font-bold text-accent-red mb-4 uppercase tracking-widest text-xs">{t('accounting.actif')}</h4>
               <ul className="space-y-3">
                 {Object.entries(bilanDetails).filter(([_, v]) => v.type === 'Asset').map(([code, v]) => (
-                  <li key={code} className="flex justify-between text-sm p-2 bg-white rounded-lg border border-blue-50/50 shadow-sm">
+                  <li key={code} className="flex justify-between text-sm p-2 bg-white rounded-lg border border-red-50/50 shadow-sm">
                     <span className="text-slate-600 font-medium">{v.name} <span className="text-[10px] text-slate-400 ml-1">({code})</span></span>
                     <span className="font-bold text-slate-900">{v.balance.toLocaleString()} {currencySymbol}</span>
                   </li>
                 ))}
               </ul>
-              <div className="mt-6 pt-4 border-t border-blue-100 flex justify-between items-center">
+              <div className="mt-6 pt-4 border-t border-red-100 flex justify-between items-center">
                 <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">{t('common.total')}</span>
-                <span className="text-2xl font-bold text-primary-blue">{bilanTotals.assets.toLocaleString()} {currencySymbol}</span>
+                <span className="text-2xl font-bold text-accent-red">{bilanTotals.assets.toLocaleString()} {currencySymbol}</span>
               </div>
             </div>
-            <div className="bg-luxury-gray/50 p-6 rounded-2xl border border-blue-50">
-              <h4 className="font-bold text-accent-blue mb-4 uppercase tracking-widest text-xs">{t('accounting.passif')}</h4>
+            <div className="bg-luxury-gray/50 p-6 rounded-2xl border border-red-50">
+              <h4 className="font-bold text-accent-red mb-4 uppercase tracking-widest text-xs">{t('accounting.passif')}</h4>
               <ul className="space-y-3">
                 {Object.entries(bilanDetails).filter(([_, v]) => v.type !== 'Asset').map(([code, v]) => (
-                  <li key={code} className="flex justify-between text-sm p-2 bg-white rounded-lg border border-blue-50/50 shadow-sm">
+                  <li key={code} className="flex justify-between text-sm p-2 bg-white rounded-lg border border-red-50/50 shadow-sm">
                     <span className="text-slate-600 font-medium">{v.name} <span className="text-[10px] text-slate-400 ml-1">({code})</span></span>
                     <span className="font-bold text-slate-900">{v.balance.toLocaleString()} {currencySymbol}</span>
                   </li>
                 ))}
               </ul>
-              <div className="mt-6 pt-4 border-t border-blue-100 flex justify-between items-center">
+              <div className="mt-6 pt-4 border-t border-red-100 flex justify-between items-center">
                 <span className="text-sm font-bold text-slate-500 uppercase tracking-wider">{t('common.total')}</span>
-                <span className="text-2xl font-bold text-primary-blue">{bilanTotals.liabilities.toLocaleString()} {currencySymbol}</span>
+                <span className="text-2xl font-bold text-accent-red">{bilanTotals.liabilities.toLocaleString()} {currencySymbol}</span>
               </div>
             </div>
           </div>
@@ -603,7 +603,7 @@ export const Accounting = ({ user }: { user?: any }) => {
       );
       case 'Resultat': return (
         <div className="space-y-6">
-          <h3 className="text-xl font-bold text-primary-blue">{t('accounting.resultat')}</h3>
+          <h3 className="text-xl font-bold text-accent-red">{t('accounting.resultat')}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="bg-emerald-50/30 p-6 rounded-2xl border border-emerald-100">
               <h4 className="font-bold text-emerald-600 mb-4 uppercase tracking-widest text-xs">{t('accounting.produits')}</h4>
@@ -636,13 +636,13 @@ export const Accounting = ({ user }: { user?: any }) => {
               </div>
             </div>
           </div>
-          <div className="bg-soft-blue p-6 rounded-2xl border border-blue-100 flex justify-between items-center shadow-lg shadow-accent-blue/5">
+          <div className="bg-soft-red p-6 rounded-2xl border border-red-100 flex justify-between items-center shadow-lg shadow-accent-red/5">
             <div>
-              <h4 className="font-bold text-primary-blue uppercase tracking-widest text-xs mb-1">{t('accounting.netResult')}</h4>
-              <p className="text-4xl font-black text-accent-blue">{(resultatTotals.revenue - resultatTotals.expenses).toLocaleString()} {currencySymbol}</p>
+              <h4 className="font-bold text-accent-red uppercase tracking-widest text-xs mb-1">{t('accounting.netResult')}</h4>
+              <p className="text-4xl font-black text-accent-red">{(resultatTotals.revenue - resultatTotals.expenses).toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="p-4 bg-white rounded-2xl shadow-sm border border-blue-50">
-              <Sparkles className="w-8 h-8 text-accent-blue" />
+            <div className="p-4 bg-white rounded-2xl shadow-sm border border-red-50">
+              <Sparkles className="w-8 h-8 text-accent-red" />
             </div>
           </div>
         </div>
@@ -650,30 +650,30 @@ export const Accounting = ({ user }: { user?: any }) => {
       case 'TVA': return (
         <div className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-xl font-bold text-primary-blue">{t('accounting.tvaDeclaration', { taxLabel })}</h3>
+            <h3 className="text-xl font-bold text-accent-red">{t('accounting.tvaDeclaration', { taxLabel })}</h3>
             <button 
               onClick={downloadTVAPDF}
-              className="flex items-center gap-2 bg-accent-blue text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-primary-blue transition-all shadow-lg shadow-accent-blue/20 active:scale-95"
+              className="flex items-center gap-2 bg-accent-red text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95"
             >
               <Download className="w-4 h-4" /> {t('accounting.downloadPDF')}
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-white p-6 rounded-2xl border border-red-100 shadow-sm hover:shadow-md transition-shadow">
               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{t('accounting.tvaCollectedJournal', { taxLabel })}</h4>
               <p className="text-2xl font-bold text-emerald-600">{(tvaData.collected - tvaFromInvoices).toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-white p-6 rounded-2xl border border-red-100 shadow-sm hover:shadow-md transition-shadow">
               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{t('accounting.tvaOnPaidInvoices', { taxLabel })}</h4>
               <p className="text-2xl font-bold text-emerald-600">{tvaFromInvoices.toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-white p-6 rounded-2xl border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
+            <div className="bg-white p-6 rounded-2xl border border-red-100 shadow-sm hover:shadow-md transition-shadow">
               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{t('accounting.tvaDeductible', { taxLabel })}</h4>
               <p className="text-2xl font-bold text-rose-600">{tvaData.deductible.toLocaleString()} {currencySymbol}</p>
             </div>
-            <div className="bg-soft-blue p-6 rounded-2xl border border-blue-100 shadow-lg shadow-accent-blue/5">
-              <h4 className="text-[10px] font-bold text-accent-blue uppercase tracking-widest mb-2">{t('accounting.tvaToPay', { taxLabel })}</h4>
-              <p className="text-3xl font-black text-accent-blue">{(tvaData.collected - tvaData.deductible).toLocaleString()} {currencySymbol}</p>
+            <div className="bg-soft-red p-6 rounded-2xl border border-red-100 shadow-lg shadow-accent-red/5">
+              <h4 className="text-[10px] font-bold text-accent-red uppercase tracking-widest mb-2">{t('accounting.tvaToPay', { taxLabel })}</h4>
+              <p className="text-3xl font-black text-accent-red">{(tvaData.collected - tvaData.deductible).toLocaleString()} {currencySymbol}</p>
             </div>
           </div>
         </div>
@@ -682,63 +682,63 @@ export const Accounting = ({ user }: { user?: any }) => {
         <div className="space-y-8">
           <div className="flex justify-between items-start">
             <div>
-              <h3 className="text-2xl font-bold text-primary-blue">{t('accounting.liassesTitle')}</h3>
+              <h3 className="text-2xl font-bold text-accent-red">{t('accounting.liassesTitle')}</h3>
               <p className="text-slate-500 text-sm mt-1">{t('accounting.liassesDesc', { standard: isUS ? 'US GAAP' : isFR ? 'France' : 'OHADA' })}</p>
             </div>
             <button 
               onClick={downloadLiassePDF}
-              className="flex items-center gap-2 bg-accent-blue text-white px-8 py-3.5 rounded-xl font-bold hover:bg-primary-blue shadow-lg shadow-accent-blue/20 transition-all active:scale-95"
+              className="flex items-center gap-2 bg-accent-red text-white px-8 py-3.5 rounded-xl font-bold hover:bg-red-700 shadow-lg shadow-accent-red/20 transition-all active:scale-95"
             >
               <Download className="w-5 h-5" /> {t('accounting.downloadLiasse')}
             </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-luxury-gray/50 p-8 rounded-2xl border border-blue-50">
+            <div className="bg-luxury-gray/50 p-8 rounded-2xl border border-red-50">
               <div className="flex items-center gap-3 mb-8">
-                <div className="p-2.5 bg-white rounded-xl shadow-sm border border-blue-100 text-accent-blue"><Building2 className="w-5 h-5" /></div>
-                <h4 className="font-bold text-primary-blue uppercase tracking-tight text-lg">{t('accounting.companyInfo')}</h4>
+                <div className="p-2.5 bg-white rounded-xl shadow-sm border border-red-100 text-accent-red"><Building2 className="w-5 h-5" /></div>
+                <h4 className="font-bold text-accent-red uppercase tracking-tight text-lg">{t('accounting.companyInfo')}</h4>
               </div>
               <div className="space-y-6">
                 <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <label className="text-[10px] font-bold text-accent-blue uppercase tracking-widest mb-1 block">{t('accounting.denomination')}</label>
+                    <label className="text-[10px] font-bold text-accent-red uppercase tracking-widest mb-1 block">{t('accounting.denomination')}</label>
                     <p className="text-base font-bold text-slate-900">{companyInfo?.name || 'Entreprise'}</p>
                   </div>
                   <div>
-                    <label className="text-[10px] font-bold text-accent-blue uppercase tracking-widest mb-1 block">{isFR ? t('accounting.vatIntracom') : isUS ? t('accounting.ein') : t('accounting.taxId')}</label>
+                    <label className="text-[10px] font-bold text-accent-red uppercase tracking-widest mb-1 block">{isFR ? t('accounting.vatIntracom') : isUS ? t('accounting.ein') : t('accounting.taxId')}</label>
                     <p className="text-base font-bold text-slate-900">{companyInfo?.taxId || '-'}</p>
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-bold text-accent-blue uppercase tracking-widest mb-1 block">{t('accounting.siege')}</label>
+                  <label className="text-[10px] font-bold text-accent-red uppercase tracking-widest mb-1 block">{t('accounting.siege')}</label>
                   <p className="text-sm font-medium text-slate-600 leading-relaxed">{companyInfo?.address || '-'}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-6">
                   {isFR ? (
                     <>
                       <div>
-                        <label className="text-[10px] font-bold text-accent-blue uppercase tracking-widest mb-1 block">{t('accounting.siren')}</label>
+                        <label className="text-[10px] font-bold text-accent-red uppercase tracking-widest mb-1 block">{t('accounting.siren')}</label>
                         <p className="text-sm font-medium text-slate-600">{companyInfo?.siren || '-'}</p>
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-accent-blue uppercase tracking-widest mb-1 block">{t('accounting.siret')}</label>
+                        <label className="text-[10px] font-bold text-accent-red uppercase tracking-widest mb-1 block">{t('accounting.siret')}</label>
                         <p className="text-sm font-medium text-slate-600">{companyInfo?.siret || '-'}</p>
                       </div>
                     </>
                   ) : isUS ? (
                     <div>
-                      <label className="text-[10px] font-bold text-accent-blue uppercase tracking-widest mb-1 block">{t('accounting.stateOfInc')}</label>
+                      <label className="text-[10px] font-bold text-accent-red uppercase tracking-widest mb-1 block">{t('accounting.stateOfInc')}</label>
                       <p className="text-sm font-medium text-slate-600">{companyInfo?.country === 'USA' ? t('accounting.delaware') : '-'}</p>
                     </div>
                   ) : (
                     <>
                       <div>
-                        <label className="text-[10px] font-bold text-accent-blue uppercase tracking-widest mb-1 block">{t('accounting.rccm')}</label>
+                        <label className="text-[10px] font-bold text-accent-red uppercase tracking-widest mb-1 block">{t('accounting.rccm')}</label>
                         <p className="text-sm font-medium text-slate-600">{companyInfo?.rccm || '-'}</p>
                       </div>
                       <div>
-                        <label className="text-[10px] font-bold text-accent-blue uppercase tracking-widest mb-1 block">{t('accounting.idNat')}</label>
+                        <label className="text-[10px] font-bold text-accent-red uppercase tracking-widest mb-1 block">{t('accounting.idNat')}</label>
                         <p className="text-sm font-medium text-slate-600">{companyInfo?.idNat || '-'}</p>
                       </div>
                     </>
@@ -747,9 +747,9 @@ export const Accounting = ({ user }: { user?: any }) => {
               </div>
             </div>
 
-            <div className="bg-white p-8 rounded-2xl border border-blue-100 shadow-sm">
-              <h4 className="font-bold text-primary-blue mb-8 flex items-center gap-2 text-lg">
-                <FileText className="w-5 h-5 text-accent-blue" /> {t('accounting.includedDocs')}
+            <div className="bg-white p-8 rounded-2xl border border-red-100 shadow-sm">
+              <h4 className="font-bold text-accent-red mb-8 flex items-center gap-2 text-lg">
+                <FileText className="w-5 h-5 text-accent-red" /> {t('accounting.includedDocs')}
               </h4>
               <div className="space-y-3">
                 {[
@@ -760,7 +760,7 @@ export const Accounting = ({ user }: { user?: any }) => {
                   t('accounting.doc.stocks'),
                   t('accounting.doc.amortization')
                 ].map((doc, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 bg-soft-blue/10 rounded-xl border border-blue-50/50 hover:bg-soft-blue/20 transition-colors">
+                  <div key={i} className="flex items-center justify-between p-4 bg-soft-red/10 rounded-xl border border-red-50/50 hover:bg-soft-red/20 transition-colors">
                     <span className="text-sm font-semibold text-slate-700">{doc}</span>
                     <CheckCircle2 className="w-5 h-5 text-emerald-500" />
                   </div>
@@ -769,12 +769,12 @@ export const Accounting = ({ user }: { user?: any }) => {
             </div>
           </div>
 
-          <div className="bg-soft-blue p-8 rounded-2xl border border-blue-100 flex items-center gap-8 shadow-lg shadow-accent-blue/5">
-            <div className="p-5 bg-white rounded-2xl shadow-sm text-accent-blue border border-blue-50">
+          <div className="bg-soft-red p-8 rounded-2xl border border-red-100 flex items-center gap-8 shadow-lg shadow-accent-red/5">
+            <div className="p-5 bg-white rounded-2xl shadow-sm text-accent-red border border-red-50">
               <BarChart3 className="w-10 h-10" />
             </div>
             <div>
-              <h4 className="text-xl font-bold text-primary-blue">{t('accounting.readyForDeclaration')}</h4>
+              <h4 className="text-xl font-bold text-accent-red">{t('accounting.readyForDeclaration')}</h4>
               <p className="text-slate-600 text-sm mt-2 max-w-2xl leading-relaxed">
                 {t('accounting.readyForDeclarationDesc', { standard: isUS ? 'US GAAP' : isFR ? t('accounting.pcgFrance') : 'OHADA' })}
               </p>
@@ -789,7 +789,7 @@ export const Accounting = ({ user }: { user?: any }) => {
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-primary-blue">{t('accounting.title')} {isUS ? 'US GAAP' : isFR ? t('accounting.pcgFrance') : 'OHADA'}</h2>
+        <h2 className="text-2xl font-bold text-accent-red">{t('accounting.title')} {isUS ? 'US GAAP' : isFR ? t('accounting.pcgFrance') : 'OHADA'}</h2>
         <button
           onClick={() => setIsResetConfirmOpen(true)}
           className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 rounded-xl border border-rose-100 transition-all shadow-sm shadow-rose-600/5"
@@ -798,37 +798,37 @@ export const Accounting = ({ user }: { user?: any }) => {
         </button>
       </div>
 
-      <div className="flex gap-2 border-b border-blue-100 pb-4 overflow-x-auto custom-scrollbar">
+      <div className="flex gap-2 border-b border-red-100 pb-4 overflow-x-auto custom-scrollbar">
         {['Dashboard', 'Journal', 'Bilan', 'Resultat', 'PCG', 'Liasses', 'TVA'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab as any)}
-            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === tab ? 'bg-accent-blue text-white shadow-lg shadow-accent-blue/20' : 'text-slate-500 hover:bg-soft-blue hover:text-accent-blue'}`}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all whitespace-nowrap ${activeTab === tab ? 'bg-accent-red text-white shadow-lg shadow-accent-red/20' : 'text-slate-500 hover:bg-soft-red hover:text-accent-red'}`}
           >
             {tab === 'TVA' ? taxLabel : tab}
           </button>
         ))}
       </div>
 
-      <div className="bg-white p-8 rounded-2xl border border-blue-100 shadow-sm">
+      <div className="bg-white p-8 rounded-2xl border border-red-100 shadow-sm">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-4">
-            <Loader2 className="w-10 h-10 text-accent-blue animate-spin" />
+            <Loader2 className="w-10 h-10 text-accent-red animate-spin" />
             <p className="text-sm font-medium text-slate-500">{t('accounting.loadingData')}</p>
           </div>
         ) : renderContent()}
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-blue/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-8 space-y-6 border border-blue-100">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-red/40 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-8 space-y-6 border border-red-100">
             <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold text-primary-blue">{editingEntryId ? t('accounting.editEntry') : t('accounting.newEntry')}</h3>
+              <h3 className="text-xl font-bold text-primary-red">{editingEntryId ? t('accounting.editEntry') : t('accounting.newEntry')}</h3>
               <div className="flex items-center gap-3">
-                <button type="button" onClick={handleGenerateEntry} className="flex items-center gap-2 text-sm bg-soft-blue text-accent-blue px-4 py-2 rounded-xl hover:bg-white hover:ring-2 hover:ring-accent-blue/20 transition-all font-bold" disabled={isGenerating}>
+                <button type="button" onClick={handleGenerateEntry} className="flex items-center gap-2 text-sm bg-soft-red text-accent-red px-4 py-2 rounded-xl hover:bg-white hover:ring-2 hover:ring-accent-red/20 transition-all font-bold" disabled={isGenerating}>
                   <Sparkles className="w-4 h-4" /> {isGenerating ? t('accounting.generating') : t('accounting.generateIA')}
                 </button>
-                <button onClick={() => { setIsModalOpen(false); setEditingEntryId(null); }} className="p-2 hover:bg-soft-blue rounded-full transition-colors text-slate-400 hover:text-rose-500"><X className="w-5 h-5"/></button>
+                <button onClick={() => { setIsModalOpen(false); setEditingEntryId(null); }} className="p-2 hover:bg-soft-red rounded-full transition-colors text-slate-400 hover:text-rose-500"><X className="w-5 h-5"/></button>
               </div>
             </div>
             <form onSubmit={handleSaveEntry} className="space-y-6">
@@ -837,7 +837,7 @@ export const Accounting = ({ user }: { user?: any }) => {
                 <input 
                   type="text" 
                   placeholder={t('accounting.description')} 
-                  className="w-full px-4 py-2.5 bg-luxury-gray border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm" 
+                  className="w-full px-4 py-2.5 bg-luxury-gray border border-transparent rounded-xl focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red outline-none transition-all text-sm" 
                   value={newEntry.description || ''} 
                   onChange={e => setNewEntry({...newEntry, description: e.target.value})} 
                   required 
@@ -846,27 +846,27 @@ export const Accounting = ({ user }: { user?: any }) => {
               <div className="overflow-x-auto custom-scrollbar">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-accent-blue border-b border-blue-50">
+                    <tr className="text-accent-red border-b border-red-50">
                       <th className="p-2 text-left font-bold uppercase tracking-widest text-[10px]">{t('accounting.account')}</th>
                       <th className="p-2 text-left font-bold uppercase tracking-widest text-[10px]">{t('accounting.debit')}</th>
                       <th className="p-2 text-left font-bold uppercase tracking-widest text-[10px]">{t('accounting.credit')}</th>
                       <th className="p-2"></th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-blue-50/50">
+                  <tbody className="divide-y divide-red-50/50">
                     {newEntry.items.map((item, idx) => (
                       <tr key={idx}>
                         <td className="p-2">
-                          <select className="w-full px-3 py-2 bg-luxury-gray border border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm" value={item.accountId || ''} onChange={e => { const items = [...newEntry.items]; items[idx].accountId = e.target.value; setNewEntry({...newEntry, items}); }} required>
+                          <select className="w-full px-3 py-2 bg-luxury-gray border border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red outline-none transition-all text-sm" value={item.accountId || ''} onChange={e => { const items = [...newEntry.items]; items[idx].accountId = e.target.value; setNewEntry({...newEntry, items}); }} required>
                             <option value="">{t('accounting.account')}</option>
                             {PCG.map(acc => <option key={acc.code} value={acc.code}>{acc.code} - {acc.name}</option>)}
                           </select>
                         </td>
                         <td className="p-2">
-                          <input type="number" className="w-full px-3 py-2 bg-luxury-gray border border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm" value={item.debit || 0} onChange={e => { const items = [...newEntry.items]; items[idx].debit = Number(e.target.value) || 0; setNewEntry({...newEntry, items}); }} />
+                          <input type="number" className="w-full px-3 py-2 bg-luxury-gray border border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red outline-none transition-all text-sm" value={item.debit || 0} onChange={e => { const items = [...newEntry.items]; items[idx].debit = Number(e.target.value) || 0; setNewEntry({...newEntry, items}); }} />
                         </td>
                         <td className="p-2">
-                          <input type="number" className="w-full px-3 py-2 bg-luxury-gray border border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue outline-none transition-all text-sm" value={item.credit || 0} onChange={e => { const items = [...newEntry.items]; items[idx].credit = Number(e.target.value) || 0; setNewEntry({...newEntry, items}); }} />
+                          <input type="number" className="w-full px-3 py-2 bg-luxury-gray border border-transparent rounded-lg focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red outline-none transition-all text-sm" value={item.credit || 0} onChange={e => { const items = [...newEntry.items]; items[idx].credit = Number(e.target.value) || 0; setNewEntry({...newEntry, items}); }} />
                         </td>
                         <td className="p-2 text-right">
                           <button type="button" onClick={() => setNewEntry({...newEntry, items: newEntry.items.filter((_, i) => i !== idx)})} className="p-2 text-rose-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"><X className="w-4 h-4" /></button>
@@ -875,7 +875,7 @@ export const Accounting = ({ user }: { user?: any }) => {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr className="font-bold text-primary-blue bg-soft-blue/10">
+                    <tr className="font-bold text-primary-red bg-soft-red/10">
                       <td className="p-3 text-right text-xs uppercase tracking-widest">{t('common.total')}</td>
                       <td className="p-3 text-sm">{totalDebit.toLocaleString()}</td>
                       <td className="p-3 text-sm">{totalCredit.toLocaleString()}</td>
@@ -885,20 +885,20 @@ export const Accounting = ({ user }: { user?: any }) => {
                 </table>
               </div>
               <div className="flex justify-between items-center pt-4">
-                <button type="button" onClick={() => setNewEntry({...newEntry, items: [...newEntry.items, { accountId: '', debit: 0, credit: 0 }]})} className="text-sm font-bold text-accent-blue hover:text-primary-blue flex items-center gap-1 transition-colors">
+                <button type="button" onClick={() => setNewEntry({...newEntry, items: [...newEntry.items, { accountId: '', debit: 0, credit: 0 }]})} className="text-sm font-bold text-accent-red hover:text-primary-red flex items-center gap-1 transition-colors">
                   <Plus className="w-4 h-4" /> {t('accounting.addLine')}
                 </button>
                 <div className="flex gap-3">
                   <button 
                     type="button" 
                     onClick={() => { setIsModalOpen(false); setEditingEntryId(null); }}
-                    className="px-6 py-2.5 border border-blue-100 text-slate-600 rounded-xl font-bold hover:bg-soft-blue transition-all"
+                    className="px-6 py-2.5 border border-red-100 text-slate-600 rounded-xl font-bold hover:bg-soft-red transition-all"
                   >
                     {t('common.cancel')}
                   </button>
                   <button 
                     type="submit" 
-                    className={`px-8 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg ${totalDebit === totalCredit && totalDebit > 0 ? 'bg-accent-blue text-white shadow-accent-blue/20 hover:bg-primary-blue' : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}`} 
+                    className={`px-8 py-2.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg ${totalDebit === totalCredit && totalDebit > 0 ? 'bg-accent-red text-white shadow-accent-red/20 hover:bg-primary-red' : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'}`} 
                     disabled={totalDebit !== totalCredit || totalDebit === 0}
                   >
                     <Save className="w-4 h-4" /> {t('accounting.save')}

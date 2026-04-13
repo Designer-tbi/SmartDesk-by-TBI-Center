@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { AlertTriangle, X } from 'lucide-react';
 import { useTranslation } from '../lib/i18n';
 
@@ -34,13 +34,13 @@ export const ConfirmModal = ({
   const variantColors = {
     danger: 'bg-red-600 hover:bg-red-700 shadow-red-200 text-white',
     warning: 'bg-amber-500 hover:bg-amber-600 shadow-amber-200 text-white',
-    info: 'bg-indigo-600 hover:bg-indigo-700 shadow-indigo-200 text-white'
+    info: 'bg-blue-600 hover:bg-blue-700 shadow-blue-200 text-white'
   };
 
   const iconColors = {
     danger: 'text-red-600 bg-red-50',
     warning: 'text-amber-600 bg-amber-50',
-    info: 'text-indigo-600 bg-indigo-50'
+    info: 'text-blue-600 bg-blue-50'
   };
 
   return (

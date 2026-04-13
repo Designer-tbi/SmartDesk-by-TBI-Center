@@ -17,5 +17,12 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit) => 
     ...(token ? { 'Authorization': `Bearer ${token}` } : {})
   };
   const safeFetch = (window as any).__safe_fetch__ || fetch;
-  return safeFetch(url, newInit);
+  
+  const response = await safeFetch(url, newInit);
+  
+  if (response.status === 401) {
+    window.dispatchEvent(new CustomEvent('auth-error'));
+  }
+  
+  return response;
 };

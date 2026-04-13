@@ -40,7 +40,7 @@ export const HelpSection = () => {
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-2 py-4 px-6 font-bold transition-colors ${
               activeTab === tab.id 
-                ? 'text-indigo-600 border-b-2 border-indigo-600' 
+                ? 'text-accent-red border-b-2 border-accent-red' 
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >
@@ -51,14 +51,14 @@ export const HelpSection = () => {
       </div>
 
       {activeTab === 'automation' && (
-        <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-8 text-white shadow-xl">
+        <div className="bg-gradient-to-br from-primary-red to-accent-red rounded-3xl p-8 text-white shadow-xl">
           <div className="flex items-center gap-4 mb-6">
             <div className="p-3 bg-white/20 rounded-2xl">
               <Bot className="w-8 h-8 text-white" />
             </div>
             <div>
               <h2 className="text-2xl font-black">{t('help.crmAutomationTitle')}</h2>
-              <p className="text-indigo-100">{t('help.crmAutomationSubtitle')}</p>
+              <p className="text-soft-red">{t('help.crmAutomationSubtitle')}</p>
             </div>
           </div>
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -71,7 +71,7 @@ export const HelpSection = () => {
               <div key={i} className="bg-white/10 p-5 rounded-2xl backdrop-blur-sm border border-white/10">
                 <Zap className="w-5 h-5 text-yellow-300 mb-3" />
                 <h4 className="font-bold mb-1">{item.title}</h4>
-                <p className="text-sm text-indigo-100">{item.desc}</p>
+                <p className="text-sm text-soft-red">{item.desc}</p>
               </div>
             ))}
           </div>
@@ -82,7 +82,7 @@ export const HelpSection = () => {
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
           <div className="mb-8">
             <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <ListOrdered className="w-6 h-6 text-indigo-600" />
+              <ListOrdered className="w-6 h-6 text-accent-red" />
               {t('help.guideTitle')}
             </h3>
             <p className="text-slate-500 mt-2">{t('help.guideDesc')}</p>
@@ -97,7 +97,7 @@ export const HelpSection = () => {
               { title: t('help.guideStep5Title'), desc: t('help.guideStep5Desc') },
             ].map((step, i) => (
               <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full border-4 border-white bg-indigo-100 text-indigo-600 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
+                <div className="flex items-center justify-center w-12 h-12 rounded-full border-4 border-white bg-soft-red text-accent-red shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
                   <CheckCircle2 className="w-6 h-6" />
                 </div>
                 <div className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] p-5 rounded-2xl bg-slate-50 border border-slate-100 shadow-sm hover:shadow-md transition-all">
@@ -114,7 +114,7 @@ export const HelpSection = () => {
         <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
           <div className="mb-8">
             <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-indigo-600" />
+              <BookOpen className="w-6 h-6 text-accent-red" />
               {t('help.modulesTitle')}
             </h3>
             <p className="text-slate-500 mt-2">{t('help.modulesDesc')}</p>
@@ -124,9 +124,9 @@ export const HelpSection = () => {
             {modules.map((module) => {
               const Icon = module.icon;
               return (
-                <div key={module.key} className="flex items-start gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-200 hover:border-indigo-200 hover:shadow-md transition-all">
-                  <div className="p-2 bg-indigo-100 rounded-xl">
-                    <Icon className="w-5 h-5 text-indigo-600" />
+                <div key={module.key} className="flex items-start gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-200 hover:border-accent-red/20 hover:shadow-md transition-all">
+                  <div className="p-2 bg-soft-red rounded-xl">
+                    <Icon className="w-5 h-5 text-accent-red" />
                   </div>
                   <div>
                     <h4 className="font-bold text-slate-900 mb-1">{t(`${module.key}Title`)}</h4>

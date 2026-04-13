@@ -79,21 +79,21 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
       {/* Mobile Overlay */}
       <div 
         className={cn(
-          "fixed inset-0 bg-primary-blue/20 backdrop-blur-sm z-40 transition-opacity lg:hidden",
+          "fixed inset-0 bg-primary-red/20 backdrop-blur-sm z-40 transition-opacity lg:hidden",
           isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
         onClick={onClose}
       />
 
       <aside className={cn(
-        "bg-primary-blue flex flex-col h-screen sticky top-0 left-0 transition-all duration-300 z-50 shadow-2xl",
+        "bg-primary-red flex flex-col h-screen sticky top-0 left-0 transition-all duration-300 z-50 shadow-2xl",
         "fixed lg:sticky", // Fixed on mobile, sticky on desktop
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0", // Toggle on mobile
         isCollapsed ? "w-20 shrink-0" : "w-64 shrink-0"
       )}>
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-8 bg-white border border-blue-100 rounded-full p-1 text-slate-400 hover:text-accent-blue hover:border-accent-blue shadow-lg transition-colors z-30 hidden lg:block"
+          className="absolute -right-3 top-8 bg-white border border-red-100 rounded-full p-1 text-slate-400 hover:text-accent-red hover:border-accent-red shadow-lg transition-colors z-30 hidden lg:block"
         >
           {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
@@ -101,7 +101,7 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
         <div className="p-6 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
           <div className={cn("flex items-center justify-between mb-10", isCollapsed ? "lg:justify-center" : "")}>
             <div className={cn("flex items-center gap-3", isCollapsed ? "lg:justify-center" : "")}>
-              <div className="w-9 h-9 shrink-0 bg-accent-blue rounded-xl flex items-center justify-center text-white font-bold overflow-hidden shadow-lg shadow-accent-blue/20">
+              <div className="w-9 h-9 shrink-0 bg-accent-red rounded-xl flex items-center justify-center text-white font-bold overflow-hidden shadow-lg shadow-accent-red/20">
                 {user?.companyLogo ? (
                   <img 
                     src={user.companyLogo} 
@@ -130,7 +130,7 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
           {sectionsToRender.map((section) => (
             <div key={section.title}>
               {!isCollapsed ? (
-                <h3 className="px-3 text-[10px] font-bold text-blue-300/60 uppercase tracking-widest mb-3 whitespace-nowrap">
+                <h3 className="px-3 text-[10px] font-bold text-red-300/60 uppercase tracking-widest mb-3 whitespace-nowrap">
                   {section.title}
                 </h3>
               ) : (
@@ -146,8 +146,8 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
                       "group flex items-center justify-between py-2.5 rounded-xl text-sm font-medium transition-all",
                       isCollapsed ? "px-0 justify-center" : "px-3",
                       isActive 
-                        ? "bg-accent-blue text-white shadow-lg shadow-accent-blue/20" 
-                        : "text-blue-100/70 hover:bg-white/5 hover:text-white"
+                        ? "bg-accent-red text-white shadow-lg shadow-accent-red/20" 
+                        : "text-red-100/70 hover:bg-white/5 hover:text-white"
                     )}
                   >
                     {({ isActive }) => (
@@ -155,7 +155,7 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
                         <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
                           <item.icon className={cn(
                             "w-5 h-5 transition-colors shrink-0",
-                            isActive ? "text-white" : "text-blue-300 group-hover:text-white"
+                            isActive ? "text-white" : "text-red-300 group-hover:text-white"
                           )} />
                           {!isCollapsed && <span className="whitespace-nowrap">{item.label}</span>}
                         </div>
@@ -183,7 +183,7 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
           {(!isCollapsed || isOpen) && (
             <div className="flex flex-col overflow-hidden">
               <span className="text-sm font-semibold text-white truncate">{user?.name || 'Admin SmartDesk'}</span>
-              <span className="text-xs text-blue-300/50 truncate">{user?.role || 'Gérant PME'}</span>
+              <span className="text-xs text-red-300/50 truncate">{user?.role || 'Gérant PME'}</span>
             </div>
           )}
         </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../lib/api';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Filter, MoreVertical, Mail, Phone, ExternalLink, X, User, Building2, Globe, Tag, Briefcase, Check, Pencil, Trash2, Eye, Calendar, Loader2, AlertCircle, Search, Users, UserPlus, TrendingUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Plus, Filter, MoreVertical, Mail, Phone, ExternalLink, X, User, Building2, Globe, Tag, Briefcase, Check, Pencil, Trash2, Eye, Calendar, Loader2, AlertCircle, Search, Users, UserPlus, TrendingUp, Hash } from 'lucide-react';
 import { Contact, Company } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
 
@@ -125,7 +125,8 @@ export const CRM = ({ user }: { user?: any }) => {
       role: '', 
       notes: '', 
       status: 'Lead', 
-      lastContact: new Date().toISOString().split('T')[0]
+      lastContact: new Date().toISOString().split('T')[0],
+      niu: ''
     });
     setEditingContactId(null);
     setIsModalOpen(false);
@@ -210,37 +211,37 @@ export const CRM = ({ user }: { user?: any }) => {
     >
       {/* Company Header */}
       <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
-        <div className="p-4 bg-soft-blue rounded-2xl">
-          <Building2 className="w-8 h-8 text-accent-blue" />
+        <div className="p-4 bg-soft-red rounded-2xl">
+          <Building2 className="w-8 h-8 text-accent-red" />
         </div>
         <div>
-          <h2 className="text-xl font-black text-slate-900 uppercase tracking-tight">{selectedCompany?.name || t('common.loading')}</h2>
-          <p className="text-sm font-bold text-slate-500">{t('crm.manageContacts')}</p>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">{selectedCompany?.name || t('common.loading')}</h2>
+          <p className="text-sm font-medium text-slate-500">{t('crm.manageContacts')}</p>
         </div>
       </div>
 
       {/* Stats Header */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: t('crm.stats.total'), value: stats.total, icon: Users, color: 'bg-accent-blue' },
-          { label: t('crm.stats.leads'), value: stats.leads, icon: UserPlus, color: 'bg-blue-400' },
+          { label: t('crm.stats.total'), value: stats.total, icon: Users, color: 'bg-accent-red' },
+          { label: t('crm.stats.leads'), value: stats.leads, icon: UserPlus, color: 'bg-red-400' },
           { label: t('crm.stats.clients'), value: stats.clients, icon: Check, color: 'bg-emerald-500' },
-          { label: t('crm.stats.conversion'), value: `${stats.conversion}%`, icon: TrendingUp, color: 'bg-primary-blue' },
+          { label: t('crm.stats.conversion'), value: `${stats.conversion}%`, icon: TrendingUp, color: 'bg-primary-red' },
         ].map((stat, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-accent-blue/5 transition-all group"
+            className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-accent-red/5 transition-all group"
           >
             <div className="flex items-center justify-between">
               <div className={`p-3 rounded-2xl ${stat.color} text-white shadow-lg shadow-current/20 group-hover:scale-110 transition-transform`}>
                 <stat.icon className="w-5 h-5" />
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{stat.label}</p>
-                <p className="text-2xl font-black text-slate-900">{stat.value}</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{stat.label}</p>
+                <p className="text-2xl font-bold text-slate-900">{stat.value}</p>
               </div>
             </div>
           </motion.div>
@@ -264,7 +265,7 @@ export const CRM = ({ user }: { user?: any }) => {
             <input 
               type="text"
               placeholder={t('crm.searchPlaceholder')}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all shadow-sm"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all shadow-sm"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -275,10 +276,10 @@ export const CRM = ({ user }: { user?: any }) => {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={`px-4 py-1.5 text-sm font-bold rounded-xl transition-all ${
+                className={`px-4 py-1.5 text-sm font-medium rounded-xl transition-all ${
                   filter === f 
-                    ? "bg-primary-blue text-white shadow-md" 
-                    : "text-slate-500 hover:text-primary-blue hover:bg-soft-blue"
+                    ? "bg-primary-red text-white shadow-md" 
+                    : "text-slate-500 hover:text-primary-red hover:bg-soft-red"
                 }`}
               >
                 {f === 'All' ? t('crm.filter.all') : t(`crm.filter.${f.toLowerCase()}s`)}
@@ -291,7 +292,7 @@ export const CRM = ({ user }: { user?: any }) => {
           <div className="relative">
             <button 
               onClick={() => setIsFilterMenuOpen(!isFilterMenuOpen)}
-              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border border-slate-200 rounded-2xl text-sm font-medium text-slate-600 hover:bg-slate-50 transition-all shadow-sm"
             >
               <Filter className="w-4 h-4" />
               {t('crm.sort')}
@@ -310,14 +311,14 @@ export const CRM = ({ user }: { user?: any }) => {
                     <div className="space-y-1">
                       <button 
                         onClick={() => { setSortBy('recent'); setIsFilterMenuOpen(false); }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-bold transition-colors ${sortBy === 'recent' ? 'bg-soft-blue text-accent-blue' : 'text-slate-600 hover:bg-slate-50'}`}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-bold transition-colors ${sortBy === 'recent' ? 'bg-soft-red text-accent-red' : 'text-slate-600 hover:bg-slate-50'}`}
                       >
                         {t('crm.recent')}
                         {sortBy === 'recent' && <Check className="w-4 h-4" />}
                       </button>
                       <button 
                         onClick={() => { setSortBy('alpha'); setIsFilterMenuOpen(false); }}
-                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-bold transition-colors ${sortBy === 'alpha' ? 'bg-soft-blue text-accent-blue' : 'text-slate-600 hover:bg-slate-50'}`}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-sm font-bold transition-colors ${sortBy === 'alpha' ? 'bg-soft-red text-accent-red' : 'text-slate-600 hover:bg-slate-50'}`}
                       >
                         {t('crm.alphabetical')}
                         {sortBy === 'alpha' && <Check className="w-4 h-4" />}
@@ -331,7 +332,7 @@ export const CRM = ({ user }: { user?: any }) => {
           
           <button 
             onClick={() => { resetForm(); setIsModalOpen(true); }}
-            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-blue text-white rounded-2xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-accent-blue/20 active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-2xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95"
           >
             <Plus className="w-5 h-5" />
             {t('crm.newContact')}
@@ -343,13 +344,13 @@ export const CRM = ({ user }: { user?: any }) => {
         <div className="overflow-x-auto">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <Loader2 className="w-10 h-10 text-accent-blue animate-spin" />
+              <Loader2 className="w-10 h-10 text-accent-red animate-spin" />
               <p className="text-sm font-medium text-slate-500">{t('crm.loading')}</p>
             </div>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-soft-blue/30 border-b border-blue-100">
+                <tr className="bg-soft-red/30 border-b border-red-100">
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('crm.contact')}</th>
                   <th className="hidden sm:table-cell px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('common.status')}</th>
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">{t('crm.details')}</th>
@@ -357,16 +358,16 @@ export const CRM = ({ user }: { user?: any }) => {
                   <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] text-right">{t('crm.actions')}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-blue-50">
+              <tbody className="divide-y divide-red-50">
                 {filteredContacts.length > 0 ? filteredContacts.map((contact) => (
-                  <tr key={contact.id} className="hover:bg-soft-blue/10 transition-all group">
+                  <tr key={contact.id} className="hover:bg-soft-red/10 transition-all group">
                     <td className="px-6 py-6">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-luxury-gray flex items-center justify-center text-slate-600 font-black text-lg group-hover:bg-accent-blue group-hover:text-white transition-all shadow-inner">
+                        <div className="w-12 h-12 rounded-2xl bg-luxury-gray flex items-center justify-center text-slate-600 font-black text-lg group-hover:bg-accent-red group-hover:text-white transition-all shadow-inner">
                           {contact.name?.charAt(0) || '?'}
                         </div>
                         <div>
-                          <div className="text-sm font-black text-slate-900 group-hover:text-accent-blue transition-colors">{contact.name}</div>
+                          <div className="text-sm font-black text-slate-900 group-hover:text-accent-red transition-colors">{contact.name}</div>
                           <div className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-wider mt-0.5">
                             <Building2 className="w-3 h-3" />
                             {contact.company}
@@ -378,7 +379,7 @@ export const CRM = ({ user }: { user?: any }) => {
                       <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
                         contact.status === 'Client' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
                         contact.status === 'Lead' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 
-                        'bg-blue-50 text-blue-600 border border-blue-100'
+                        'bg-red-50 text-red-600 border border-red-100'
                       }`}>
                         {t(`crm.status.${contact.status.toLowerCase()}`)}
                       </span>
@@ -403,7 +404,7 @@ export const CRM = ({ user }: { user?: any }) => {
                     </td>
                     <td className="px-6 py-5 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => setViewContact(contact)} className="p-2 text-slate-400 hover:text-accent-blue hover:bg-soft-blue rounded-xl transition-all" title={t('crm.viewDetails')}>
+                        <button onClick={() => setViewContact(contact)} className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-xl transition-all" title={t('crm.viewDetails')}>
                           <Eye className="w-4.5 h-4.5" />
                         </button>
                         <button onClick={() => openEdit(contact)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all" title={t('common.edit')}>
@@ -423,7 +424,7 @@ export const CRM = ({ user }: { user?: any }) => {
                           <Search className="w-8 h-8" />
                         </div>
                         <p className="text-slate-500 font-bold">{t('crm.noContacts')}</p>
-                        <button onClick={() => { setSearchQuery(''); setFilter('All'); }} className="text-accent-blue text-sm font-bold hover:underline">{t('crm.resetFilters')}</button>
+                        <button onClick={() => { setSearchQuery(''); setFilter('All'); }} className="text-accent-red text-sm font-bold hover:underline">{t('crm.resetFilters')}</button>
                       </div>
                     </td>
                   </tr>
@@ -437,7 +438,7 @@ export const CRM = ({ user }: { user?: any }) => {
       {/* Slide-over Nouveau Contact */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end bg-primary-blue/20 backdrop-blur-sm transition-all">
+          <div className="fixed inset-0 z-50 flex justify-end bg-primary-red/20 backdrop-blur-sm transition-all">
             <div className="absolute inset-0" onClick={resetForm}></div>
             
             <motion.div 
@@ -447,7 +448,7 @@ export const CRM = ({ user }: { user?: any }) => {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="relative w-full max-w-md sm:max-w-lg md:max-w-xl bg-white h-full shadow-2xl flex flex-col"
             >
-            <div className="px-6 py-6 border-b border-blue-50 flex items-center justify-between bg-soft-blue/30">
+            <div className="px-6 py-6 border-b border-red-50 flex items-center justify-between bg-soft-red/30">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">{editingContactId ? t('crm.editContact') : t('crm.newContact')}</h3>
                 <p className="text-sm text-slate-500">{editingContactId ? t('crm.updateInfo') : t('crm.addInfo')}</p>
@@ -463,7 +464,7 @@ export const CRM = ({ user }: { user?: any }) => {
             <div className="flex-1 overflow-y-auto p-6">
               <form id="new-contact-form" onSubmit={handleAddOrUpdateContact} className="space-y-6">
                 <div className="flex justify-center mb-6">
-                  <div className="w-20 h-20 rounded-full bg-soft-blue border-2 border-blue-100 flex items-center justify-center text-blue-300">
+                  <div className="w-20 h-20 rounded-full bg-soft-red border-2 border-red-100 flex items-center justify-center text-red-300">
                     <User className="w-8 h-8" />
                   </div>
                 </div>
@@ -477,7 +478,7 @@ export const CRM = ({ user }: { user?: any }) => {
                         required
                         type="text" 
                         placeholder={t('crm.placeholder.name')}
-                        className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                        className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         value={newContact.name || ''}
                         onChange={(e) => setNewContact({...newContact, name: e.target.value})}
                       />
@@ -491,7 +492,7 @@ export const CRM = ({ user }: { user?: any }) => {
                       <input 
                         type="text" 
                         placeholder={t('crm.placeholder.role')}
-                        className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                        className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         value={newContact.role || ''}
                         onChange={(e) => setNewContact({...newContact, role: e.target.value})}
                       />
@@ -507,7 +508,7 @@ export const CRM = ({ user }: { user?: any }) => {
                           required
                           type="email" 
                           placeholder={t('crm.placeholder.email')}
-                          className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                          className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                           value={newContact.email || ''}
                           onChange={(e) => setNewContact({...newContact, email: e.target.value})}
                         />
@@ -521,7 +522,7 @@ export const CRM = ({ user }: { user?: any }) => {
                           required
                           type="tel" 
                           placeholder={t('crm.placeholder.phone')}
-                          className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                          className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                           value={newContact.phone || ''}
                           onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
                         />
@@ -537,12 +538,28 @@ export const CRM = ({ user }: { user?: any }) => {
                         required
                         type="text" 
                         placeholder={t('crm.placeholder.company')}
-                        className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                        className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         value={newContact.company || ''}
                         onChange={(e) => setNewContact({...newContact, company: e.target.value})}
                       />
                     </div>
                   </div>
+
+                  {selectedCompany?.country === 'CONGO' && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.niu')}</label>
+                      <div className="relative">
+                        <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input 
+                          type="text" 
+                          placeholder={t('crm.niu')}
+                          className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                          value={newContact.niu || ''}
+                          onChange={(e) => setNewContact({...newContact, niu: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('common.status')} *</label>
@@ -554,7 +571,7 @@ export const CRM = ({ user }: { user?: any }) => {
                           onClick={() => setNewContact({...newContact, status: s as any})}
                           className={`flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold border transition-all ${
                             newContact.status === s 
-                              ? "bg-soft-blue border-blue-200 text-accent-blue ring-2 ring-accent-blue/10" 
+                              ? "bg-soft-red border-red-200 text-accent-red ring-2 ring-accent-red/10" 
                               : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                           }`}
                         >
@@ -571,7 +588,7 @@ export const CRM = ({ user }: { user?: any }) => {
                       <textarea 
                         rows={3} 
                         placeholder={t('crm.placeholder.notes')}
-                        className="w-full p-4 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all resize-none"
+                        className="w-full p-4 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all resize-none"
                         value={newContact.notes || ''}
                         onChange={(e) => setNewContact({...newContact, notes: e.target.value})}
                       ></textarea>
@@ -593,7 +610,7 @@ export const CRM = ({ user }: { user?: any }) => {
                   type="submit"
                   form="new-contact-form"
                   disabled={isSubmitting}
-                  className="flex-1 py-3 bg-accent-blue text-white rounded-2xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-accent-blue/20 active:scale-95 disabled:opacity-70 flex items-center justify-center gap-2"
+                  className="flex-1 py-3 bg-accent-red text-white rounded-2xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95 disabled:opacity-70 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : (editingContactId ? t('crm.update') : t('common.save'))}
                 </button>
@@ -606,14 +623,14 @@ export const CRM = ({ user }: { user?: any }) => {
       {/* Preview Modal */}
       <AnimatePresence>
         {viewContact && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-blue/20 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-red/20 backdrop-blur-sm">
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-3xl shadow-2xl border border-blue-100 overflow-hidden"
+              className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-3xl shadow-2xl border border-red-100 overflow-hidden"
             >
-            <div className="px-6 py-6 border-b border-blue-50 flex items-center justify-between bg-soft-blue/30">
+            <div className="px-6 py-6 border-b border-red-50 flex items-center justify-between bg-soft-red/30">
               <h3 className="text-xl font-bold text-slate-900">{t('crm.contactDetails')}</h3>
               <button 
                 onClick={() => setViewContact(null)}
@@ -625,7 +642,7 @@ export const CRM = ({ user }: { user?: any }) => {
             
             <div className="p-6 space-y-6">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-blue to-primary-blue flex items-center justify-center text-white text-2xl font-bold shadow-md shadow-accent-blue/10">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-red to-primary-red flex items-center justify-center text-white text-2xl font-bold shadow-md shadow-accent-red/10">
                   {viewContact.name.charAt(0)}
                 </div>
                 <div>
@@ -636,7 +653,7 @@ export const CRM = ({ user }: { user?: any }) => {
                   <span className={`mt-2 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
                     viewContact.status === 'Client' ? 'bg-emerald-100 text-emerald-700' : 
                     viewContact.status === 'Lead' ? 'bg-amber-100 text-amber-700' : 
-                    'bg-blue-100 text-blue-700'
+                    'bg-red-100 text-red-700'
                   }`}>
                     {t(`crm.status.${viewContact.status.toLowerCase()}`)}
                   </span>
@@ -646,18 +663,24 @@ export const CRM = ({ user }: { user?: any }) => {
               <div className="space-y-3 bg-luxury-gray p-4 rounded-2xl border border-slate-100">
                 <a 
                   href={`mailto:${viewContact.email}`}
-                  className="flex items-center gap-3 text-sm font-medium text-slate-600 hover:text-accent-blue transition-colors"
+                  className="flex items-center gap-3 text-sm font-medium text-slate-600 hover:text-accent-red transition-colors"
                 >
                   <Mail className="w-4 h-4 text-slate-400" />
                   {viewContact.email}
                 </a>
                 <a 
                   href={`tel:${viewContact.phone}`}
-                  className="flex items-center gap-3 text-sm font-medium text-slate-600 hover:text-accent-blue transition-colors"
+                  className="flex items-center gap-3 text-sm font-medium text-slate-600 hover:text-accent-red transition-colors"
                 >
                   <Phone className="w-4 h-4 text-slate-400" />
                   {viewContact.phone}
                 </a>
+                {viewContact.niu && (
+                  <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
+                    <Hash className="w-4 h-4 text-slate-400" />
+                    {t('crm.niu')} : {viewContact.niu}
+                  </div>
+                )}
                 <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
                   <Calendar className="w-4 h-4 text-slate-400" />
                   {t('crm.lastContact')} : {new Date(viewContact.lastContact).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}
@@ -677,7 +700,7 @@ export const CRM = ({ user }: { user?: any }) => {
             <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex gap-3">
               <button 
                 onClick={() => { setViewContact(null); openEdit(viewContact); }}
-                className="flex-1 py-3 bg-accent-blue text-white rounded-2xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-accent-blue/20 active:scale-95"
+                className="flex-1 py-3 bg-accent-red text-white rounded-2xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95"
               >
                 {t('crm.editContact')}
               </button>

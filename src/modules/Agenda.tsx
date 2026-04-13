@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Calendar as CalendarIcon, 
   ChevronLeft, 
@@ -241,10 +241,10 @@ export const Agenda = ({ user }: { user?: any }) => {
               onClick={() => openAddModal(day)}
               className={`min-h-[120px] p-2 border-r border-b border-slate-200 transition-colors cursor-pointer hover:bg-slate-50/50 ${
                 !isSameMonth(day, monthStart) ? 'bg-slate-50/30 text-slate-300' : 'bg-white text-slate-700'
-              } ${isSameDay(day, new Date()) ? 'bg-indigo-50/30' : ''}`}
+              } ${isSameDay(day, new Date()) ? 'bg-soft-red/30' : ''}`}
             >
               <div className="flex justify-between items-start mb-1">
-                <span className={`text-sm font-semibold ${isSameDay(day, new Date()) ? 'w-7 h-7 flex items-center justify-center bg-indigo-600 text-white rounded-full' : ''}`}>
+                <span className={`text-sm font-semibold ${isSameDay(day, new Date()) ? 'w-7 h-7 flex items-center justify-center bg-accent-red text-white rounded-full' : ''}`}>
                   {format(day, 'd')}
                 </span>
               </div>
@@ -253,7 +253,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                   <div 
                     key={event.id}
                     onClick={(e) => { e.stopPropagation(); openEditModal(event); }}
-                    className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-indigo-100 text-indigo-700 truncate border border-indigo-200"
+                    className="px-1.5 py-0.5 text-[10px] font-medium rounded bg-soft-red text-accent-red truncate border border-red-200"
                   >
                     {format(new Date(event.startDate), 'HH:mm')} {event.title}
                   </div>
@@ -283,7 +283,7 @@ export const Agenda = ({ user }: { user?: any }) => {
           {weekDays.map(day => (
             <div key={day.toString()} className="p-2 text-center border-r border-slate-200 last:border-r-0">
               <div className="text-[10px] font-bold text-slate-400 uppercase">{format(day, 'EEE', { locale })}</div>
-              <div className={`text-sm font-bold ${isSameDay(day, new Date()) ? 'text-indigo-600' : 'text-slate-700'}`}>{format(day, 'd')}</div>
+              <div className={`text-sm font-bold ${isSameDay(day, new Date()) ? 'text-accent-red' : 'text-slate-700'}`}>{format(day, 'd')}</div>
             </div>
           ))}
         </div>
@@ -327,7 +327,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                       key={event.id}
                       onClick={() => openEditModal(event)}
                       style={{ top: `${top}px`, height: `${height}px` }}
-                      className="absolute left-1 right-1 p-1.5 rounded bg-indigo-100 border border-indigo-200 text-indigo-700 text-[10px] font-medium overflow-hidden cursor-pointer z-10 hover:shadow-md transition-shadow"
+                      className="absolute left-1 right-1 p-1.5 rounded bg-soft-red border border-red-200 text-accent-red text-[10px] font-medium overflow-hidden cursor-pointer z-10 hover:shadow-md transition-shadow"
                     >
                       <div className="font-bold">{event.title}</div>
                       <div>{format(start, 'HH:mm')} - {format(end, 'HH:mm')}</div>
@@ -385,7 +385,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                 key={event.id}
                 onClick={() => openEditModal(event)}
                 style={{ top: `${top}px`, height: `${height}px` }}
-                className="absolute left-4 right-4 p-3 rounded-xl bg-indigo-100 border border-indigo-200 text-indigo-700 text-xs font-medium overflow-hidden cursor-pointer z-10 hover:shadow-md transition-shadow"
+                className="absolute left-4 right-4 p-3 rounded-xl bg-soft-red border border-red-200 text-accent-red text-xs font-medium overflow-hidden cursor-pointer z-10 hover:shadow-md transition-shadow"
               >
                 <div className="font-bold text-sm">{event.title}</div>
                 <div className="flex items-center gap-2 mt-1 opacity-70">
@@ -427,8 +427,8 @@ export const Agenda = ({ user }: { user?: any }) => {
                     onClick={() => { setCurrentDate(day); setView('day'); }}
                     className={`aspect-square flex items-center justify-center text-[10px] rounded-full cursor-pointer transition-colors ${
                       !isSameMonth(day, month) ? 'text-slate-200' : 
-                      isSameDay(day, new Date()) ? 'bg-indigo-600 text-white font-bold' :
-                      hasEvents ? 'bg-indigo-100 text-indigo-700 font-bold' : 'text-slate-600 hover:bg-slate-100'
+                      isSameDay(day, new Date()) ? 'bg-accent-red text-white font-bold' :
+                      hasEvents ? 'bg-soft-red text-accent-red font-bold' : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     {format(day, 'd')}
@@ -462,25 +462,25 @@ export const Agenda = ({ user }: { user?: any }) => {
         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
           <button 
             onClick={() => setView('day')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'day' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'day' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <CalendarIcon className="w-4 h-4" /> {t('agenda.view.day')}
           </button>
           <button 
             onClick={() => setView('week')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'week' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'week' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <CalendarRange className="w-4 h-4" /> {t('agenda.view.week')}
           </button>
           <button 
             onClick={() => setView('month')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'month' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'month' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <CalendarMonthIcon className="w-4 h-4" /> {t('agenda.view.month')}
           </button>
           <button 
             onClick={() => setView('year')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'year' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'year' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <LayoutGrid className="w-4 h-4" /> {t('agenda.view.year')}
           </button>
@@ -497,7 +497,7 @@ export const Agenda = ({ user }: { user?: any }) => {
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         {isLoading ? (
           <div className="flex items-center justify-center h-96">
-            <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+            <div className="w-8 h-8 border-4 border-accent-red border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <>
@@ -521,8 +521,8 @@ export const Agenda = ({ user }: { user?: any }) => {
             >
               <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
                 <div className="flex items-center gap-5">
-                  <div className="p-4 bg-indigo-100 rounded-[1.5rem] shadow-sm">
-                    <CalendarIcon className="w-7 h-7 text-indigo-600" />
+                  <div className="p-4 bg-soft-red rounded-[1.5rem] shadow-sm">
+                    <CalendarIcon className="w-7 h-7 text-accent-red" />
                   </div>
                   <div>
                     <h3 className="text-2xl font-black text-slate-900 tracking-tight">
@@ -546,7 +546,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                   {/* Section: Informations Générales */}
                   <div className="space-y-6">
                     <div className="flex items-center gap-3 border-b border-slate-100 pb-3">
-                      <LayoutGrid className="w-4 h-4 text-indigo-500" />
+                      <LayoutGrid className="w-4 h-4 text-accent-red" />
                       <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t('agenda.form.generalInfo')}</h4>
                     </div>
                     
@@ -556,7 +556,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                         <input
                           type="text"
                           required
-                          className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
+                          className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-accent-red focus:ring-4 focus:ring-accent-red/5 transition-all shadow-sm"
                           value={formData.title}
                           onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                           placeholder={t('agenda.form.titlePlaceholder')}
@@ -566,7 +566,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                         <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('agenda.form.category')}</label>
                         <div className="relative">
                           <select
-                            className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer shadow-sm"
+                            className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-accent-red focus:ring-4 focus:ring-accent-red/5 transition-all appearance-none cursor-pointer shadow-sm"
                             value={formData.category}
                             onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                           >
@@ -596,7 +596,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                           <input
                             type="datetime-local"
                             required
-                            className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
+                            className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-accent-red focus:ring-4 focus:ring-accent-red/5 transition-all shadow-sm"
                             value={formData.startDate}
                             onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                           />
@@ -608,7 +608,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                           <input
                             type="datetime-local"
                             required
-                            className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all shadow-sm"
+                            className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-accent-red focus:ring-4 focus:ring-accent-red/5 transition-all shadow-sm"
                             value={formData.endDate}
                             onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
                           />
@@ -630,7 +630,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                           <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('agenda.form.assignTo')}</label>
                           <div className="relative">
                             <select
-                              className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all appearance-none cursor-pointer shadow-sm"
+                              className="w-full px-6 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-accent-red focus:ring-4 focus:ring-accent-red/5 transition-all appearance-none cursor-pointer shadow-sm"
                               value={formData.assignedTo}
                               onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
                             >
@@ -649,14 +649,14 @@ export const Agenda = ({ user }: { user?: any }) => {
                           <input
                             type="checkbox"
                             id="isPrivate"
-                            className="peer w-6 h-6 text-indigo-600 rounded-lg border-2 border-slate-300 focus:ring-indigo-500 transition-all cursor-pointer"
+                            className="peer w-6 h-6 text-accent-red rounded-lg border-2 border-slate-300 focus:ring-accent-red transition-all cursor-pointer"
                             checked={formData.isPrivate}
                             onChange={(e) => setFormData({ ...formData, isPrivate: e.target.checked })}
                             onClick={(e) => e.stopPropagation()}
                           />
                         </div>
                         <div className="flex flex-col">
-                          <label htmlFor="isPrivate" className="text-sm font-bold text-slate-700 cursor-pointer select-none group-hover:text-indigo-600 transition-colors">
+                          <label htmlFor="isPrivate" className="text-sm font-bold text-slate-700 cursor-pointer select-none group-hover:text-accent-red transition-colors">
                             {t('agenda.form.private')}
                           </label>
                           <span className="text-[10px] font-medium text-slate-400">{t('agenda.form.privateHint')}</span>
@@ -675,7 +675,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                       <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('agenda.form.notes')}</label>
                       <textarea
                         rows={5}
-                        className="w-full px-8 py-6 bg-slate-50 border-2 border-transparent rounded-[2.5rem] text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/5 transition-all resize-none shadow-sm"
+                        className="w-full px-8 py-6 bg-slate-50 border-2 border-transparent rounded-[2.5rem] text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-accent-red focus:ring-4 focus:ring-accent-red/5 transition-all resize-none shadow-sm"
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         placeholder={t('agenda.form.notesPlaceholder')}
@@ -726,7 +726,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                     </button>
                     <button
                       type="submit"
-                      className="flex items-center justify-center gap-3 px-14 py-4 bg-indigo-600 text-white rounded-2xl text-sm font-black hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200 active:scale-95 w-full sm:w-auto"
+                      className="flex items-center justify-center gap-3 px-14 py-4 bg-accent-red text-white rounded-2xl text-sm font-black hover:bg-red-700 transition-all shadow-xl shadow-accent-red/20 active:scale-95 w-full sm:w-auto"
                     >
                       <Check className="w-5 h-5" />
                       {selectedEvent ? 'Mettre à jour' : 'Confirmer l\'événement'}

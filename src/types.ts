@@ -9,6 +9,7 @@ export interface Contact {
   notes?: string;
   status: 'Lead' | 'Client' | 'Partner';
   lastContact: string;
+  niu?: string;
 }
 
 export interface Product {
@@ -38,8 +39,11 @@ export interface Invoice {
     description?: string;
     tvaRate?: number;
     tvaAmount?: number;
+    tvaName?: string;
   }[];
   totalHT: number;
+  discount?: number;
+  deposit?: number;
   tvaTotal: number;
   total: number;
   status: 'Draft' | 'Sent' | 'Paid' | 'Overdue' | 'Accepted' | 'Rejected' | 'Signed';
@@ -188,6 +192,7 @@ export interface Company {
   industry?: string;
   status: 'Active' | 'Inactive';
   createdAt: string;
+  country?: string;
 }
 
 export interface CompanyInfo {

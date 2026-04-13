@@ -5,9 +5,9 @@
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
   
-  --color-primary-blue: #0f172a; /* Slate 900 - Very Deep Blue */
-  --color-accent-blue: #2563eb; /* Blue 600 - Rich Blue */
-  --color-soft-blue: #eff6ff; /* Blue 50 - Very Light Blue */
+  --color-primary-red: #4c0519; /* Rose 950 - Very Deep Bordeaux */
+  --color-accent-red: #be123c; /* Rose 700 - Elegant Bordeaux */
+  --color-soft-red: #fff1f2; /* Rose 50 - Very Light Pink/Red */
   --color-luxury-white: #ffffff;
   --color-luxury-gray: #f8fafc;
 }

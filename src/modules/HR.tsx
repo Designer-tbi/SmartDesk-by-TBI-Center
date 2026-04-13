@@ -377,7 +377,7 @@ export const HR = ({ user }: { user: any }) => {
           <button
             onClick={() => setActiveTab('directory')}
             className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'directory' ? "bg-indigo-600 text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              activeTab === 'directory' ? "bg-accent-red text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
           >
             <Users className="w-4 h-4" />
@@ -386,7 +386,7 @@ export const HR = ({ user }: { user: any }) => {
           <button
             onClick={() => setActiveTab('contracts')}
             className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'contracts' ? "bg-indigo-600 text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              activeTab === 'contracts' ? "bg-accent-red text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
           >
             <FileText className="w-4 h-4" />
@@ -395,7 +395,7 @@ export const HR = ({ user }: { user: any }) => {
           <button
             onClick={() => setActiveTab('leaves')}
             className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'leaves' ? "bg-indigo-600 text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              activeTab === 'leaves' ? "bg-accent-red text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
           >
             <Coffee className="w-4 h-4" />
@@ -404,7 +404,7 @@ export const HR = ({ user }: { user: any }) => {
           <button
             onClick={() => setActiveTab('payroll')}
             className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'payroll' ? "bg-indigo-600 text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              activeTab === 'payroll' ? "bg-accent-red text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
           >
             <CreditCard className="w-4 h-4" />
@@ -413,7 +413,7 @@ export const HR = ({ user }: { user: any }) => {
           <button
             onClick={() => setActiveTab('stats')}
             className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'stats' ? "bg-indigo-600 text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              activeTab === 'stats' ? "bg-accent-red text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
           >
             <BarChart3 className="w-4 h-4" />
@@ -422,7 +422,7 @@ export const HR = ({ user }: { user: any }) => {
           <button
             onClick={() => setActiveTab('tasks')}
             className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 shrink-0 ${
-              activeTab === 'tasks' ? "bg-indigo-600 text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+              activeTab === 'tasks' ? "bg-accent-red text-white shadow-md" : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
           >
             <CheckSquare className="w-4 h-4" />
@@ -433,7 +433,7 @@ export const HR = ({ user }: { user: any }) => {
         {activeTab === 'directory' && (
           <button 
             onClick={openAddModal}
-            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95"
           >
             <Plus className="w-5 h-5" />
             {t('hr.newEmployee')}
@@ -445,7 +445,7 @@ export const HR = ({ user }: { user: any }) => {
             {contractSubTab === 'list' && (
               <button 
                 onClick={() => setIsContractModalOpen(true)}
-                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95"
               >
                 <Plus className="w-5 h-5" />
                 {t('hr.newContract')}
@@ -454,7 +454,7 @@ export const HR = ({ user }: { user: any }) => {
             {contractSubTab === 'templates' && (
               <button 
                 onClick={() => setIsTemplateModalOpen(true)}
-                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+                className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95"
               >
                 <Plus className="w-5 h-5" />
                 {t('hr.newTemplate')}
@@ -476,12 +476,12 @@ export const HR = ({ user }: { user: any }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {isLoading ? (
             <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
-              <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+              <Loader2 className="w-10 h-10 text-accent-red animate-spin" />
               <p className="text-sm font-medium text-slate-500">{t('hr.loadingDirectory')}</p>
             </div>
           ) : employees.length > 0 ? employees.map((employee) => (
             <div key={employee.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-6 group hover:shadow-md transition-all">
-              <div className="w-24 h-24 rounded-2xl bg-indigo-50 flex items-center justify-center text-3xl font-bold text-indigo-600 shrink-0 overflow-hidden border border-indigo-100">
+              <div className="w-24 h-24 rounded-2xl bg-soft-red flex items-center justify-center text-3xl font-bold text-accent-red shrink-0 overflow-hidden border border-red-100">
                 {employee.profilePicture ? <img src={employee.profilePicture} alt="Profile" className="w-full h-full object-cover" /> : employee.name.charAt(0)}
               </div>
               
@@ -489,12 +489,12 @@ export const HR = ({ user }: { user: any }) => {
                 <div className="flex items-start justify-between mb-1">
                   <h3 className="text-lg font-bold text-slate-900 truncate">{employee.name}</h3>
                   <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                    <button onClick={() => setViewEmployee(employee)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all shadow-sm" title={t('common.view')}><Eye className="w-4 h-4" /></button>
+                    <button onClick={() => setViewEmployee(employee)} className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all shadow-sm" title={t('common.view')}><Eye className="w-4 h-4" /></button>
                     <button onClick={() => openEditModal(employee)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all shadow-sm" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
                     <button onClick={() => setDeleteConfirmId(employee.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
                   </div>
                 </div>
-                <p className="text-sm text-indigo-600 font-semibold mb-4">{employee.role}</p>
+                <p className="text-sm text-accent-red font-semibold mb-4">{employee.role}</p>
                 
                 <div className="grid grid-cols-2 gap-y-3 gap-x-4">
                   <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -530,19 +530,19 @@ export const HR = ({ user }: { user: any }) => {
           <div className="flex gap-4 border-b border-slate-200">
             <button 
               onClick={() => setContractSubTab('list')}
-              className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'list' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'list' ? 'border-accent-red text-accent-red' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
             >
               {t('hr.contractList')}
             </button>
             <button 
               onClick={() => setContractSubTab('templates')}
-              className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'templates' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'templates' ? 'border-accent-red text-accent-red' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
             >
               {t('hr.contractTemplates')}
             </button>
             <button 
               onClick={() => setContractSubTab('signed')}
-              className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'signed' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+              className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'signed' ? 'border-accent-red text-accent-red' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
             >
               {t('hr.signedContracts')}
             </button>
@@ -587,8 +587,8 @@ export const HR = ({ user }: { user: any }) => {
                         <td className="px-6 py-4">
                           <span className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 w-fit ${
                             contract.status === 'Active' ? 'bg-emerald-50 text-emerald-600' : 
-                            contract.status === 'Signed' ? 'bg-blue-50 text-blue-600' :
-                            contract.status === 'Sent' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-500'
+                            contract.status === 'Signed' ? 'bg-red-50 text-red-600' :
+                            contract.status === 'Sent' ? 'bg-soft-red text-accent-red' : 'bg-slate-100 text-slate-500'
                           }`}>
                             {contract.status === 'Active' ? <Check className="w-3 h-3" /> : 
                              contract.status === 'Signed' ? <FileSignature className="w-3 h-3" /> :
@@ -603,7 +603,7 @@ export const HR = ({ user }: { user: any }) => {
                             {contract.status === 'Sent' && contract.signatureLink && (
                               <button 
                                 onClick={() => copyToClipboard(contract.signatureLink!)}
-                                className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                                className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"
                                 title={t('hr.copyLink')}
                               >
                                 <LinkIcon className="w-4 h-4" />
@@ -612,7 +612,7 @@ export const HR = ({ user }: { user: any }) => {
                             {contract.status === 'Sent' && (
                               <button 
                                 onClick={() => setSigningContract(contract)}
-                                className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
+                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                                 title={t('hr.signInternal')}
                               >
                                 <FileSignature className="w-4 h-4" />
@@ -621,11 +621,11 @@ export const HR = ({ user }: { user: any }) => {
                             <button 
                               onClick={() => handleSendContract(contract.id)}
                               disabled={isSending === contract.id}
-                              className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                              className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"
                               title={t('hr.sendEmail')}
                             >
                               {isSending === contract.id ? (
-                                <div className="w-4 h-4 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+                                <div className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
                               ) : (
                                 <Send className="w-4 h-4" />
                               )}
@@ -646,16 +646,16 @@ export const HR = ({ user }: { user: any }) => {
               {templates.map((template) => (
                 <div key={template.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
                   <div className="flex items-center justify-between mb-4">
-                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                    <div className="p-2 bg-soft-red text-accent-red rounded-lg">
                       <Layout className="w-5 h-5" />
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                      <button className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
+                      <button className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
                       <button className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </div>
                   <h4 className="font-bold text-slate-900 mb-1">{template.name}</h4>
-                  <p className="text-xs text-slate-500 mb-4">Type: <span className="font-bold text-indigo-600">{template.type}</span></p>
+                  <p className="text-xs text-slate-500 mb-4">Type: <span className="font-bold text-accent-red">{template.type}</span></p>
                   <div className="p-3 bg-slate-50 rounded-xl mb-4">
                     <p className="text-[10px] text-slate-400 line-clamp-3 font-serif leading-relaxed italic">
                       {template.content}
@@ -669,7 +669,7 @@ export const HR = ({ user }: { user: any }) => {
                         setContractSubTab('list');
                         setIsContractModalOpen(true);
                       }}
-                      className="flex items-center gap-1 text-indigo-600 hover:underline"
+                      className="flex items-center gap-1 text-accent-red hover:underline"
                     >
                       <Copy className="w-3 h-3" /> Utiliser
                     </button>
@@ -708,7 +708,7 @@ export const HR = ({ user }: { user: any }) => {
                           <td className="px-6 py-4 text-sm font-bold text-slate-900">{getEmployeeName(contract.employeeId)}</td>
                           <td className="px-6 py-4 text-sm text-slate-500 font-medium">{contract.signedAt || contract.startDate}</td>
                           <td className="px-6 py-4 text-right">
-                            <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
+                            <button className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all">
                               <Download className="w-4 h-4" />
                             </button>
                           </td>
@@ -737,7 +737,7 @@ export const HR = ({ user }: { user: any }) => {
             <h3 className="font-bold text-slate-900">Demandes de Congés</h3>
             <div className="flex gap-2">
               <button className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg"><Filter className="w-4 h-4" /></button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all shadow-sm">
+              <button className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-all shadow-sm">
                 <Plus className="w-4 h-4" /> Nouvelle Demande
               </button>
             </div>
@@ -777,7 +777,7 @@ export const HR = ({ user }: { user: any }) => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="text-xs font-bold text-indigo-600 hover:underline">Gérer</button>
+                      <button className="text-xs font-bold text-accent-red hover:underline">Gérer</button>
                     </td>
                   </tr>
                 ))}
@@ -827,7 +827,7 @@ export const HR = ({ user }: { user: any }) => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="p-2 text-slate-400 hover:text-indigo-600"><Download className="w-4 h-4" /></button>
+                      <button className="p-2 text-slate-400 hover:text-accent-red"><Download className="w-4 h-4" /></button>
                     </td>
                   </tr>
                 ))}
@@ -842,7 +842,7 @@ export const HR = ({ user }: { user: any }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><Users className="w-5 h-5" /></div>
+              <div className="p-2 bg-soft-red text-accent-red rounded-lg"><Users className="w-5 h-5" /></div>
               <span className="text-xs font-bold text-emerald-600">{t('hr.newThisMonth')}</span>
             </div>
             <div className="text-2xl font-black text-slate-900">{employees.length}</div>
@@ -866,7 +866,7 @@ export const HR = ({ user }: { user: any }) => {
           </div>
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-purple-50 text-purple-600 rounded-lg"><Briefcase className="w-5 h-5" /></div>
+              <div className="p-2 bg-soft-red text-accent-red rounded-lg"><Briefcase className="w-5 h-5" /></div>
               <span className="text-xs font-bold text-slate-400">{t('nav.section.management')}</span>
             </div>
             <div className="text-2xl font-black text-slate-900">{new Set(employees.map(e => e.department)).size}</div>
@@ -887,7 +887,7 @@ export const HR = ({ user }: { user: any }) => {
               <button onClick={() => setCurrentDate(addMonths(currentDate, 1))} className="p-2 hover:bg-slate-100 rounded-xl transition-all"><ChevronRight className="w-5 h-5" /></button>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-soft-red text-accent-red rounded-lg text-xs font-bold">
                 <Target className="w-4 h-4" />
                 {tasks.length} {t('hr.totalTasks')}
               </div>
@@ -911,7 +911,7 @@ export const HR = ({ user }: { user: any }) => {
                   const dayTasks = tasks.filter(t => isSameDay(new Date(t.date), day));
                   return (
                     <div key={idx} className={`min-h-[120px] p-2 border-r border-b border-slate-50 last:border-r-0 ${!isSameMonth(day, currentDate) ? 'bg-slate-50/50' : ''}`}>
-                      <div className={`text-xs font-bold mb-2 ${isSameDay(day, new Date()) ? 'text-indigo-600' : 'text-slate-400'}`}>
+                      <div className={`text-xs font-bold mb-2 ${isSameDay(day, new Date()) ? 'text-accent-red' : 'text-slate-400'}`}>
                         {format(day, 'd')}
                       </div>
                       <div className="space-y-1">
@@ -921,7 +921,7 @@ export const HR = ({ user }: { user: any }) => {
                             className={`p-1.5 rounded-lg text-[10px] font-bold truncate cursor-pointer transition-all hover:scale-[1.02] ${
                               task.priority === 'High' ? 'bg-red-50 text-red-600 border border-red-100' :
                               task.priority === 'Medium' ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                              'bg-indigo-50 text-indigo-600 border border-indigo-100'
+                              'bg-soft-red text-accent-red border border-red-100'
                             }`}
                             title={task.title}
                           >
@@ -945,7 +945,7 @@ export const HR = ({ user }: { user: any }) => {
                 const dayTasks = tasks.filter(t => isSameDay(new Date(t.date), day));
                 return (
                   <div key={idx} className="space-y-4">
-                    <div className={`p-3 rounded-2xl text-center border ${isSameDay(day, new Date()) ? 'bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-200' : 'bg-white text-slate-900 border-slate-200 shadow-sm'}`}>
+                    <div className={`p-3 rounded-2xl text-center border ${isSameDay(day, new Date()) ? 'bg-accent-red text-white border-accent-red shadow-lg shadow-accent-red/20' : 'bg-white text-slate-900 border-slate-200 shadow-sm'}`}>
                       <div className="text-[10px] font-black uppercase tracking-widest opacity-60">{format(day, 'EEE', { locale: dateLocale })}</div>
                       <div className="text-lg font-black">{format(day, 'd')}</div>
                     </div>
@@ -954,7 +954,7 @@ export const HR = ({ user }: { user: any }) => {
                         <div key={task.id} className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
                           <div className={`absolute top-0 left-0 w-1 h-full ${
                             task.priority === 'High' ? 'bg-red-500' :
-                            task.priority === 'Medium' ? 'bg-amber-500' : 'bg-indigo-500'
+                            task.priority === 'Medium' ? 'bg-amber-500' : 'bg-accent-red'
                           }`} />
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-[10px] font-bold text-slate-400">{task.startTime} - {task.endTime}</span>
@@ -971,7 +971,7 @@ export const HR = ({ user }: { user: any }) => {
                           setNewTask({...newTask, date: format(day, 'yyyy-MM-dd')});
                           setIsTaskModalOpen(true);
                         }}
-                        className="w-full py-3 border-2 border-dashed border-slate-200 rounded-2xl text-slate-300 hover:border-indigo-300 hover:text-indigo-500 transition-all flex items-center justify-center"
+                        className="w-full py-3 border-2 border-dashed border-slate-200 rounded-2xl text-slate-300 hover:border-accent-red/30 hover:text-accent-red transition-all flex items-center justify-center"
                       >
                         <Plus className="w-5 h-5" />
                       </button>
@@ -986,7 +986,7 @@ export const HR = ({ user }: { user: any }) => {
             <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
                 <h3 className="font-bold text-slate-900">{t('hr.tasksOfDate', { date: format(currentDate, 'd MMMM yyyy', { locale: dateLocale }) })}</h3>
-                <button onClick={() => setIsTaskModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all">
+                <button onClick={() => setIsTaskModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-all">
                   <Plus className="w-4 h-4" /> {t('hr.add')}
                 </button>
               </div>
@@ -1002,7 +1002,7 @@ export const HR = ({ user }: { user: any }) => {
                       <div className="flex items-center gap-4">
                         <span className={`px-2 py-1 rounded-lg text-[10px] font-bold ${
                           task.priority === 'High' ? 'bg-red-50 text-red-600' :
-                          task.priority === 'Medium' ? 'bg-amber-50 text-amber-600' : 'bg-indigo-50 text-indigo-600'
+                          task.priority === 'Medium' ? 'bg-amber-50 text-amber-600' : 'bg-soft-red text-accent-red'
                         }`}>
                           {task.priority}
                         </span>
@@ -1025,10 +1025,10 @@ export const HR = ({ user }: { user: any }) => {
       {signingContract && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md">
           <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
-            <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
+            <div className="bg-accent-red p-6 text-white flex justify-between items-center">
               <div>
                 <h3 className="text-xl font-black uppercase tracking-tight">{t('hr.signatureTitle')}</h3>
-                <p className="text-indigo-100 text-xs font-bold mt-1">ID: {signingContract.id} • {getEmployeeName(signingContract.employeeId)}</p>
+                <p className="text-red-100 text-xs font-bold mt-1">ID: {signingContract.id} • {getEmployeeName(signingContract.employeeId)}</p>
               </div>
               <button onClick={() => setSigningContract(null)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
                 <X className="w-6 h-6"/>
@@ -1080,7 +1080,7 @@ export const HR = ({ user }: { user: any }) => {
                     disabled={!hasSignature}
                     className={`flex-1 py-4 rounded-2xl font-bold transition-all shadow-xl flex items-center justify-center gap-2 ${
                       hasSignature 
-                        ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200" 
+                        ? "bg-accent-red text-white hover:bg-red-700 shadow-accent-red/20" 
                         : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
                     }`}
                   >
@@ -1110,12 +1110,12 @@ export const HR = ({ user }: { user: any }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.templateName')}</label>
-                  <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none" value={newTemplate.name || ''} onChange={e => setNewTemplate({...newTemplate, name: e.target.value})} placeholder="Ex: CDI Standard" required />
+                  <input type="text" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none" value={newTemplate.name || ''} onChange={e => setNewTemplate({...newTemplate, name: e.target.value})} placeholder="Ex: CDI Standard" required />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.defaultType')}</label>
                   <select 
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none"
                     value={newTemplate.type || 'CDI'}
                     onChange={e => setNewTemplate({...newTemplate, type: e.target.value as any})}
                     required
@@ -1131,7 +1131,7 @@ export const HR = ({ user }: { user: any }) => {
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.templateContent')}</label>
                 <textarea 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none min-h-[300px] font-serif"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none min-h-[300px] font-serif"
                   placeholder={t('hr.templateContentPlaceholder')}
                   value={newTemplate.content || ''}
                   onChange={e => setNewTemplate({...newTemplate, content: e.target.value})}
@@ -1141,7 +1141,7 @@ export const HR = ({ user }: { user: any }) => {
               
               <div className="flex gap-4 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => setIsTemplateModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
-                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">{t('hr.saveTemplate')}</button>
+                <button type="submit" className="flex-1 py-3 bg-accent-red text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20">{t('hr.saveTemplate')}</button>
               </div>
             </form>
           </div>
@@ -1165,7 +1165,7 @@ export const HR = ({ user }: { user: any }) => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.templateOptional')}</label>
                   <select 
-                    className="w-full px-4 py-2.5 bg-indigo-50/50 border border-indigo-100 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-medium text-indigo-700"
+                    className="w-full px-4 py-2.5 bg-soft-red/50 border border-red-100 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-medium text-accent-red"
                     onChange={e => applyTemplate(e.target.value)}
                   >
                     <option value="">{t('hr.chooseTemplate')}</option>
@@ -1177,7 +1177,7 @@ export const HR = ({ user }: { user: any }) => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.employee')}</label>
                   <select 
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none"
                     value={newContract.employeeId || ''}
                     onChange={e => setNewContract({...newContract, employeeId: e.target.value})}
                     required
@@ -1191,7 +1191,7 @@ export const HR = ({ user }: { user: any }) => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Type de Contrat</label>
                   <select 
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none"
                     value={newContract.type || 'CDI'}
                     onChange={e => setNewContract({...newContract, type: e.target.value as any})}
                     required
@@ -1204,18 +1204,18 @@ export const HR = ({ user }: { user: any }) => {
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.startDate')}</label>
-                  <input type="date" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none" value={newContract.startDate || ''} onChange={e => setNewContract({...newContract, startDate: e.target.value})} required />
+                  <input type="date" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none" value={newContract.startDate || ''} onChange={e => setNewContract({...newContract, startDate: e.target.value})} required />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.monthlySalary')} ({currencySymbol})</label>
-                  <input type="number" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newContract.salary || 0} onChange={e => setNewContract({...newContract, salary: parseInt(e.target.value) || 0})} required />
+                  <input type="number" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newContract.salary || 0} onChange={e => setNewContract({...newContract, salary: parseInt(e.target.value) || 0})} required />
                 </div>
               </div>
               
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.contractContent')}</label>
                 <textarea 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none min-h-[200px]"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none min-h-[200px]"
                   placeholder={t('hr.contractContentPlaceholder')}
                   value={newContract.content || ''}
                   onChange={e => setNewContract({...newContract, content: e.target.value})}
@@ -1225,7 +1225,7 @@ export const HR = ({ user }: { user: any }) => {
               
               <div className="flex gap-4 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => setIsContractModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
-                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200">{t('hr.createDraft')}</button>
+                <button type="submit" className="flex-1 py-3 bg-accent-red text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20">{t('hr.createDraft')}</button>
               </div>
             </form>
           </div>
@@ -1236,7 +1236,7 @@ export const HR = ({ user }: { user: any }) => {
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
           <div className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
-            <div className="bg-indigo-600 p-8 text-white">
+            <div className="bg-accent-red p-8 text-white">
               <div className="flex justify-between items-center mb-6">
                 <div className="flex items-center gap-4">
                   <div className="p-3 bg-white/20 rounded-2xl">
@@ -1246,7 +1246,7 @@ export const HR = ({ user }: { user: any }) => {
                     <h3 className="text-2xl font-black uppercase tracking-tight">
                       {editingEmployee ? t('common.edit') : t('hr.add')} {t('hr.employee').toLowerCase()}
                     </h3>
-                    <p className="text-indigo-100 text-sm font-bold">{t('hr.hrManagement')}</p>
+                    <p className="text-red-100 text-sm font-bold">{t('hr.hrManagement')}</p>
                   </div>
                 </div>
                 <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
@@ -1258,13 +1258,13 @@ export const HR = ({ user }: { user: any }) => {
                 <div className="flex gap-2 bg-black/10 p-1 rounded-2xl w-fit">
                   <button 
                     onClick={() => setModalTab('info')}
-                    className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${modalTab === 'info' ? 'bg-white text-indigo-600 shadow-lg' : 'text-white/60 hover:text-white'}`}
+                    className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${modalTab === 'info' ? 'bg-white text-accent-red shadow-lg' : 'text-white/60 hover:text-white'}`}
                   >
                     Informations
                   </button>
                   <button 
                     onClick={() => setModalTab('tasks')}
-                    className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${modalTab === 'tasks' ? 'bg-white text-indigo-600 shadow-lg' : 'text-white/60 hover:text-white'}`}
+                    className={`px-6 py-2 rounded-xl text-xs font-black transition-all ${modalTab === 'tasks' ? 'bg-white text-accent-red shadow-lg' : 'text-white/60 hover:text-white'}`}
                   >
                     Tâches & Planning
                   </button>
@@ -1278,26 +1278,26 @@ export const HR = ({ user }: { user: any }) => {
                   {/* Section 1: Informations Personnelles */}
                   <section className="space-y-6">
                     <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
-                      <User className="w-5 h-5 text-indigo-600" />
+                      <User className="w-5 h-5 text-accent-red" />
                       <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">{t('hr.personalInfo')}</h4>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.fullName')}</label>
-                        <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.name || ''} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} placeholder="Ex: Jean Dupont" required />
+                        <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newEmployee.name || ''} onChange={e => setNewEmployee({...newEmployee, name: e.target.value})} placeholder="Ex: Jean Dupont" required />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.proEmail')}</label>
-                        <input type="email" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.email || ''} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} placeholder="jean.dupont@entreprise.com" required />
+                        <input type="email" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newEmployee.email || ''} onChange={e => setNewEmployee({...newEmployee, email: e.target.value})} placeholder="jean.dupont@entreprise.com" required />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.phone')}</label>
-                        <input type="tel" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.phone || ''} onChange={e => setNewEmployee({...newEmployee, phone: e.target.value})} placeholder="+33 6 00 00 00 00" />
+                        <input type="tel" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newEmployee.phone || ''} onChange={e => setNewEmployee({...newEmployee, phone: e.target.value})} placeholder="+33 6 00 00 00 00" />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.address')}</label>
-                        <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.address || ''} onChange={e => setNewEmployee({...newEmployee, address: e.target.value})} placeholder="123 Rue de la Paix, Paris" />
+                        <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newEmployee.address || ''} onChange={e => setNewEmployee({...newEmployee, address: e.target.value})} placeholder="123 Rue de la Paix, Paris" />
                       </div>
                     </div>
                   </section>
@@ -1305,23 +1305,23 @@ export const HR = ({ user }: { user: any }) => {
                   {/* Section 2: Poste & Contrat */}
                   <section className="space-y-6">
                     <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
-                      <Briefcase className="w-5 h-5 text-indigo-600" />
+                      <Briefcase className="w-5 h-5 text-accent-red" />
                       <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">{t('hr.positionContract')}</h4>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.positionRole')}</label>
-                        <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.role || ''} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} placeholder="Ex: Développeur Fullstack" required />
+                        <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newEmployee.role || ''} onChange={e => setNewEmployee({...newEmployee, role: e.target.value})} placeholder="Ex: Développeur Fullstack" required />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.department')}</label>
-                        <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.department || ''} onChange={e => setNewEmployee({...newEmployee, department: e.target.value})} placeholder="Ex: Technique" required />
+                        <input type="text" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newEmployee.department || ''} onChange={e => setNewEmployee({...newEmployee, department: e.target.value})} placeholder="Ex: Technique" required />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.contractType')}</label>
                         <select 
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold"
                           value={newEmployee.contractType || 'CDI'}
                           onChange={e => setNewEmployee({...newEmployee, contractType: e.target.value as any})}
                         >
@@ -1333,11 +1333,11 @@ export const HR = ({ user }: { user: any }) => {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.annualSalary')} ({currencySymbol})</label>
-                        <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.salary || 0} onChange={e => setNewEmployee({...newEmployee, salary: parseInt(e.target.value) || 0})} required />
+                        <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newEmployee.salary || 0} onChange={e => setNewEmployee({...newEmployee, salary: parseInt(e.target.value) || 0})} required />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.joinDate')}</label>
-                        <input type="date" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" value={newEmployee.joinDate || ''} onChange={e => setNewEmployee({...newEmployee, joinDate: e.target.value})} required />
+                        <input type="date" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newEmployee.joinDate || ''} onChange={e => setNewEmployee({...newEmployee, joinDate: e.target.value})} required />
                       </div>
                     </div>
                   </section>
@@ -1345,7 +1345,7 @@ export const HR = ({ user }: { user: any }) => {
                   {/* Section 3: Médias & Documents */}
                   <section className="space-y-6">
                     <div className="flex items-center gap-3 pb-2 border-b border-slate-100">
-                      <LayoutGrid className="w-5 h-5 text-indigo-600" />
+                      <LayoutGrid className="w-5 h-5 text-accent-red" />
                       <h4 className="text-sm font-black text-slate-900 uppercase tracking-wider">{t('hr.mediaDocs')}</h4>
                     </div>
                     
@@ -1369,14 +1369,14 @@ export const HR = ({ user }: { user: any }) => {
 
                       <div className="space-y-4">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.adminDocs')}</label>
-                        <label className="flex items-center justify-center w-full px-4 py-4 bg-white border-2 border-dashed border-slate-200 rounded-2xl text-xs font-bold text-slate-400 cursor-pointer hover:border-indigo-300 hover:text-indigo-500 transition-all">
+                        <label className="flex items-center justify-center w-full px-4 py-4 bg-white border-2 border-dashed border-slate-200 rounded-2xl text-xs font-bold text-slate-400 cursor-pointer hover:border-accent-red/30 hover:text-accent-red transition-all">
                           <Plus className="w-5 h-5 mr-2" /> {t('hr.addDoc')}
                           <input type="file" className="hidden" onChange={(e) => handleFileChange(e, 'document')} />
                         </label>
                         {newEmployee.documents && newEmployee.documents.length > 0 && (
                           <div className="flex flex-wrap gap-2">
                             {newEmployee.documents.map((doc, idx) => (
-                              <div key={idx} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-bold flex items-center gap-2 border border-indigo-100">
+                              <div key={idx} className="px-3 py-1.5 bg-soft-red text-accent-red rounded-xl text-[10px] font-bold flex items-center gap-2 border border-red-100">
                                 {doc.name}
                                 <button type="button" onClick={() => setNewEmployee({...newEmployee, documents: newEmployee.documents?.filter((_, i) => i !== idx)})} className="hover:text-red-500">
                                   <X className="w-3 h-3" />
@@ -1392,7 +1392,7 @@ export const HR = ({ user }: { user: any }) => {
 
                 <div className="flex gap-4 pt-10 mt-10 border-t border-slate-100">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
-                  <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200">
+                  <button type="submit" className="flex-1 py-4 bg-accent-red text-white rounded-2xl font-bold hover:bg-red-700 transition-all shadow-xl shadow-accent-red/20">
                     {editingEmployee ? t('hr.update') : t('hr.saveEmployee')}
                   </button>
                 </div>
@@ -1406,7 +1406,7 @@ export const HR = ({ user }: { user: any }) => {
                       setNewTask({ ...newTask, employeeId: editingEmployee?.id });
                       setIsTaskModalOpen(true);
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold hover:bg-indigo-700 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-xl text-xs font-bold hover:bg-red-700 transition-all"
                   >
                     <Plus className="w-4 h-4" /> Nouvelle Tâche
                   </button>
@@ -1415,7 +1415,7 @@ export const HR = ({ user }: { user: any }) => {
                 <div className="space-y-3">
                   {tasks.filter(t => t.employeeId === editingEmployee?.id).length > 0 ? (
                     tasks.filter(t => t.employeeId === editingEmployee?.id).map(task => (
-                      <div key={task.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between group hover:border-indigo-200 hover:bg-white transition-all">
+                      <div key={task.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between group hover:border-red-200 hover:bg-white transition-all">
                         <div className="flex items-center gap-4">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
                             task.priority === 'High' ? 'bg-red-100 text-red-600' :
@@ -1462,7 +1462,7 @@ export const HR = ({ user }: { user: any }) => {
       {viewEmployee && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
-            <div className="relative h-32 bg-indigo-600">
+            <div className="relative h-32 bg-accent-red">
               <button 
                 onClick={() => setViewEmployee(null)} 
                 className="absolute right-4 top-4 p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl backdrop-blur-md transition-all"
@@ -1470,7 +1470,7 @@ export const HR = ({ user }: { user: any }) => {
                 <X className="w-5 h-5"/>
               </button>
               <div className="absolute -bottom-12 left-8 p-1 bg-white rounded-3xl shadow-lg">
-                <div className="w-24 h-24 rounded-2xl bg-slate-100 flex items-center justify-center text-3xl font-bold text-indigo-600 overflow-hidden border border-slate-100">
+                <div className="w-24 h-24 rounded-2xl bg-slate-100 flex items-center justify-center text-3xl font-bold text-accent-red overflow-hidden border border-slate-100">
                   {viewEmployee.profilePicture ? (
                     <img src={viewEmployee.profilePicture} alt="Profile" className="w-full h-full object-cover" />
                   ) : (
@@ -1483,7 +1483,7 @@ export const HR = ({ user }: { user: any }) => {
             <div className="pt-16 p-8 space-y-8">
               <div>
                 <h3 className="text-2xl font-black text-slate-900">{viewEmployee.name}</h3>
-                <p className="text-indigo-600 font-bold">{viewEmployee.role} • {viewEmployee.department}</p>
+                <p className="text-accent-red font-bold">{viewEmployee.role} • {viewEmployee.department}</p>
               </div>
 
               <div className="grid grid-cols-2 gap-6">
@@ -1529,7 +1529,7 @@ export const HR = ({ user }: { user: any }) => {
                         rel="noopener noreferrer"
                         className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all group"
                       >
-                        <div className="p-2 bg-white rounded-lg text-slate-400 group-hover:text-indigo-600 transition-colors">
+                        <div className="p-2 bg-white rounded-lg text-slate-400 group-hover:text-accent-red transition-colors">
                           <Download className="w-4 h-4" />
                         </div>
                         <span className="text-xs font-bold text-slate-600 truncate">{doc.name}</span>
@@ -1546,14 +1546,14 @@ export const HR = ({ user }: { user: any }) => {
       {isTaskModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-md">
           <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
-            <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
+            <div className="bg-accent-red p-6 text-white flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-white/20 rounded-xl">
                   <CheckSquare className="w-6 h-6" />
                 </div>
                 <div>
                   <h3 className="text-xl font-black uppercase tracking-tight">Nouvelle Tâche</h3>
-                  <p className="text-indigo-100 text-xs font-bold">Planification employé</p>
+                  <p className="text-red-100 text-xs font-bold">Planification employé</p>
                 </div>
               </div>
               <button onClick={() => setIsTaskModalOpen(false)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
@@ -1564,7 +1564,7 @@ export const HR = ({ user }: { user: any }) => {
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Employé concerné</label>
                 <select 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold"
                   value={newTask.employeeId || ''}
                   onChange={e => setNewTask({...newTask, employeeId: e.target.value})}
                   required
@@ -1580,7 +1580,7 @@ export const HR = ({ user }: { user: any }) => {
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Titre de la tâche</label>
                 <input 
                   type="text" 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" 
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" 
                   value={newTask.title || ''} 
                   onChange={e => setNewTask({...newTask, title: e.target.value})} 
                   placeholder="Ex: Formation sécurité"
@@ -1593,7 +1593,7 @@ export const HR = ({ user }: { user: any }) => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Date</label>
                   <input 
                     type="date" 
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" 
                     value={newTask.date || ''} 
                     onChange={e => setNewTask({...newTask, date: e.target.value})} 
                     required 
@@ -1602,7 +1602,7 @@ export const HR = ({ user }: { user: any }) => {
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Priorité</label>
                   <select 
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold"
                     value={newTask.priority || 'Medium'}
                     onChange={e => setNewTask({...newTask, priority: e.target.value as any})}
                   >
@@ -1618,7 +1618,7 @@ export const HR = ({ user }: { user: any }) => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Début</label>
                   <input 
                     type="time" 
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" 
                     value={newTask.startTime || ''} 
                     onChange={e => setNewTask({...newTask, startTime: e.target.value})} 
                   />
@@ -1627,7 +1627,7 @@ export const HR = ({ user }: { user: any }) => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Fin</label>
                   <input 
                     type="time" 
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none font-bold" 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" 
                     value={newTask.endTime || ''} 
                     onChange={e => setNewTask({...newTask, endTime: e.target.value})} 
                   />
@@ -1637,7 +1637,7 @@ export const HR = ({ user }: { user: any }) => {
               <div className="space-y-1.5">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Description / Notes</label>
                 <textarea 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none min-h-[100px]"
+                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none min-h-[100px]"
                   value={newTask.description || ''}
                   onChange={e => setNewTask({...newTask, description: e.target.value})}
                   placeholder="Détails supplémentaires..."
@@ -1646,7 +1646,7 @@ export const HR = ({ user }: { user: any }) => {
 
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => setIsTaskModalOpen(false)} className="flex-1 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 transition-all">Annuler</button>
-                <button type="submit" className="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-700 transition-all shadow-xl shadow-indigo-200">Enregistrer la Tâche</button>
+                <button type="submit" className="flex-1 py-4 bg-accent-red text-white rounded-2xl font-bold hover:bg-red-700 transition-all shadow-xl shadow-accent-red/20">Enregistrer la Tâche</button>
               </div>
             </form>
           </div>

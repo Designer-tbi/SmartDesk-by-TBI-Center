@@ -17,13 +17,13 @@ contactsRouter.get('/', async (req, res, next) => {
 
 contactsRouter.post('/', async (req, res, next) => {
   try {
-    const { id, name, email, phone, company, role, notes, status, lastContact } = req.body;
-    await req.db.query('INSERT INTO contacts (id, "companyId", name, email, phone, company, role, notes, status, "lastContact") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-      [id, req.user!.companyId, name, email, phone, company, role, notes, status, lastContact]);
+    const { id, name, email, phone, company, role, notes, status, lastContact, niu } = req.body;
+    await req.db.query('INSERT INTO contacts (id, "companyId", name, email, phone, company, role, notes, status, "lastContact", niu) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)',
+      [id, req.user!.companyId, name, email, phone, company, role, notes, status, lastContact, niu]);
     
     await logActivity(req.db, req.user!.id, req.user!.companyId, 'CREATE_CONTACT', `Nouveau contact créé: ${name} (${company})`);
     
-    res.status(201).json({ id, name, email, phone, company, role, notes, status, lastContact });
+    res.status(201).json({ id, name, email, phone, company, role, notes, status, lastContact, niu });
   } catch (error) {
     next(error);
   }
@@ -32,13 +32,13 @@ contactsRouter.post('/', async (req, res, next) => {
 contactsRouter.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, email, phone, company, role, notes, status, lastContact } = req.body;
-    await req.db.query('UPDATE contacts SET name = $1, email = $2, phone = $3, company = $4, role = $5, notes = $6, status = $7, "lastContact" = $8, "updatedAt" = NOW() WHERE id = $9 AND "companyId" = $10',
-      [name, email, phone, company, role, notes, status, lastContact, id, req.user!.companyId]);
+    const { name, email, phone, company, role, notes, status, lastContact, niu } = req.body;
+    await req.db.query('UPDATE contacts SET name = $1, email = $2, phone = $3, company = $4, role = $5, notes = $6, status = $7, "lastContact" = $8, niu = $9, "updatedAt" = NOW() WHERE id = $10 AND "companyId" = $11',
+      [name, email, phone, company, role, notes, status, lastContact, niu, id, req.user!.companyId]);
     
     await logActivity(req.db, req.user!.id, req.user!.companyId, 'UPDATE_CONTACT', `Contact mis à jour: ${name}`);
     
-    res.json({ id, name, email, phone, company, role, notes, status, lastContact });
+    res.json({ id, name, email, phone, company, role, notes, status, lastContact, niu });
   } catch (error) {
     next(error);
   }

@@ -81,7 +81,7 @@ export const Projects = ({ user }: { user?: any }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Completed': return 'bg-emerald-100 text-emerald-700';
-      case 'In Progress': return 'bg-blue-100 text-blue-700';
+      case 'In Progress': return 'bg-soft-red text-accent-red';
       case 'Planning': return 'bg-slate-100 text-slate-700';
       case 'On Hold': return 'bg-rose-100 text-rose-700';
       default: return 'bg-slate-100 text-slate-700';
@@ -202,7 +202,7 @@ export const Projects = ({ user }: { user?: any }) => {
           }); 
           setIsModalOpen(true); 
           setFormError(null);
-        }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors shadow-sm">
+        }} className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors shadow-sm">
           <Plus className="w-4 h-4" />
           {t('projects.new')}
         </button>
@@ -211,11 +211,11 @@ export const Projects = ({ user }: { user?: any }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {isLoading ? (
           <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
-            <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+            <Loader2 className="w-10 h-10 text-accent-red animate-spin" />
             <p className="text-sm font-medium text-slate-500">{t('projects.loading')}</p>
           </div>
         ) : projects.length > 0 ? projects.map((project) => (
-          <div key={project.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-indigo-200 transition-all hover:shadow-md group">
+          <div key={project.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:border-red-200 transition-all hover:shadow-md group">
             <div className="flex items-start justify-between mb-4">
               <div className="flex flex-wrap gap-2">
                 <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${getStatusColor(project.status)}`}>
@@ -229,7 +229,7 @@ export const Projects = ({ user }: { user?: any }) => {
                 )}
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => setViewProject(project)} className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all" title={t('common.view')}><Eye className="w-4 h-4" /></button>
+                <button onClick={() => setViewProject(project)} className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all" title={t('common.view')}><Eye className="w-4 h-4" /></button>
                 <button onClick={() => { setEditingProject(project); setNewProject(project); setIsModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
                 <button onClick={() => setDeleteConfirmId(project.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
               </div>
@@ -247,11 +247,11 @@ export const Projects = ({ user }: { user?: any }) => {
                   {project.teamIds.slice(0, 3).map((id) => {
                     const emp = employees.find(e => e.id === id);
                     return (
-                      <div key={id} className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center overflow-hidden" title={emp?.name}>
+                      <div key={id} className="w-6 h-6 rounded-full bg-soft-red border-2 border-white flex items-center justify-center overflow-hidden" title={emp?.name}>
                         {emp?.profilePicture ? (
                           <img src={emp.profilePicture} alt={emp.name} className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-[8px] font-bold text-indigo-600">{emp?.name.charAt(0)}</span>
+                          <span className="text-[8px] font-bold text-accent-red">{emp?.name.charAt(0)}</span>
                         )}
                       </div>
                     );
@@ -269,11 +269,11 @@ export const Projects = ({ user }: { user?: any }) => {
             <div className="space-y-4">
               <div className="flex items-center justify-between text-sm">
                 <span className="text-slate-500 font-medium">{t('projects.progress')}</span>
-                <span className="font-bold text-indigo-600">{project.progress}%</span>
+                <span className="font-bold text-accent-red">{project.progress}%</span>
               </div>
               <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
                 <div 
-                  className="bg-indigo-600 h-2 rounded-full transition-all duration-700 ease-out" 
+                  className="bg-accent-red h-2 rounded-full transition-all duration-700 ease-out" 
                   style={{ width: `${project.progress}%` }}
                 ></div>
               </div>
@@ -329,7 +329,7 @@ export const Projects = ({ user }: { user?: any }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* General Info */}
                 <div className="space-y-4 md:col-span-2">
-                  <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                  <h4 className="text-xs font-black text-accent-red uppercase tracking-widest flex items-center gap-2">
                     <Briefcase className="w-3 h-3" />
                     {t('projects.generalInfo')}
                   </h4>
@@ -341,7 +341,7 @@ export const Projects = ({ user }: { user?: any }) => {
                         <input 
                           type="text" 
                           placeholder={t('projects.placeholder.name')} 
-                          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all" 
+                          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-accent-red transition-all" 
                           value={newProject.name || ''} 
                           onChange={e => setNewProject({...newProject, name: e.target.value})} 
                           required 
@@ -353,7 +353,7 @@ export const Projects = ({ user }: { user?: any }) => {
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <select 
-                          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all appearance-none" 
+                          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-accent-red transition-all appearance-none" 
                           value={newProject.contactId || ''} 
                           onChange={e => {
                             const contact = contacts.find(c => c.id === e.target.value);
@@ -377,7 +377,7 @@ export const Projects = ({ user }: { user?: any }) => {
 
                 {/* Team Members */}
                 <div className="md:col-span-2 space-y-4">
-                  <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                  <h4 className="text-xs font-black text-accent-red uppercase tracking-widest flex items-center gap-2">
                     <Users className="w-3 h-3" />
                     {t('projects.team')}
                   </h4>
@@ -395,7 +395,7 @@ export const Projects = ({ user }: { user?: any }) => {
                         }}
                         className={`flex items-center gap-2 p-2 rounded-xl border transition-all text-left ${
                           (newProject.teamIds || []).includes(emp.id)
-                            ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-200'
+                            ? 'bg-soft-red border-red-200 ring-1 ring-red-200'
                             : 'bg-white border-slate-100 hover:border-slate-200'
                         }`}
                       >
@@ -411,7 +411,7 @@ export const Projects = ({ user }: { user?: any }) => {
                           <p className="text-[8px] text-slate-400 truncate">{emp.role}</p>
                         </div>
                         {(newProject.teamIds || []).includes(emp.id) && (
-                          <div className="ml-auto bg-indigo-600 rounded-full p-0.5">
+                          <div className="ml-auto bg-accent-red rounded-full p-0.5">
                             <Check className="w-2 h-2 text-white" />
                           </div>
                         )}
@@ -422,7 +422,7 @@ export const Projects = ({ user }: { user?: any }) => {
 
                 {/* Status & Priority */}
                 <div className="space-y-4">
-                  <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                  <h4 className="text-xs font-black text-accent-red uppercase tracking-widest flex items-center gap-2">
                     <AlertCircle className="w-3 h-3" />
                     {t('projects.statusPriority')}
                   </h4>
@@ -430,7 +430,7 @@ export const Projects = ({ user }: { user?: any }) => {
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold text-slate-700 ml-1">{t('projects.status')}</label>
                       <select 
-                        className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all" 
+                        className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-accent-red transition-all" 
                         value={newProject.status || 'Planning'} 
                         onChange={e => setNewProject({...newProject, status: e.target.value as any})} 
                         required
@@ -465,7 +465,7 @@ export const Projects = ({ user }: { user?: any }) => {
 
                 {/* Timeline & Budget */}
                 <div className="space-y-4">
-                  <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                  <h4 className="text-xs font-black text-accent-red uppercase tracking-widest flex items-center gap-2">
                     <Calendar className="w-3 h-3" />
                     {t('projects.timelineBudget')}
                   </h4>
@@ -475,7 +475,7 @@ export const Projects = ({ user }: { user?: any }) => {
                         <label className="text-xs font-bold text-slate-700 ml-1">{t('projects.startDate')}</label>
                         <input 
                           type="date" 
-                          className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all" 
+                          className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-accent-red transition-all" 
                           value={newProject.startDate || ''} 
                           onChange={e => setNewProject({...newProject, startDate: e.target.value})} 
                         />
@@ -484,7 +484,7 @@ export const Projects = ({ user }: { user?: any }) => {
                         <label className="text-xs font-bold text-slate-700 ml-1">{t('projects.endDate')}</label>
                         <input 
                           type="date" 
-                          className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all" 
+                          className="w-full px-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-accent-red transition-all" 
                           value={newProject.deadline || ''} 
                           onChange={e => setNewProject({...newProject, deadline: e.target.value})} 
                           required 
@@ -498,7 +498,7 @@ export const Projects = ({ user }: { user?: any }) => {
                         <input 
                           type="number" 
                           placeholder="0" 
-                          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all" 
+                          className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-accent-red transition-all" 
                           value={newProject.budget || 0} 
                           onChange={e => setNewProject({...newProject, budget: parseFloat(e.target.value) || 0})} 
                         />
@@ -510,18 +510,18 @@ export const Projects = ({ user }: { user?: any }) => {
                 {/* Progress */}
                 <div className="md:col-span-2 space-y-4">
                   <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-black text-indigo-600 uppercase tracking-widest flex items-center gap-2">
+                    <h4 className="text-xs font-black text-accent-red uppercase tracking-widest flex items-center gap-2">
                       <Clock className="w-3 h-3" />
                       {t('projects.progress')}
                     </h4>
-                    <span className="text-sm font-black text-indigo-600">{newProject.progress || 0}%</span>
+                    <span className="text-sm font-black text-accent-red">{newProject.progress || 0}%</span>
                   </div>
                   <input 
                     type="range" 
                     min="0" 
                     max="100" 
                     step="5"
-                    className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                    className="w-full h-2 bg-slate-100 rounded-lg appearance-none cursor-pointer accent-accent-red"
                     value={newProject.progress || 0} 
                     onChange={e => setNewProject({...newProject, progress: parseInt(e.target.value)})} 
                   />
@@ -533,7 +533,7 @@ export const Projects = ({ user }: { user?: any }) => {
                   <textarea 
                     placeholder={t('projects.placeholder.description')} 
                     rows={3}
-                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-indigo-500 transition-all resize-none" 
+                    className="w-full px-4 py-3 bg-slate-50 border-none rounded-xl text-sm font-semibold focus:ring-2 focus:ring-accent-red transition-all resize-none" 
                     value={newProject.description || ''} 
                     onChange={e => setNewProject({...newProject, description: e.target.value})} 
                   />
@@ -550,7 +550,7 @@ export const Projects = ({ user }: { user?: any }) => {
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-[2] px-4 py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                  className="flex-[2] px-4 py-3 bg-accent-red text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20"
                 >
                   {editingProject ? t('projects.update') : t('projects.create')}
                 </button>
@@ -594,11 +594,11 @@ export const Projects = ({ user }: { user?: any }) => {
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('projects.progress')}</p>
-                    <span className="text-sm font-black text-indigo-600">{viewProject.progress}%</span>
+                    <span className="text-sm font-black text-accent-red">{viewProject.progress}%</span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
                     <div 
-                      className="bg-indigo-600 h-full rounded-full transition-all duration-1000" 
+                      className="bg-accent-red h-full rounded-full transition-all duration-1000" 
                       style={{ width: `${viewProject.progress}%` }}
                     ></div>
                   </div>
@@ -606,7 +606,7 @@ export const Projects = ({ user }: { user?: any }) => {
 
                 <div className="space-y-4 pt-4">
                   <div className="flex items-center gap-3 text-sm">
-                    <div className="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-600">
+                    <div className="w-8 h-8 rounded-lg bg-soft-red flex items-center justify-center text-accent-red">
                       <User className="w-4 h-4" />
                     </div>
                     <div>
@@ -635,11 +635,11 @@ export const Projects = ({ user }: { user?: any }) => {
                         const emp = employees.find(e => e.id === id);
                         return (
                           <div key={id} className="flex items-center gap-2 p-2 bg-slate-50 rounded-xl border border-slate-100">
-                            <div className="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center overflow-hidden">
+                            <div className="w-6 h-6 rounded-lg bg-soft-red flex items-center justify-center overflow-hidden">
                               {emp?.profilePicture ? (
                                 <img src={emp.profilePicture} alt={emp.name} className="w-full h-full object-cover" />
                               ) : (
-                                <span className="text-[10px] font-bold text-indigo-600">{emp?.name.charAt(0)}</span>
+                                <span className="text-[10px] font-bold text-accent-red">{emp?.name.charAt(0)}</span>
                               )}
                             </div>
                             <span className="text-xs font-bold text-slate-700">{emp?.name}</span>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../lib/i18n';
 import { apiFetch } from '../lib/api';
 import { useWebSocket } from '../lib/websocket';
@@ -39,6 +39,7 @@ export const SuperAdmin = () => {
 
   const [companyToDelete, setCompanyToDelete] = useState<string | null>(null);
   const [userToDelete, setUserToDelete] = useState<string | null>(null);
+  const [companyToConvert, setCompanyToConvert] = useState<any>(null);
 
   useEffect(() => {
     if (lastMessage?.type === 'ACTIVITY') {
@@ -162,6 +163,29 @@ export const SuperAdmin = () => {
     }
   };
 
+  const handleConvertToReal = (company: any) => {
+    setCompanyToConvert(company);
+  };
+
+  const confirmConvertToReal = async () => {
+    if (!companyToConvert) return;
+    try {
+      const res = await apiFetch(`/api/admin/companies/${companyToConvert.id}/convert-to-real`, {
+        method: 'PUT'
+      });
+
+      if (res.ok) {
+        fetchData();
+      } else {
+        setError(t('admin.error.save'));
+      }
+    } catch (err) {
+      setError(t('admin.error.connection'));
+    } finally {
+      setCompanyToConvert(null);
+    }
+  };
+
   const handleDeleteCompany = async (id: string) => {
     setCompanyToDelete(id);
   };
@@ -273,7 +297,7 @@ export const SuperAdmin = () => {
           <button 
             onClick={() => setActiveTab('companies')}
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-              activeTab === 'companies' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'companies' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             {t('admin.companies')}
@@ -281,7 +305,7 @@ export const SuperAdmin = () => {
           <button 
             onClick={() => setActiveTab('users')}
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-              activeTab === 'users' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'users' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             {t('admin.users')}
@@ -289,7 +313,7 @@ export const SuperAdmin = () => {
           <button 
             onClick={() => setActiveTab('activity')}
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-              activeTab === 'activity' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+              activeTab === 'activity' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             {t('admin.activity')}
@@ -302,7 +326,7 @@ export const SuperAdmin = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center">
+            <div className="w-12 h-12 bg-red-50 text-red-600 rounded-lg flex items-center justify-center">
               <Building2 className="w-6 h-6" />
             </div>
             <div>
@@ -354,7 +378,7 @@ export const SuperAdmin = () => {
                   <button 
                     onClick={() => setCompanyFilter('all')}
                     className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                      companyFilter === 'all' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      companyFilter === 'all' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {t('admin.all')}
@@ -362,7 +386,7 @@ export const SuperAdmin = () => {
                   <button 
                     onClick={() => setCompanyFilter('real')}
                     className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                      companyFilter === 'real' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      companyFilter === 'real' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {t('admin.real')}
@@ -370,7 +394,7 @@ export const SuperAdmin = () => {
                   <button 
                     onClick={() => setCompanyFilter('demo')}
                     className={`px-3 py-1 text-xs font-medium rounded-md transition-all ${
-                      companyFilter === 'demo' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      companyFilter === 'demo' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     {t('admin.demo')}
@@ -379,7 +403,7 @@ export const SuperAdmin = () => {
               </div>
               <button 
                 onClick={() => handleOpenModal()}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 flex items-center gap-2 self-start sm:self-center"
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 flex items-center gap-2 self-start sm:self-center"
               >
                 <Plus className="w-4 h-4" />
                 {t('admin.newCompany')}
@@ -404,7 +428,7 @@ export const SuperAdmin = () => {
                       <td className="px-6 py-4 font-medium text-slate-900">{company.name}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          company.type === 'real' ? 'bg-indigo-100 text-indigo-800' : 'bg-amber-100 text-amber-800'
+                          company.type === 'real' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
                         }`}>
                           {company.type === 'real' ? t('admin.real') : t('admin.demo')}
                         </span>
@@ -422,6 +446,15 @@ export const SuperAdmin = () => {
                       </td>
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {company.type === 'demo' && (
+                            <button 
+                              onClick={() => handleConvertToReal(company)}
+                              className="p-2 text-red-500 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
+                              title={t('admin.convertToReal')}
+                            >
+                              <CheckCircle2 className="w-4 h-4" />
+                            </button>
+                          )}
                           <button 
                             onClick={() => handleToggleCompanyStatus(company)}
                             className={`p-2 rounded-lg transition-colors ${
@@ -435,14 +468,14 @@ export const SuperAdmin = () => {
                           </button>
                           <button 
                             onClick={() => handleOpenUserModal(company)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                            className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                             title={t('admin.manageUsers')}
                           >
                             <Users className="w-4 h-4" />
                           </button>
                           <button 
                             onClick={() => handleOpenModal(company)}
-                            className="p-2 text-slate-400 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors"
+                            className="p-2 text-slate-400 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors"
                             title={t('admin.editCompany')}
                           >
                             <Edit2 className="w-4 h-4" />
@@ -482,7 +515,7 @@ export const SuperAdmin = () => {
                   placeholder={t('admin.searchUser')}
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                 />
               </div>
             </div>
@@ -512,8 +545,8 @@ export const SuperAdmin = () => {
                       <td className="px-6 py-4 text-slate-500">{user.companyName || t('common.na')}</td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                          user.role === 'super_admin' ? 'bg-purple-100 text-purple-800' : 
-                          user.role.includes('admin') ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'
+                          user.role === 'super_admin' ? 'bg-slate-800 text-white' : 
+                          user.role.includes('admin') ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-800'
                         }`}>
                           {getRoleName(user.role)}
                         </span>
@@ -627,7 +660,7 @@ export const SuperAdmin = () => {
                       required
                       value={newUserForm.name}
                       onChange={(e) => setNewUserForm({ ...newUserForm, name: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -637,7 +670,7 @@ export const SuperAdmin = () => {
                       required
                       value={newUserForm.email}
                       onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -647,7 +680,7 @@ export const SuperAdmin = () => {
                       required
                       value={newUserForm.password}
                       onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -655,7 +688,7 @@ export const SuperAdmin = () => {
                     <select
                       value={newUserForm.role}
                       onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                     >
                       <option value="admin">{t('admin.admin')}</option>
                       <option value="user">{t('admin.user')}</option>
@@ -665,7 +698,7 @@ export const SuperAdmin = () => {
                 <div className="flex justify-end">
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
                   >
                     {t('common.add')}
                   </button>
@@ -690,7 +723,7 @@ export const SuperAdmin = () => {
                         <td className="px-4 py-3 text-slate-500">{u.email}</td>
                         <td className="px-4 py-3">
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                            u.role.includes('admin') ? 'bg-indigo-100 text-indigo-800' : 'bg-slate-100 text-slate-800'
+                            u.role.includes('admin') ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-800'
                           }`}>
                             {getRoleName(u.role)}
                           </span>
@@ -751,7 +784,7 @@ export const SuperAdmin = () => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                     placeholder={t('admin.placeholder.companyName')}
                   />
                 </div>
@@ -762,19 +795,18 @@ export const SuperAdmin = () => {
                     <select
                       value={formData.type}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                     >
                       <option value="real">{t('admin.real')}</option>
                       <option value="demo">{t('admin.demo')}</option>
                     </select>
                   </div>
-
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700">{t('admin.status')}</label>
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                     >
                       <option value="active">{t('admin.active')}</option>
                       <option value="inactive">{t('admin.inactive')}</option>
@@ -793,7 +825,7 @@ export const SuperAdmin = () => {
                       required={!editingCompany}
                       value={formData.adminName}
                       onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                       placeholder={t('admin.placeholder.fullName')}
                     />
                   </div>
@@ -805,7 +837,7 @@ export const SuperAdmin = () => {
                         required={!editingCompany}
                         value={formData.adminEmail}
                         onChange={(e) => setFormData({ ...formData, adminEmail: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                         placeholder={t('admin.placeholder.email')}
                       />
                     </div>
@@ -815,7 +847,7 @@ export const SuperAdmin = () => {
                         type="tel"
                         value={formData.adminPhone}
                         onChange={(e) => setFormData({ ...formData, adminPhone: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                         placeholder={t('admin.placeholder.phone')}
                       />
                     </div>
@@ -827,7 +859,7 @@ export const SuperAdmin = () => {
                       required={!editingCompany}
                       value={formData.adminPassword}
                       onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
                       placeholder="••••••••"
                     />
                   </div>
@@ -844,7 +876,7 @@ export const SuperAdmin = () => {
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
                 >
                   {editingCompany ? t('common.save') : t('common.create')}
                 </button>
@@ -870,6 +902,15 @@ export const SuperAdmin = () => {
         confirmLabel={t('admin.deletePermanently')}
         onConfirm={confirmDeleteCompany}
         onCancel={() => setCompanyToDelete(null)}
+      />
+
+      <ConfirmModal
+        isOpen={!!companyToConvert}
+        title={t('admin.convertToReal')}
+        message={t('admin.confirmConvertToReal')}
+        confirmLabel={t('common.confirm')}
+        onConfirm={confirmConvertToReal}
+        onCancel={() => setCompanyToConvert(null)}
       />
     </motion.div>
   );

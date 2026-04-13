@@ -65,6 +65,7 @@ const initSql = `
     notes TEXT,
     status TEXT,
     "lastContact" TIMESTAMPTZ,
+    niu TEXT,
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE
@@ -499,6 +500,7 @@ export async function initializeDatabase() {
     await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "teamIds" TEXT');
     await db.query('ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS "companyId" TEXT');
     await db.query('ALTER TABLE quote_template_items ADD COLUMN IF NOT EXISTS "companyId" TEXT');
+    await db.query('ALTER TABLE contacts ADD COLUMN IF NOT EXISTS niu TEXT');
     
     // Ensure companies.type has the check constraint
     try {

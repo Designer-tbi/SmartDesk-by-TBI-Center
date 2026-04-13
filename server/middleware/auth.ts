@@ -33,7 +33,11 @@ export const requireAuth = async (req: Request, res: Response, next: NextFunctio
 
     req.user = decoded;
     next();
-  } catch (error) {
+  } catch (error: any) {
+    if (error.name === 'TokenExpiredError') {
+      // Don't log as a big error, just return 401
+      return res.status(401).json({ error: 'Unauthorized: Token expired' });
+    }
     console.log('requireAuth: Invalid token error =', error);
     return res.status(401).json({ error: 'Unauthorized: Invalid token' });
   }

@@ -124,6 +124,16 @@ adminRouter.put('/companies/:id', async (req, res, next) => {
   }
 });
 
+adminRouter.put('/companies/:id/convert-to-real', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await req.db.query('UPDATE public.companies SET type = $1 WHERE id = $2', ['real', id]);
+    res.json({ id, type: 'real' });
+  } catch (error) {
+    next(error);
+  }
+});
+
 adminRouter.delete('/companies/:id', async (req, res, next) => {
   try {
     const { id } = req.params;

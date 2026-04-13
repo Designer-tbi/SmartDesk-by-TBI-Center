@@ -141,7 +141,7 @@ export const Users = ({ user }: { user?: any }) => {
             onClick={() => setActiveTab('users')}
             className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${
               activeTab === 'users' 
-                ? "bg-indigo-600 text-white shadow-md" 
+                ? "bg-accent-red text-white shadow-md" 
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
           >
@@ -152,7 +152,7 @@ export const Users = ({ user }: { user?: any }) => {
             onClick={() => setActiveTab('roles')}
             className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all flex items-center gap-2 ${
               activeTab === 'roles' 
-                ? "bg-indigo-600 text-white shadow-md" 
+                ? "bg-accent-red text-white shadow-md" 
                 : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
             }`}
           >
@@ -171,7 +171,7 @@ export const Users = ({ user }: { user?: any }) => {
               setIsRoleModalOpen(true);
             }
           }}
-          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+          className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95"
         >
           <Plus className="w-5 h-5" />
           {activeTab === 'users' ? t('users.newUser') : t('users.newRole')}
@@ -196,7 +196,7 @@ export const Users = ({ user }: { user?: any }) => {
                   <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold">
+                        <div className="w-10 h-10 rounded-full bg-soft-red text-accent-red flex items-center justify-center font-bold">
                           {user.name.charAt(0)}
                         </div>
                         <div>
@@ -222,7 +222,7 @@ export const Users = ({ user }: { user?: any }) => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                        <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm" title={t('common.edit')}>
+                        <button className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm" title={t('common.edit')}>
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button onClick={() => { setDeleteConfirmId(user.id); setDeleteConfirmType('user'); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm" title={t('common.delete')}>
@@ -241,7 +241,7 @@ export const Users = ({ user }: { user?: any }) => {
           {roles.map((role) => (
             <div key={role.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600">
+                <div className="p-3 bg-soft-red rounded-xl text-accent-red">
                   <ShieldCheck className="w-6 h-6" />
                 </div>
                 <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
@@ -251,7 +251,7 @@ export const Users = ({ user }: { user?: any }) => {
                       setNewRole({ name: role.name, permissions: role.permissions });
                       setIsRoleModalOpen(true);
                     }}
-                    className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm" 
+                    className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm" 
                     title={t('common.edit')}
                   >
                     <Edit2 className="w-4 h-4" />
@@ -269,7 +269,7 @@ export const Users = ({ user }: { user?: any }) => {
               </p>
               <div className="flex flex-wrap gap-2">
                 {role.permissions.includes('all') ? (
-                  <span className="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">{t('users.viewAll')}</span>
+                  <span className="px-2 py-1 bg-soft-red text-accent-red rounded-lg text-[10px] font-bold uppercase tracking-wider">{t('users.viewAll')}</span>
                 ) : (
                   role.permissions.slice(0, 3).map(p => (
                     <span key={p} className="px-2 py-1 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">{p}</span>
@@ -283,7 +283,7 @@ export const Users = ({ user }: { user?: any }) => {
           ))}
           <button 
             onClick={() => setIsRoleModalOpen(true)}
-            className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50/30 transition-all group"
+            className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-accent-red hover:border-accent-red/20 hover:bg-soft-red/30 transition-all group"
           >
             <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-white transition-all">
               <Plus className="w-6 h-6" />
@@ -320,7 +320,7 @@ export const Users = ({ user }: { user?: any }) => {
                   {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
-              <button type="submit" className="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold mt-4">{t('users.newUser')}</button>
+              <button type="submit" className="w-full py-3 bg-accent-red text-white rounded-xl font-bold mt-4 shadow-lg shadow-accent-red/20 active:scale-95 transition-all">{t('users.newUser')}</button>
             </div>
           </form>
         </div>
@@ -341,7 +341,7 @@ export const Users = ({ user }: { user?: any }) => {
                   required 
                   value={newRole.name || ''} 
                   onChange={e => setNewRole({...newRole, name: e.target.value})} 
-                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none transition-all" 
+                  className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none transition-all" 
                   placeholder={t('users.placeholder.roleName')} 
                 />
               </div>
@@ -359,13 +359,13 @@ export const Users = ({ user }: { user?: any }) => {
                             onClick={() => togglePermission(perm.id)}
                             className={`p-3 rounded-xl border transition-all cursor-pointer flex items-center gap-3 ${
                               newRole.permissions.includes(perm.id)
-                                ? "bg-indigo-50 border-indigo-200 text-indigo-700"
+                                ? "bg-soft-red border-accent-red/20 text-accent-red"
                                 : "bg-white border-slate-200 text-slate-600 hover:border-slate-300"
                             }`}
                           >
                             <div className={`w-5 h-5 rounded flex items-center justify-center border transition-all ${
                               newRole.permissions.includes(perm.id)
-                                ? "bg-indigo-600 border-indigo-600 text-white"
+                                ? "bg-accent-red border-accent-red text-white"
                                 : "bg-white border-slate-300"
                             }`}>
                               {newRole.permissions.includes(perm.id) && <Check className="w-3 h-3" />}
@@ -392,7 +392,7 @@ export const Users = ({ user }: { user?: any }) => {
                 </button>
                 <button 
                   type="submit" 
-                  className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200"
+                  className="flex-1 py-3 bg-accent-red text-white rounded-xl font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95"
                 >
                   {editingRole ? t('users.saveChanges') : t('users.createRole')}
                 </button>

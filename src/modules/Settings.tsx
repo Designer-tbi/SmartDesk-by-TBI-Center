@@ -4,7 +4,7 @@ import { HelpSection } from '../components/HelpSection';
 import { CompanyInfo, User as UserType } from '../types';
 import { apiFetch } from '../lib/api';
 import { ConfirmModal } from '../components/ConfirmModal';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 
 import { useTranslation } from '../lib/i18n';
 
@@ -232,7 +232,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
+        <Loader2 className="w-10 h-10 text-accent-red animate-spin" />
         <p className="text-sm font-medium text-slate-500">{t('settings.loading')}</p>
       </div>
     );
@@ -241,13 +241,13 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Tabs Navigation */}
-      <div className="flex items-center gap-1 p-1 bg-soft-blue/30 rounded-2xl w-fit overflow-x-auto">
+      <div className="flex items-center gap-1 p-1 bg-soft-red/30 rounded-2xl w-fit overflow-x-auto">
         <button
           onClick={() => setActiveTab('company')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === 'company' 
-              ? 'bg-white text-accent-blue shadow-sm' 
-              : 'text-slate-500 hover:text-accent-blue hover:bg-white/50'
+              ? 'bg-white text-accent-red shadow-sm' 
+              : 'text-slate-500 hover:text-accent-red hover:bg-white/50'
           }`}
         >
           <Building2 className="w-4 h-4" />
@@ -257,8 +257,8 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           onClick={() => setActiveTab('profile')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === 'profile' 
-              ? 'bg-white text-accent-blue shadow-sm' 
-              : 'text-slate-500 hover:text-accent-blue hover:bg-white/50'
+              ? 'bg-white text-accent-red shadow-sm' 
+              : 'text-slate-500 hover:text-accent-red hover:bg-white/50'
           }`}
         >
           <User className="w-4 h-4" />
@@ -268,8 +268,8 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           onClick={() => setActiveTab('security')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === 'security' 
-              ? 'bg-white text-accent-blue shadow-sm' 
-              : 'text-slate-500 hover:text-accent-blue hover:bg-white/50'
+              ? 'bg-white text-accent-red shadow-sm' 
+              : 'text-slate-500 hover:text-accent-red hover:bg-white/50'
           }`}
         >
           <Shield className="w-4 h-4" />
@@ -279,8 +279,8 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           onClick={() => setActiveTab('notifications')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === 'notifications' 
-              ? 'bg-white text-accent-blue shadow-sm' 
-              : 'text-slate-500 hover:text-accent-blue hover:bg-white/50'
+              ? 'bg-white text-accent-red shadow-sm' 
+              : 'text-slate-500 hover:text-accent-red hover:bg-white/50'
           }`}
         >
           <Bell className="w-4 h-4" />
@@ -290,8 +290,8 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           onClick={() => setActiveTab('help')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
             activeTab === 'help'
-              ? 'bg-white text-accent-blue shadow-sm' 
-              : 'text-slate-500 hover:text-accent-blue hover:bg-white/50'
+              ? 'bg-white text-accent-red shadow-sm' 
+              : 'text-slate-500 hover:text-accent-red hover:bg-white/50'
           }`}
         >
           <BookOpen className="w-4 h-4" />
@@ -308,10 +308,10 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            <div className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-blue-50 bg-soft-blue/10">
+            <div className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden">
+              <div className="p-6 border-b border-red-50 bg-soft-red/10">
                 <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-accent-blue" />
+                  <Building2 className="w-5 h-5 text-accent-red" />
                   {t('settings.companyInfo')}
                 </h3>
                 <p className="text-sm text-slate-500 mt-1">{t('settings.companyInfoDesc')}</p>
@@ -369,7 +369,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                       <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
                         type="text"
-                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         value={company.name || ''}
                         onChange={(e) => setCompany({ ...company, name: e.target.value })}
                         required
@@ -382,12 +382,13 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <div className="relative">
                       <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <select
-                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         value={company.country || 'EUROPE'}
                         onChange={(e) => setCompany({ ...company, country: e.target.value })}
                       >
                         <option value="CONTINENT">{t('settings.continentGeneral')}</option>
                         <option value="AFRIQUE">{t('settings.africa')}</option>
+                        <option value="CONGO">{t('settings.congo')}</option>
                         <option value="EUROPE">{t('settings.europe')}</option>
                         <option value="USA">{t('settings.usa')}</option>
                       </select>
@@ -399,7 +400,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <div className="relative">
                       <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <select
-                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         value={company.accountingStandard || 'OHADA'}
                         onChange={(e) => setCompany({ ...company, accountingStandard: e.target.value as any })}
                       >
@@ -415,7 +416,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <div className="relative">
                       <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <select
-                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         value={company.language || 'fr'}
                         onChange={(e) => setCompany({ ...company, language: e.target.value })}
                       >
@@ -432,7 +433,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                         {company.currency === 'XAF' ? 'FCFA' : company.currency === 'EUR' ? '€' : '$'}
                       </span>
                       <select
-                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         value={company.currency || 'XAF'}
                         onChange={(e) => setCompany({ ...company, currency: e.target.value })}
                       >
@@ -443,7 +444,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     </div>
                   </div>
 
-                  {company.country === 'AFRIQUE' && (
+                  {(company.country === 'AFRIQUE' || company.country === 'CONGO') && (
                     <>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.taxId')}</label>
@@ -451,7 +452,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                           <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input
                             type="text"
-                            className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                            className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                             value={company.taxId || ''}
                             onChange={(e) => setCompany({ ...company, taxId: e.target.value })}
                             required
@@ -464,7 +465,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                           <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                           <input
                             type="text"
-                            className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                            className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                             value={company.rccm || ''}
                             onChange={(e) => setCompany({ ...company, rccm: e.target.value })}
                             required
@@ -480,7 +481,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
                         type="email"
-                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         value={company.email || ''}
                         onChange={(e) => setCompany({ ...company, email: e.target.value })}
                         required
@@ -494,7 +495,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <input
                         type="tel"
-                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         value={company.phone || ''}
                         onChange={(e) => setCompany({ ...company, phone: e.target.value })}
                         required
@@ -508,7 +509,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                       <MapPin className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
                       <textarea
                         rows={3}
-                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all resize-none"
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all resize-none"
                         value={company.address || ''}
                         onChange={(e) => setCompany({ ...company, address: e.target.value })}
                         required
@@ -535,7 +536,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-accent-blue text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-accent-blue/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     {isSubmitting ? t('settings.updating') : t('common.save')}
@@ -573,11 +574,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden"
+            className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden"
           >
-            <div className="p-6 border-b border-blue-50 bg-soft-blue/10">
+            <div className="p-6 border-b border-red-50 bg-soft-red/10">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <User className="w-5 h-5 text-accent-blue" />
+                <User className="w-5 h-5 text-accent-red" />
                 {t('settings.profile')}
               </h3>
               <p className="text-sm text-slate-500 mt-1">{t('settings.profileDesc')}</p>
@@ -591,7 +592,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="text"
-                      className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-blue-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       value={user.name || ''}
                       onChange={(e) => setUser({ ...user, name: e.target.value })}
                       required
@@ -605,7 +606,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="email"
-                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       value={user.email || ''}
                       onChange={(e) => setUser({ ...user, email: e.target.value })}
                       required
@@ -644,7 +645,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-accent-blue text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-accent-blue/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex items-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     {isSubmitting ? t('settings.updating') : t('settings.updateProfile')}
@@ -661,11 +662,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden"
+            className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden"
           >
-            <div className="p-6 border-b border-blue-50 bg-soft-blue/10">
+            <div className="p-6 border-b border-red-50 bg-soft-red/10">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-accent-blue" />
+                <Shield className="w-5 h-5 text-accent-red" />
                 {t('settings.security')}
               </h3>
               <p className="text-sm text-slate-500 mt-1">{t('settings.securityDesc')}</p>
@@ -679,7 +680,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type={showPasswords.current ? 'text' : 'password'}
-                      className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       value={passwords.current}
                       onChange={(e) => setPasswords({ ...passwords, current: e.target.value })}
                       required
@@ -700,7 +701,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type={showPasswords.new ? 'text' : 'password'}
-                      className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       value={passwords.new}
                       onChange={(e) => setPasswords({ ...passwords, new: e.target.value })}
                       required
@@ -721,7 +722,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type={showPasswords.confirm ? 'text' : 'password'}
-                      className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full pl-10 pr-12 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       value={passwords.confirm}
                       onChange={(e) => setPasswords({ ...passwords, confirm: e.target.value })}
                       required
@@ -755,7 +756,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-accent-blue text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-accent-blue/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {isSubmitting ? t('settings.updating') : t('settings.changePassword')}
@@ -771,11 +772,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-2xl border border-blue-100 shadow-sm overflow-hidden"
+            className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden"
           >
-            <div className="p-6 border-b border-blue-50 bg-soft-blue/10">
+            <div className="p-6 border-b border-red-50 bg-soft-red/10">
               <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Bell className="w-5 h-5 text-accent-blue" />
+                <Bell className="w-5 h-5 text-accent-red" />
                 {t('settings.notifications')}
               </h3>
               <p className="text-sm text-slate-500 mt-1">{t('settings.notificationsDesc')}</p>
@@ -783,47 +784,47 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
 
             <div className="p-6 space-y-6">
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-soft-blue/10 rounded-xl border border-blue-50">
+                <div className="flex items-center justify-between p-4 bg-soft-red/10 rounded-xl border border-red-50">
                   <div>
-                    <h4 className="text-sm font-bold text-primary-blue">{t('settings.emailReports')}</h4>
+                    <h4 className="text-sm font-bold text-primary-red">{t('settings.emailReports')}</h4>
                     <p className="text-xs text-slate-500">{t('settings.emailReportsDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" defaultChecked />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-blue/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-blue"></div>
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-soft-blue/10 rounded-xl border border-blue-50">
+                <div className="flex items-center justify-between p-4 bg-soft-red/10 rounded-xl border border-red-50">
                   <div>
-                    <h4 className="text-sm font-bold text-primary-blue">{t('settings.newLead')}</h4>
+                    <h4 className="text-sm font-bold text-primary-red">{t('settings.newLead')}</h4>
                     <p className="text-xs text-slate-500">{t('settings.newLeadDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" defaultChecked />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-blue/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-blue"></div>
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-soft-blue/10 rounded-xl border border-blue-50">
+                <div className="flex items-center justify-between p-4 bg-soft-red/10 rounded-xl border border-red-50">
                   <div>
-                    <h4 className="text-sm font-bold text-primary-blue">{t('settings.invoicePaid')}</h4>
+                    <h4 className="text-sm font-bold text-primary-red">{t('settings.invoicePaid')}</h4>
                     <p className="text-xs text-slate-500">{t('settings.invoicePaidDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" defaultChecked />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-blue/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-blue"></div>
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-soft-blue/10 rounded-xl border border-blue-50">
+                <div className="flex items-center justify-between p-4 bg-soft-red/10 rounded-xl border border-red-50">
                   <div>
-                    <h4 className="text-sm font-bold text-primary-blue">{t('settings.projectUpdate')}</h4>
+                    <h4 className="text-sm font-bold text-primary-red">{t('settings.projectUpdate')}</h4>
                     <p className="text-xs text-slate-500">{t('settings.projectUpdateDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" className="sr-only peer" defaultChecked />
-                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-blue/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-blue"></div>
+                    <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
               </div>
@@ -835,7 +836,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     setSuccessMessage(t('settings.success.preferencesSaved'));
                     setTimeout(() => setSuccessMessage(null), 3000);
                   }}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-accent-blue text-white rounded-xl text-sm font-bold hover:bg-blue-700 transition-all shadow-lg shadow-accent-blue/20 active:scale-95"
+                  className="flex items-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95"
                 >
                   <Save className="w-4 h-4" />
                   {t('settings.savePreferences')}

@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { apiFetch } from '../lib/api';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, Download, FileText, CheckCircle, Clock, AlertCircle, Eye, Pencil, Trash2, Mail, X, 
   FileEdit, User, Calendar, Tag, Building2, PlusCircle, Link as LinkIcon, FileSignature, Eraser,
@@ -90,7 +90,7 @@ export const Sales = ({ user }: { user: any }) => {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'Paid': return <CheckCircle className="w-4 h-4 text-emerald-500" />;
-      case 'Sent': return <Clock className="w-4 h-4 text-blue-500" />;
+      case 'Sent': return <Clock className="w-4 h-4 text-accent-red" />;
       case 'Overdue': return <AlertCircle className="w-4 h-4 text-rose-500" />;
       case 'Accepted': return <CheckCircle className="w-4 h-4 text-emerald-500" />;
       case 'Rejected': return <AlertCircle className="w-4 h-4 text-rose-500" />;
@@ -127,20 +127,27 @@ export const Sales = ({ user }: { user: any }) => {
     setIsModalOpen(false);
   };
 
-  const calculateTotals = (items: any[]) => {
-    const totalHT = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-    const tvaTotal = items.reduce((sum, item) => sum + (item.tvaAmount || 0), 0);
+  const calculateTotals = (items: any[], discount: number = 0) => {
+    const totalHT = items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.price || 0)), 0);
+    const discountFactor = totalHT > 0 ? Math.max(0, (totalHT - discount) / totalHT) : 1;
+    
+    const tvaTotal = items.reduce((sum, item) => {
+      const itemHT = (item.quantity || 0) * (item.price || 0);
+      const discountedItemHT = itemHT * discountFactor;
+      return sum + (discountedItemHT * (item.tvaRate || 0));
+    }, 0);
+
     return {
       totalHT,
       tvaTotal,
-      total: totalHT + tvaTotal
+      total: (totalHT - discount) + tvaTotal
     };
   };
 
   const handleAddItem = () => {
     setNewInvoice({
       ...newInvoice,
-      items: [...(newInvoice.items || []), { productId: '', name: '', quantity: 1, price: 0, tvaRate: 0.18, tvaAmount: 0 }]
+      items: [...(newInvoice.items || []), { productId: '', name: '', quantity: 1, price: 0, tvaRate: 0.18, tvaAmount: 0, tvaName: 'TVA' }]
     });
   };
 
@@ -164,7 +171,7 @@ export const Sales = ({ user }: { user: any }) => {
       updatedItems[index].tvaAmount = (item.price || 0) * (item.quantity || 0) * (item.tvaRate || 0);
     }
     
-    const totals = calculateTotals(updatedItems);
+    const totals = calculateTotals(updatedItems, newInvoice.discount || 0);
     setNewInvoice({
       ...newInvoice,
       items: updatedItems,
@@ -174,11 +181,27 @@ export const Sales = ({ user }: { user: any }) => {
 
   const handleRemoveItem = (index: number) => {
     const updatedItems = (newInvoice.items || []).filter((_, i) => i !== index);
-    const totals = calculateTotals(updatedItems);
+    const totals = calculateTotals(updatedItems, newInvoice.discount || 0);
     setNewInvoice({
       ...newInvoice,
       items: updatedItems,
       ...totals
+    });
+  };
+
+  const handleUpdateDiscount = (discount: number) => {
+    const totals = calculateTotals(newInvoice.items || [], discount);
+    setNewInvoice({
+      ...newInvoice,
+      discount,
+      ...totals
+    });
+  };
+
+  const handleUpdateDeposit = (deposit: number) => {
+    setNewInvoice({
+      ...newInvoice,
+      deposit
     });
   };
 
@@ -404,7 +427,7 @@ export const Sales = ({ user }: { user: any }) => {
                 }}
                 className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${
                   filter === f 
-                    ? "bg-indigo-600 text-white shadow-md" 
+                    ? "bg-accent-red text-white shadow-md" 
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
@@ -418,7 +441,7 @@ export const Sales = ({ user }: { user: any }) => {
           {filter === 'Quote' && quoteSubTab === 'templates' ? (
             <button 
               onClick={() => setIsTemplateModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95"
             >
               <Plus className="w-5 h-5" />
               {t('sales.newTemplate')}
@@ -435,7 +458,7 @@ export const Sales = ({ user }: { user: any }) => {
           ) : (
             <button 
               onClick={() => { resetForm(); setIsModalOpen(true); }}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95"
+              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95"
             >
               <Plus className="w-5 h-5" />
               {t('sales.new')} {filter === 'Quote' ? t('sales.quote') : filter === 'Invoice' ? t('sales.invoice') : t('sales.document')}
@@ -445,22 +468,22 @@ export const Sales = ({ user }: { user: any }) => {
       </div>
 
       {filter === 'Quote' && (
-        <div className="flex gap-4 border-b border-slate-200">
+        <div className="flex gap-4 border-b border-red-100">
           <button 
             onClick={() => setQuoteSubTab('list')}
-            className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'list' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'list' ? 'border-accent-red text-accent-red' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
             {t('sales.quoteList')}
           </button>
           <button 
             onClick={() => setQuoteSubTab('templates')}
-            className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'templates' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'templates' ? 'border-accent-red text-accent-red' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
             {t('sales.quoteTemplates')}
           </button>
           <button 
             onClick={() => setQuoteSubTab('signed')}
-            className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'signed' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'signed' ? 'border-accent-red text-accent-red' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
             {t('sales.signedQuotesReception')}
           </button>
@@ -482,8 +505,8 @@ export const Sales = ({ user }: { user: any }) => {
               </div>
             </div>
             <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-4">
-              <div className="p-2 bg-blue-50 rounded-lg">
-                <Clock className="w-5 h-5 text-blue-600" />
+              <div className="p-2 bg-soft-red rounded-lg">
+                <Clock className="w-5 h-5 text-accent-red" />
               </div>
               <div>
                 <p className="text-xs text-slate-500 font-medium">{t('sales.pending')}</p>
@@ -523,7 +546,7 @@ export const Sales = ({ user }: { user: any }) => {
                     <tr key={invoice.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${invoice.type === 'Invoice' ? 'bg-indigo-50 text-indigo-600' : 'bg-purple-50 text-purple-600'}`}>
+                          <div className={`p-2 rounded-lg ${invoice.type === 'Invoice' ? 'bg-soft-red text-accent-red' : 'bg-amber-50 text-amber-600'}`}>
                             <FileText className="w-4 h-4" />
                           </div>
                           <div>
@@ -546,8 +569,8 @@ export const Sales = ({ user }: { user: any }) => {
                         <div className="flex items-center gap-2">
                           <span className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 w-fit ${
                             invoice.status === 'Paid' || invoice.status === 'Accepted' ? 'bg-emerald-50 text-emerald-600' : 
-                            invoice.status === 'Signed' ? 'bg-blue-50 text-blue-600' :
-                            invoice.status === 'Sent' ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-500'
+                            invoice.status === 'Signed' ? 'bg-soft-red text-accent-red' :
+                            invoice.status === 'Sent' ? 'bg-soft-red text-accent-red' : 'bg-slate-100 text-slate-500'
                           }`}>
                             {getStatusIcon(invoice.status)}
                             {getStatusText(invoice.status)}
@@ -557,20 +580,20 @@ export const Sales = ({ user }: { user: any }) => {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
                           {invoice.type === 'Quote' && invoice.status === 'Sent' && invoice.signatureLink && (
-                            <button onClick={() => copyToClipboard(invoice.signatureLink!, invoice.id)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.copySignatureLink')}>
+                            <button onClick={() => copyToClipboard(invoice.signatureLink!, invoice.id)} className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.copySignatureLink')}>
                               {copiedId === invoice.id ? <Check className="w-4 h-4 text-emerald-500" /> : <LinkIcon className="w-4 h-4" />}
                             </button>
                           )}
                           {invoice.type === 'Quote' && invoice.status === 'Sent' && (
-                            <button onClick={() => setSigningQuote(invoice)} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.signManually')}>
+                            <button onClick={() => setSigningQuote(invoice)} className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.signManually')}>
                               <FileSignature className="w-4 h-4" />
                             </button>
                           )}
-                          <button onClick={() => setViewInvoice(invoice)} className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.preview')}>
+                          <button onClick={() => setViewInvoice(invoice)} className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.preview')}>
                             <Eye className="w-4 h-4" />
                           </button>
-                          <button onClick={() => handleSendEmail(invoice)} disabled={isSending === invoice.id} className="p-2 text-slate-400 hover:text-blue-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.sendEmail')}>
-                            {isSending === invoice.id ? <div className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" /> : <Mail className="w-4 h-4" />}
+                          <button onClick={() => handleSendEmail(invoice)} disabled={isSending === invoice.id} className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.sendEmail')}>
+                            {isSending === invoice.id ? <div className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" /> : <Mail className="w-4 h-4" />}
                           </button>
                           <button onClick={() => openEdit(invoice)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.edit')}>
                             <Pencil className="w-4 h-4" />
@@ -592,11 +615,11 @@ export const Sales = ({ user }: { user: any }) => {
           {templates.map((template) => (
             <div key={template.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                <div className="p-2 bg-soft-red text-accent-red rounded-lg">
                   <Layout className="w-5 h-5" />
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                  <button className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
+                  <button className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
                   {deletingTemplateId === template.id ? (
                     <div className="flex items-center gap-1">
                       <button onClick={() => handleDeleteTemplate(template.id)} className="p-1.5 text-white bg-red-500 hover:bg-red-600 rounded-lg transition-all text-[10px] font-bold">Oui</button>
@@ -610,7 +633,7 @@ export const Sales = ({ user }: { user: any }) => {
               <h4 className="font-bold text-slate-900 mb-1">{template.name}</h4>
               <div className="p-3 bg-slate-50 rounded-xl mb-4">
                 <p className="text-xs text-slate-500 mb-1">{template.items.length} articles</p>
-                <p className="text-sm font-bold text-indigo-600">
+                <p className="text-sm font-bold text-accent-red">
                   {template.items.reduce((sum, i) => sum + (i.price * i.quantity), 0).toLocaleString()} {currencySymbol}
                 </p>
               </div>
@@ -618,7 +641,7 @@ export const Sales = ({ user }: { user: any }) => {
                 <span>Modifié le {template.lastModified}</span>
                 <button 
                   onClick={() => applyTemplate(template)}
-                  className="flex items-center gap-1 text-indigo-600 hover:underline"
+                  className="flex items-center gap-1 text-accent-red hover:underline"
                 >
                   <Copy className="w-3 h-3" /> Utiliser
                 </button>
@@ -657,7 +680,7 @@ export const Sales = ({ user }: { user: any }) => {
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">{getContactName(quote.contactId)}</td>
                       <td className="px-6 py-4 text-sm text-slate-500 font-medium">{quote.signedAt || quote.date}</td>
                       <td className="px-6 py-4 text-right">
-                        <button className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all">
+                        <button className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all">
                           <Download className="w-4 h-4" />
                         </button>
                       </td>
@@ -687,10 +710,10 @@ export const Sales = ({ user }: { user: any }) => {
               exit={{ opacity: 0, scale: 0.9 }}
               className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200"
             >
-              <div className="bg-indigo-600 p-6 text-white flex justify-between items-center">
+              <div className="bg-accent-red p-6 text-white flex justify-between items-center">
                 <div>
                   <h3 className="text-xl font-black uppercase tracking-tight">Signature du Devis</h3>
-                  <p className="text-indigo-100 text-xs font-bold mt-1">ID: {signingQuote.id} • {getContactName(signingQuote.contactId)}</p>
+                  <p className="text-red-100 text-xs font-bold mt-1">ID: {signingQuote.id} • {getContactName(signingQuote.contactId)}</p>
                 </div>
                 <button onClick={() => setSigningQuote(null)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
                   <X className="w-6 h-6"/>
@@ -738,7 +761,7 @@ export const Sales = ({ user }: { user: any }) => {
                         <span>Total HT</span>
                         <span>{signingQuote.totalHT.toLocaleString()}</span>
                       </div>
-                      <div className="flex justify-between text-lg font-black text-indigo-600 uppercase tracking-tight">
+                      <div className="flex justify-between text-lg font-black text-accent-red uppercase tracking-tight">
                         <span>Total TTC</span>
                         <span>{signingQuote.total.toLocaleString()} {currencySymbol}</span>
                       </div>
@@ -786,7 +809,7 @@ export const Sales = ({ user }: { user: any }) => {
                       disabled={!hasSignature}
                       className={`flex-1 py-4 rounded-2xl font-bold transition-all shadow-xl flex items-center justify-center gap-2 ${
                         hasSignature 
-                          ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-200" 
+                          ? "bg-accent-red text-white hover:bg-primary-red shadow-accent-red/20" 
                           : "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none"
                       }`}
                     >
@@ -830,7 +853,7 @@ export const Sales = ({ user }: { user: any }) => {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.documentType')}</label>
                     <select 
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       value={newInvoice.type || 'Invoice'}
                       onChange={(e) => setNewInvoice({...newInvoice, type: e.target.value as 'Invoice' | 'Quote'})}
                     >
@@ -842,7 +865,7 @@ export const Sales = ({ user }: { user: any }) => {
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.useTemplate')}</label>
                       <select 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         onChange={(e) => {
                           const template = templates.find(t => t.id === e.target.value);
                           if (template) applyTemplate(template);
@@ -858,7 +881,7 @@ export const Sales = ({ user }: { user: any }) => {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.status')}</label>
                     <select 
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       value={newInvoice.status || 'Draft'}
                       onChange={(e) => setNewInvoice({...newInvoice, status: e.target.value as any})}
                     >
@@ -876,7 +899,7 @@ export const Sales = ({ user }: { user: any }) => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.client')}</label>
                   <select 
                     required
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                     value={newInvoice.contactId || ''}
                     onChange={(e) => setNewInvoice({...newInvoice, contactId: e.target.value})}
                   >
@@ -893,7 +916,7 @@ export const Sales = ({ user }: { user: any }) => {
                     <input 
                       type="date" 
                       required
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       value={newInvoice.date || ''}
                       onChange={(e) => setNewInvoice({...newInvoice, date: e.target.value})}
                     />
@@ -903,7 +926,7 @@ export const Sales = ({ user }: { user: any }) => {
                     <input 
                       type="date" 
                       required
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       value={newInvoice.dueDate || ''}
                       onChange={(e) => setNewInvoice({...newInvoice, dueDate: e.target.value})}
                     />
@@ -914,7 +937,7 @@ export const Sales = ({ user }: { user: any }) => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.description')}</label>
                   <input 
                     type="text" 
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                     value={newInvoice.description || ''}
                     onChange={(e) => setNewInvoice({...newInvoice, description: e.target.value})}
                     placeholder={t('sales.documentDescriptionPlaceholder')}
@@ -926,7 +949,7 @@ export const Sales = ({ user }: { user: any }) => {
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Date de signature</label>
                     <input 
                       type="date" 
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       value={newInvoice.signedAt || ''}
                       onChange={(e) => setNewInvoice({...newInvoice, signedAt: e.target.value})}
                     />
@@ -936,60 +959,71 @@ export const Sales = ({ user }: { user: any }) => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.items')}</label>
-                    <button type="button" onClick={handleAddItem} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                    <button type="button" onClick={handleAddItem} className="text-xs font-bold text-accent-red hover:text-primary-red flex items-center gap-1">
                       <PlusCircle className="w-3 h-3" /> {t('sales.addItem')}
                     </button>
                   </div>
                   
                   <div className="space-y-3">
                     {(newInvoice.items || []).map((item, index) => (
-                      <div key={index} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                        <div className="flex-1">
-                          <select 
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                            value={item.productId || ''}
-                            onChange={(e) => handleUpdateItem(index, 'productId', e.target.value)}
-                          >
-                            <option value="">{t('sales.selectProduct')}</option>
-                            {products.map(p => (
-                              <option key={p.id} value={p.id}>{p.name} - {p.price} {currencySymbol}</option>
-                            ))}
-                          </select>
+                      <div key={index} className="flex flex-col gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <select 
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
+                              value={item.productId || ''}
+                              onChange={(e) => handleUpdateItem(index, 'productId', e.target.value)}
+                            >
+                              <option value="">{t('sales.selectProduct')}</option>
+                              {products.map(p => (
+                                <option key={p.id} value={p.id}>{p.name} - {p.price} {currencySymbol}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="w-24">
+                            <input 
+                              type="number" 
+                              min="1"
+                              placeholder={t('sales.qty')}
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
+                              value={item.quantity || 0}
+                              onChange={(e) => handleUpdateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                            />
+                          </div>
+                          <div className="w-32">
+                            <input 
+                              type="number" 
+                              placeholder={t('sales.price')}
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
+                              value={item.price || 0}
+                              onChange={(e) => handleUpdateItem(index, 'price', parseFloat(e.target.value) || 0)}
+                            />
+                          </div>
+                          <button type="button" onClick={() => handleRemoveItem(index)} className="p-2 text-slate-400 hover:text-red-600 transition-colors">
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
-                        <div className="w-24">
-                          <input 
-                            type="number" 
-                            min="1"
-                            placeholder={t('sales.qty')}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                            value={item.quantity || 0}
-                            onChange={(e) => handleUpdateItem(index, 'quantity', parseInt(e.target.value) || 0)}
-                          />
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <input 
+                              type="text" 
+                              placeholder="Nom de la taxe (ex: TVA, Taxe de séjour)"
+                              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
+                              value={item.tvaName || ''}
+                              onChange={(e) => handleUpdateItem(index, 'tvaName', e.target.value)}
+                            />
+                          </div>
+                          <div className="w-32 relative">
+                            <input 
+                              type="number" 
+                              placeholder="Taux"
+                              className="w-full pl-3 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
+                              value={item.tvaRate !== undefined ? item.tvaRate * 100 : 18}
+                              onChange={(e) => handleUpdateItem(index, 'tvaRate', (parseFloat(e.target.value) || 0) / 100)}
+                            />
+                            <span className="absolute right-3 top-2 text-slate-400 text-sm">%</span>
+                          </div>
                         </div>
-                        <div className="w-32">
-                          <input 
-                            type="number" 
-                            placeholder={t('sales.price')}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                            value={item.price || 0}
-                            onChange={(e) => handleUpdateItem(index, 'price', parseFloat(e.target.value) || 0)}
-                          />
-                        </div>
-                        <div className="w-24">
-                          <select 
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                            value={item.tvaRate ?? 0.18}
-                            onChange={(e) => handleUpdateItem(index, 'tvaRate', parseFloat(e.target.value))}
-                          >
-                            <option value={0.20}>20%</option>
-                            <option value={0.18}>18%</option>
-                            <option value={0.05}>5%</option>
-                            <option value={0}>0%</option>
-                          </select>
-                        </div>
-                        <button type="button" onClick={() => handleRemoveItem(index)} className="p-2 text-slate-400 hover:text-red-600 transition-colors">
-                          <X className="w-4 h-4" />
-                        </button>
                       </div>
                     ))}
                     {(newInvoice.items || []).length === 0 && (
@@ -998,15 +1032,64 @@ export const Sales = ({ user }: { user: any }) => {
                       </div>
                     )}
                   </div>
-                  <div className="flex flex-col items-end pt-2 space-y-1">
-                    <div className="text-sm text-slate-500">
-                      {t('sales.totalHT')} {newInvoice.totalHT?.toLocaleString()} {currencySymbol}
+                  <div className="flex flex-col items-end pt-4 space-y-2 border-t border-slate-200">
+                    <div className="flex items-center justify-between w-64 text-sm text-slate-500">
+                      <span>{t('sales.totalHT')}</span>
+                      <span>{newInvoice.totalHT?.toLocaleString()} {currencySymbol}</span>
                     </div>
-                    <div className="text-sm text-slate-500">
-                      {t('sales.tva')} {newInvoice.tvaTotal?.toLocaleString()} {currencySymbol}
+                    <div className="flex items-center justify-between w-64 text-sm text-slate-500">
+                      <span>Remise</span>
+                      <div className="w-24 relative">
+                        <input 
+                          type="number" 
+                          className="w-full pl-2 pr-6 py-1 bg-white border border-slate-200 rounded text-right text-sm focus:outline-none focus:border-accent-red"
+                          value={newInvoice.discount === 0 ? 0 : newInvoice.discount || ''}
+                          onChange={(e) => handleUpdateDiscount(parseFloat(e.target.value) || 0)}
+                        />
+                        <span className="absolute right-2 top-1 text-slate-400">{currencySymbol}</span>
+                      </div>
                     </div>
-                    <div className="text-lg font-bold text-slate-900">
-                      {t('sales.totalTTC')} {newInvoice.total?.toLocaleString()} {currencySymbol}
+                    {Object.values((newInvoice.items || []).reduce((acc, item) => {
+                      const rate = item.tvaRate || 0;
+                      if (rate === 0) return acc;
+                      const name = item.tvaName || `TVA ${(rate * 100).toFixed(0)}%`;
+                      const key = `${name}-${rate}`;
+                      if (!acc[key]) acc[key] = { name, rate, amount: 0 };
+                      const itemHT = (item.quantity || 0) * (item.price || 0);
+                      const discountFactor = (newInvoice.totalHT || 0) > 0 ? Math.max(0, ((newInvoice.totalHT || 0) - (newInvoice.discount || 0)) / (newInvoice.totalHT || 0)) : 1;
+                      acc[key].amount += (itemHT * discountFactor) * rate;
+                      return acc;
+                    }, {} as Record<string, { name: string, rate: number, amount: number }>)).map((tax, idx) => (
+                      <div key={idx} className="flex items-center justify-between w-64 text-sm text-slate-500">
+                        <span>{tax.name} ({(tax.rate * 100).toFixed(0)}%)</span>
+                        <span>{tax.amount.toLocaleString()} {currencySymbol}</span>
+                      </div>
+                    ))}
+                    {(newInvoice.tvaTotal || 0) === 0 && (
+                      <div className="flex items-center justify-between w-64 text-sm text-slate-500">
+                        <span>{t('sales.tva')}</span>
+                        <span>0 {currencySymbol}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between w-64 text-lg font-bold text-slate-900 border-t border-slate-200 pt-2">
+                      <span>{t('sales.totalTTC')}</span>
+                      <span>{newInvoice.total?.toLocaleString()} {currencySymbol}</span>
+                    </div>
+                    <div className="flex items-center justify-between w-64 text-sm text-slate-500 pt-2">
+                      <span>Acompte</span>
+                      <div className="w-24 relative">
+                        <input 
+                          type="number" 
+                          className="w-full pl-2 pr-6 py-1 bg-white border border-slate-200 rounded text-right text-sm focus:outline-none focus:border-accent-red"
+                          value={newInvoice.deposit === 0 ? 0 : newInvoice.deposit || ''}
+                          onChange={(e) => handleUpdateDeposit(parseFloat(e.target.value) || 0)}
+                        />
+                        <span className="absolute right-2 top-1 text-slate-400">{currencySymbol}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between w-64 text-md font-bold text-accent-red">
+                      <span>Reste à payer</span>
+                      <span>{((newInvoice.total || 0) - (newInvoice.deposit || 0)).toLocaleString()} {currencySymbol}</span>
                     </div>
                   </div>
                 </div>
@@ -1015,7 +1098,7 @@ export const Sales = ({ user }: { user: any }) => {
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.notesConditions')}</label>
                   <textarea 
                     rows={3} 
-                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all resize-none"
+                    className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all resize-none"
                     value={newInvoice.notes || ''}
                     onChange={(e) => setNewInvoice({...newInvoice, notes: e.target.value})}
                   ></textarea>
@@ -1027,7 +1110,7 @@ export const Sales = ({ user }: { user: any }) => {
               <button type="button" onClick={resetForm} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95">
                 {t('common.cancel')}
               </button>
-              <button type="submit" form="invoice-form" className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95">
+              <button type="submit" form="invoice-form" className="flex-1 py-3 bg-accent-red text-white rounded-2xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95">
                 {editingInvoiceId ? t('sales.update') : t('sales.save')}
               </button>
             </div>
@@ -1085,7 +1168,7 @@ export const Sales = ({ user }: { user: any }) => {
                   <input 
                     type="text" 
                     required
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                     value={newInvoice.notes || ''}
                     onChange={(e) => setNewInvoice({...newInvoice, notes: e.target.value})}
                     placeholder={t('sales.templateNamePlaceholder')}
@@ -1095,7 +1178,7 @@ export const Sales = ({ user }: { user: any }) => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.items')}</label>
-                    <button type="button" onClick={handleAddItem} className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1">
+                    <button type="button" onClick={handleAddItem} className="text-xs font-bold text-accent-red hover:text-primary-red flex items-center gap-1">
                       <PlusCircle className="w-3 h-3" /> {t('sales.addItem')}
                     </button>
                   </div>
@@ -1105,7 +1188,7 @@ export const Sales = ({ user }: { user: any }) => {
                       <div key={index} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
                         <div className="flex-1">
                           <select 
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
                             value={item.productId || ''}
                             onChange={(e) => handleUpdateItem(index, 'productId', e.target.value)}
                           >
@@ -1120,7 +1203,7 @@ export const Sales = ({ user }: { user: any }) => {
                             type="number" 
                             min="1"
                             placeholder={t('sales.qty')}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
                             value={item.quantity || 0}
                             onChange={(e) => handleUpdateItem(index, 'quantity', parseInt(e.target.value) || 0)}
                           />
@@ -1129,7 +1212,7 @@ export const Sales = ({ user }: { user: any }) => {
                           <input 
                             type="number" 
                             placeholder={t('sales.price')}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
                             value={item.price || 0}
                             onChange={(e) => handleUpdateItem(index, 'price', parseFloat(e.target.value) || 0)}
                           />
@@ -1153,7 +1236,7 @@ export const Sales = ({ user }: { user: any }) => {
               <button type="button" onClick={() => setIsTemplateModalOpen(false)} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95">
                 {t('common.cancel')}
               </button>
-              <button type="submit" form="template-form" className="flex-1 py-3 bg-indigo-600 text-white rounded-2xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-200 active:scale-95">
+              <button type="submit" form="template-form" className="flex-1 py-3 bg-accent-red text-white rounded-2xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95">
                 {t('sales.saveTemplate')}
               </button>
             </div>
@@ -1174,7 +1257,7 @@ export const Sales = ({ user }: { user: any }) => {
             >
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${viewInvoice.type === 'Invoice' ? 'bg-indigo-50 text-indigo-600' : 'bg-purple-50 text-purple-600'}`}>
+                <div className={`p-2 rounded-lg ${viewInvoice.type === 'Invoice' ? 'bg-soft-red text-accent-red' : 'bg-amber-50 text-amber-600'}`}>
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
@@ -1189,7 +1272,7 @@ export const Sales = ({ user }: { user: any }) => {
                 <button onClick={() => handleSendEmail(viewInvoice)} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
                   <Mail className="w-4 h-4" /> Envoyer
                 </button>
-                <button onClick={() => { setViewInvoice(null); openEdit(viewInvoice); }} className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-700 transition-all shadow-sm">
+                <button onClick={() => { setViewInvoice(null); openEdit(viewInvoice); }} className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-sm">
                   <Pencil className="w-4 h-4" /> Modifier
                 </button>
                 <button onClick={() => setViewInvoice(null)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-all ml-2">
@@ -1224,6 +1307,9 @@ export const Sales = ({ user }: { user: any }) => {
                     <div className="font-bold text-slate-900 text-lg">{getContact(viewInvoice.contactId)?.name}</div>
                     <div className="text-sm text-slate-600 mt-1">{getContact(viewInvoice.contactId)?.company}</div>
                     <div className="text-sm text-slate-600 mt-1">{getContact(viewInvoice.contactId)?.email}</div>
+                    {getContact(viewInvoice.contactId)?.niu && (
+                      <div className="text-sm text-slate-600 mt-1">{t('crm.niu')} : {getContact(viewInvoice.contactId)?.niu}</div>
+                    )}
                   </div>
                   <div className="text-right">
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1254,7 +1340,10 @@ export const Sales = ({ user }: { user: any }) => {
                         </td>
                         <td className="py-4 text-sm text-slate-600 text-center">{item.quantity}</td>
                         <td className="py-4 text-sm text-slate-600 text-right">{item.price.toLocaleString()} {currencySymbol}</td>
-                        <td className="py-4 text-sm text-slate-600 text-center">{item.tvaRate !== undefined ? `${(item.tvaRate * 100).toFixed(0)}%` : '0%'}</td>
+                        <td className="py-4 text-sm text-slate-600 text-center">
+                          {item.tvaName ? `${item.tvaName} ` : ''}
+                          {item.tvaRate !== undefined ? `${(item.tvaRate * 100).toFixed(0)}%` : '0%'}
+                        </td>
                         <td className="py-4 text-sm font-bold text-slate-900 text-right">{(item.quantity * item.price).toLocaleString()} {currencySymbol}</td>
                       </tr>
                     ))}
@@ -1267,14 +1356,50 @@ export const Sales = ({ user }: { user: any }) => {
                       <span className="text-slate-500 font-medium">Sous-total HT</span>
                       <span className="font-bold text-slate-900">{viewInvoice.totalHT.toLocaleString()} {currencySymbol}</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-slate-500 font-medium">TVA</span>
-                      <span className="font-bold text-slate-900">{viewInvoice.tvaTotal.toLocaleString()} {currencySymbol}</span>
-                    </div>
+                    {(viewInvoice.discount || 0) > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500 font-medium">Remise</span>
+                        <span className="font-bold text-slate-900">-{viewInvoice.discount?.toLocaleString()} {currencySymbol}</span>
+                      </div>
+                    )}
+                    {Object.values(viewInvoice.items.reduce((acc, item) => {
+                      const rate = item.tvaRate || 0;
+                      if (rate === 0) return acc;
+                      const name = item.tvaName || `TVA ${(rate * 100).toFixed(0)}%`;
+                      const key = `${name}-${rate}`;
+                      if (!acc[key]) acc[key] = { name, rate, amount: 0 };
+                      const itemHT = (item.quantity || 0) * (item.price || 0);
+                      const discountFactor = viewInvoice.totalHT > 0 ? Math.max(0, (viewInvoice.totalHT - (viewInvoice.discount || 0)) / viewInvoice.totalHT) : 1;
+                      acc[key].amount += (itemHT * discountFactor) * rate;
+                      return acc;
+                    }, {} as Record<string, { name: string, rate: number, amount: number }>)).map((tax, idx) => (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span className="text-slate-500 font-medium">{tax.name} ({(tax.rate * 100).toFixed(0)}%)</span>
+                        <span className="font-bold text-slate-900">{tax.amount.toLocaleString()} {currencySymbol}</span>
+                      </div>
+                    ))}
+                    {viewInvoice.tvaTotal === 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500 font-medium">TVA</span>
+                        <span className="font-bold text-slate-900">0 {currencySymbol}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-lg pt-3 border-t-2 border-slate-900">
                       <span className="font-black text-slate-900">Total TTC</span>
-                      <span className="font-black text-indigo-600">{viewInvoice.total.toLocaleString()} {currencySymbol}</span>
+                      <span className="font-black text-accent-red">{viewInvoice.total.toLocaleString()} {currencySymbol}</span>
                     </div>
+                    {(viewInvoice.deposit || 0) > 0 && (
+                      <>
+                        <div className="flex justify-between text-sm pt-2">
+                          <span className="text-slate-500 font-medium">Acompte</span>
+                          <span className="font-bold text-slate-900">-{viewInvoice.deposit?.toLocaleString()} {currencySymbol}</span>
+                        </div>
+                        <div className="flex justify-between text-md pt-2 border-t border-slate-200">
+                          <span className="font-bold text-slate-900">Reste à payer</span>
+                          <span className="font-bold text-accent-red">{((viewInvoice.total || 0) - (viewInvoice.deposit || 0)).toLocaleString()} {currencySymbol}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 

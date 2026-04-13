@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { DEMO_ACCOUNTS } from '../constants';
 import { Lock, Mail, Eye, EyeOff, AlertCircle, PlayCircle, User, Phone, CheckCircle2, Building2, MapPin, Zap, BarChart3, ShieldCheck } from 'lucide-react';
+import { useTranslation } from '../lib/i18n';
 
 interface LoginProps {
   onLogin: (user: any) => void;
 }
 
 export const Login = ({ onLogin }: LoginProps) => {
+  const { t, language, setLanguage } = useTranslation();
   const [loginMode, setLoginMode] = useState<'production' | 'demo'>('production');
   const [isRegistering, setIsRegistering] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -42,10 +45,10 @@ export const Login = ({ onLogin }: LoginProps) => {
         onLogin(data.user);
       } else {
         const errorData = await response.json();
-        setError(errorData.error || 'Identifiants incorrects. Veuillez réessayer.');
+        setError(errorData.error || t('login.invalidCredentials'));
       }
     } catch (err) {
-      setError("Erreur de connexion au serveur.");
+      setError(t('login.connectionError'));
     } finally {
       setIsLoading(false);
     }
@@ -69,11 +72,11 @@ export const Login = ({ onLogin }: LoginProps) => {
         onLogin(data.user);
       } else {
         const data = await response.json();
-        setError(data.error || 'Erreur lors de la connexion à la démo.');
+        setError(data.error || t('login.invalidCredentials'));
       }
     } catch (error) {
       console.error('Demo login failed:', error);
-      setError('Erreur de connexion au serveur.');
+      setError(t('login.connectionError'));
     } finally {
       setIsLoading(false);
     }
@@ -97,18 +100,18 @@ export const Login = ({ onLogin }: LoginProps) => {
       if (response.ok) {
         const data = await response.json();
         if (data.code) {
-          setSuccessMessage(`Compte créé ! Votre code de connexion est : ${data.code}`);
+          setSuccessMessage(t('login.accountCreated', { code: data.code }));
         } else {
-          setSuccessMessage('Un code de connexion a été envoyé à votre adresse email.');
+          setSuccessMessage(t('login.codeSent'));
         }
         setIsRegistering(false);
         setEmail(regForm.email);
       } else {
         const errorData = await response.json();
-        setError(errorData.error || "Erreur lors de l'envoi de l'email.");
+        setError(errorData.error || t('login.invalidCredentials'));
       }
     } catch (err) {
-      setError("Erreur de connexion au serveur.");
+      setError(t('login.connectionError'));
     } finally {
       setIsLoading(false);
     }
@@ -116,13 +119,13 @@ export const Login = ({ onLogin }: LoginProps) => {
 
   const renderHeader = () => {
     if (loginMode === 'production') {
-      return "Connectez-vous à votre espace client";
+      return t('login.clientSpace');
     }
-    return isRegistering ? "Demander un accès démo" : "Connectez-vous à l'espace démo";
+    return isRegistering ? t('login.requestDemo') : t('login.demoSpace');
   };
 
   return (
-    <div className="h-screen relative flex items-center justify-center p-2 sm:p-4 overflow-hidden bg-primary-blue">
+    <div className="h-screen relative flex items-center justify-center p-2 sm:p-4 overflow-hidden bg-primary-red">
       {/* Immersive Background */}
       <div className="fixed inset-0 z-0">
         <motion.img 
@@ -135,9 +138,9 @@ export const Login = ({ onLogin }: LoginProps) => {
           referrerPolicy="no-referrer"
         />
         {/* Layered Gradients for Depth */}
-        <div className="absolute inset-0 bg-gradient-to-br from-primary-blue/90 via-primary-blue/95 to-primary-blue"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(37,99,235,0.2),transparent_70%)]"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,rgba(59,130,246,0.1),transparent_50%)]"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-primary-red/90 via-primary-red/95 to-primary-red"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_-20%,rgba(153,27,27,0.2),transparent_70%)]"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_100%,rgba(185,28,28,0.1),transparent_50%)]"></div>
         
         {/* Animated Mesh Gradients */}
         <motion.div 
@@ -147,7 +150,7 @@ export const Login = ({ onLogin }: LoginProps) => {
             y: [0, 30, 0],
           }}
           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-          className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-accent-blue/10 blur-[120px]"
+          className="absolute top-[-10%] left-[-10%] w-[60%] h-[60%] rounded-full bg-accent-red/10 blur-[120px]"
         />
         <motion.div 
           animate={{ 
@@ -156,7 +159,7 @@ export const Login = ({ onLogin }: LoginProps) => {
             y: [0, -30, 0],
           }}
           transition={{ duration: 25, repeat: Infinity, ease: "linear" }}
-          className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-blue-400/10 blur-[120px]"
+          className="absolute bottom-[-10%] right-[-10%] w-[60%] h-[60%] rounded-full bg-red-400/10 blur-[120px]"
         />
         
         {/* Noise Texture Overlay */}
@@ -172,41 +175,41 @@ export const Login = ({ onLogin }: LoginProps) => {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
           >
-            <h1 className="text-4xl xl:text-5xl font-black mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white to-blue-200 tracking-tight leading-tight">
+            <h1 className="text-4xl xl:text-5xl font-black mb-6 bg-clip-text text-transparent bg-gradient-to-r from-white to-red-200 tracking-tight leading-tight">
               Transformez la gestion de votre entreprise
             </h1>
-            <p className="text-lg text-blue-100/80 mb-10 leading-relaxed">
+            <p className="text-lg text-red-100/80 mb-10 leading-relaxed">
               SmartDesk centralise tous vos outils pour une productivité maximale. La solution CRM et ERP conçue pour les PME et grandes entreprises.
             </p>
             
             <div className="space-y-8">
               <div className="flex items-start gap-5">
-                <div className="p-3 bg-accent-blue/20 rounded-xl border border-accent-blue/30 shadow-lg shadow-accent-blue/10">
-                  <ShieldCheck className="w-7 h-7 text-blue-400" />
+                <div className="p-3 bg-accent-red/20 rounded-xl border border-accent-red/30 shadow-lg shadow-accent-red/10">
+                  <ShieldCheck className="w-7 h-7 text-red-400" />
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-xl mb-1">Centralisation Sécurisée</h3>
-                  <p className="text-blue-200/70 text-sm leading-relaxed">Retrouvez vos clients, ventes, stocks et RH sur une seule plateforme cloud hautement sécurisée.</p>
+                  <p className="text-red-200/70 text-sm leading-relaxed">Retrouvez vos clients, ventes, stocks et RH sur une seule plateforme cloud hautement sécurisée.</p>
                 </div>
               </div>
               
               <div className="flex items-start gap-5">
-                <div className="p-3 bg-blue-400/20 rounded-xl border border-blue-400/30 shadow-lg shadow-blue-400/10">
-                  <Zap className="w-7 h-7 text-blue-300" />
+                <div className="p-3 bg-red-400/20 rounded-xl border border-red-400/30 shadow-lg shadow-red-400/10">
+                  <Zap className="w-7 h-7 text-red-300" />
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-xl mb-1">Automatisation Intelligente</h3>
-                  <p className="text-blue-200/70 text-sm leading-relaxed">Gagnez un temps précieux en automatisant vos tâches répétitives, vos factures et vos suivis.</p>
+                  <p className="text-red-200/70 text-sm leading-relaxed">Gagnez un temps précieux en automatisant vos tâches répétitives, vos factures et vos suivis.</p>
                 </div>
               </div>
               
               <div className="flex items-start gap-5">
-                <div className="p-3 bg-blue-500/20 rounded-xl border border-blue-500/30 shadow-lg shadow-blue-500/10">
-                  <BarChart3 className="w-7 h-7 text-blue-200" />
+                <div className="p-3 bg-red-500/20 rounded-xl border border-red-500/30 shadow-lg shadow-red-500/10">
+                  <BarChart3 className="w-7 h-7 text-red-200" />
                 </div>
                 <div>
                   <h3 className="font-bold text-white text-xl mb-1">Pilotage en Temps Réel</h3>
-                  <p className="text-blue-200/70 text-sm leading-relaxed">Prenez les meilleures décisions stratégiques grâce à nos tableaux de bord et rapports détaillés.</p>
+                  <p className="text-red-200/70 text-sm leading-relaxed">Prenez les meilleures décisions stratégiques grâce à nos tableaux de bord et rapports détaillés.</p>
                 </div>
               </div>
             </div>
@@ -227,13 +230,29 @@ export const Login = ({ onLogin }: LoginProps) => {
           }}
           className="bg-white/95 backdrop-blur-2xl rounded-[2rem] sm:rounded-[2.5rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.7)] border border-white/60 overflow-hidden flex flex-col"
         >
-          <div className="p-3 sm:p-5 pb-1 sm:pb-2 text-center shrink-0">
+          <div className="p-3 sm:p-5 pb-1 sm:pb-2 text-center shrink-0 relative">
+            <div className="absolute top-4 right-4 flex gap-1.5">
+              <button 
+                type="button"
+                onClick={() => setLanguage('fr')} 
+                className={`text-[9px] font-black px-1.5 py-0.5 rounded-md transition-all ${language === 'fr' ? 'bg-accent-red text-white shadow-lg shadow-accent-red/20' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+              >
+                FR
+              </button>
+              <button 
+                type="button"
+                onClick={() => setLanguage('en')} 
+                className={`text-[9px] font-black px-1.5 py-0.5 rounded-md transition-all ${language === 'en' ? 'bg-accent-red text-white shadow-lg shadow-accent-red/20' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}
+              >
+                EN
+              </button>
+            </div>
             <motion.div 
               initial={{ rotate: -10, scale: 0.8, opacity: 0 }}
               animate={{ rotate: 0, scale: 1, opacity: 1 }}
               whileHover={{ scale: 1.05, rotate: 5 }}
               transition={{ type: "spring", stiffness: 200, damping: 15, delay: 0.2 }}
-              className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-accent-blue via-primary-blue to-slate-900 rounded-xl sm:rounded-[1.2rem] flex items-center justify-center text-white text-lg sm:text-xl font-black mx-auto mb-1 sm:mb-2 shadow-2xl shadow-accent-blue/30 relative group cursor-pointer"
+              className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-accent-red via-primary-red to-slate-900 rounded-xl sm:rounded-[1.2rem] flex items-center justify-center text-white text-lg sm:text-xl font-black mx-auto mb-1 sm:mb-2 shadow-2xl shadow-accent-red/30 relative group cursor-pointer"
             >
               <div className="absolute inset-0 bg-white/20 rounded-xl sm:rounded-[1.2rem] opacity-0 group-hover:opacity-100 transition-opacity"></div>
               <motion.span
@@ -244,14 +263,14 @@ export const Login = ({ onLogin }: LoginProps) => {
                 S
               </motion.span>
             </motion.div>
-            <h2 className="text-xl sm:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary-blue to-accent-blue tracking-tighter uppercase mb-0 sm:mb-1">
+            <h2 className="text-xl sm:text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary-red to-accent-red tracking-tighter uppercase mb-0 sm:mb-1">
               SmartDesk
             </h2>
             <motion.div 
               initial={{ width: 0 }}
               animate={{ width: 40 }}
               transition={{ duration: 1, delay: 0.5 }}
-              className="h-0.5 sm:h-1 bg-accent-blue mx-auto rounded-full mb-1 sm:mb-2"
+              className="h-0.5 sm:h-1 bg-accent-red mx-auto rounded-full mb-1 sm:mb-2"
             ></motion.div>
             <p className="text-slate-500 text-[10px] sm:text-xs font-semibold leading-relaxed tracking-wide">
               {renderHeader()}
@@ -280,7 +299,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                 </motion.div>
               )}
 
-              <div className="p-3 sm:p-4 bg-soft-blue border border-blue-100 rounded-xl sm:rounded-2xl text-primary-blue text-[10px] sm:text-xs font-semibold text-center leading-relaxed">
+              <div className="p-3 sm:p-4 bg-soft-red border border-red-100 rounded-xl sm:rounded-2xl text-primary-red text-[10px] sm:text-xs font-semibold text-center leading-relaxed">
                 Un mot de passe de connexion vous sera envoyé par mail quelques minutes suivant votre inscription.
               </div>
 
@@ -288,11 +307,11 @@ export const Login = ({ onLogin }: LoginProps) => {
                 <div className="space-y-1">
                   <label className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Prénom</label>
                   <div className="relative group">
-                    <User className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-blue transition-colors" />
+                    <User className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-red transition-colors" />
                     <input
                       type="text"
                       required
-                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-blue/10 border border-blue-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue hover:border-accent-blue transition-all placeholder:text-slate-400 shadow-sm"
+                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-red/10 border border-red-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red hover:border-accent-red transition-all placeholder:text-slate-400 shadow-sm"
                       placeholder="Prénom"
                       value={regForm.prenom || ''}
                       onChange={(e) => setRegForm({...regForm, prenom: e.target.value})}
@@ -302,11 +321,11 @@ export const Login = ({ onLogin }: LoginProps) => {
                 <div className="space-y-1">
                   <label className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Nom</label>
                   <div className="relative group">
-                    <User className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-blue transition-colors" />
+                    <User className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-red transition-colors" />
                     <input
                       type="text"
                       required
-                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-blue/10 border border-blue-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue hover:border-accent-blue transition-all placeholder:text-slate-400 shadow-sm"
+                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-red/10 border border-red-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red hover:border-accent-red transition-all placeholder:text-slate-400 shadow-sm"
                       placeholder="Nom"
                       value={regForm.nom || ''}
                       onChange={(e) => setRegForm({...regForm, nom: e.target.value})}
@@ -319,11 +338,11 @@ export const Login = ({ onLogin }: LoginProps) => {
                 <div className="space-y-1">
                   <label className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Email professionnel</label>
                   <div className="relative group">
-                    <Mail className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-blue transition-colors" />
+                    <Mail className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-red transition-colors" />
                     <input
                       type="email"
                       required
-                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-blue/10 border border-blue-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue hover:border-accent-blue transition-all placeholder:text-slate-400 shadow-sm"
+                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-red/10 border border-red-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red hover:border-accent-red transition-all placeholder:text-slate-400 shadow-sm"
                       placeholder="nom@entreprise.cg"
                       value={regForm.email || ''}
                       onChange={(e) => setRegForm({...regForm, email: e.target.value})}
@@ -333,11 +352,11 @@ export const Login = ({ onLogin }: LoginProps) => {
                 <div className="space-y-1">
                   <label className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Numéro de téléphone</label>
                   <div className="relative group">
-                    <Phone className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-blue transition-colors" />
+                    <Phone className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-red transition-colors" />
                     <input
                       type="tel"
                       required
-                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-blue/10 border border-blue-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue hover:border-accent-blue transition-all placeholder:text-slate-400 shadow-sm"
+                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-red/10 border border-red-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red hover:border-accent-red transition-all placeholder:text-slate-400 shadow-sm"
                       placeholder="+242 00 000 0000"
                       value={regForm.telephone || ''}
                       onChange={(e) => setRegForm({...regForm, telephone: e.target.value})}
@@ -350,11 +369,11 @@ export const Login = ({ onLogin }: LoginProps) => {
                 <div className="space-y-1">
                   <label className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Entreprise</label>
                   <div className="relative group">
-                    <Building2 className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-blue transition-colors" />
+                    <Building2 className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-red transition-colors" />
                     <input
                       type="text"
                       required
-                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-blue/10 border border-blue-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue hover:border-accent-blue transition-all placeholder:text-slate-400 shadow-sm"
+                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-red/10 border border-red-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red hover:border-accent-red transition-all placeholder:text-slate-400 shadow-sm"
                       placeholder="Nom de l'entreprise"
                       value={regForm.companyName || ''}
                       onChange={(e) => setRegForm({...regForm, companyName: e.target.value})}
@@ -364,10 +383,10 @@ export const Login = ({ onLogin }: LoginProps) => {
                 <div className="space-y-1">
                   <label className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Pays</label>
                   <div className="relative group">
-                    <MapPin className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-blue transition-colors" />
+                    <MapPin className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-red transition-colors" />
                     <select
                       required
-                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-blue/10 border border-blue-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue hover:border-accent-blue transition-all appearance-none cursor-pointer shadow-sm"
+                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-red/10 border border-red-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red hover:border-accent-red transition-all appearance-none cursor-pointer shadow-sm"
                       value={regForm.country || 'FR'}
                       onChange={(e) => setRegForm({...regForm, country: e.target.value, state: ''})}
                     >
@@ -391,10 +410,10 @@ export const Login = ({ onLogin }: LoginProps) => {
                 <div className="space-y-1">
                   <label className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">État (State)</label>
                   <div className="relative group">
-                    <MapPin className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-blue transition-colors" />
+                    <MapPin className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-red transition-colors" />
                     <select
                       required
-                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-blue/10 border border-blue-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue hover:border-accent-blue transition-all appearance-none cursor-pointer shadow-sm"
+                      className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-red/10 border border-red-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red hover:border-accent-red transition-all appearance-none cursor-pointer shadow-sm"
                       value={regForm.state || ''}
                       onChange={(e) => setRegForm({...regForm, state: e.target.value})}
                     >
@@ -419,7 +438,7 @@ export const Login = ({ onLogin }: LoginProps) => {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-1.5 sm:py-2 bg-gradient-to-r from-accent-blue via-primary-blue to-slate-900 text-white rounded-xl font-bold text-xs sm:text-sm hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3 relative overflow-hidden group mt-1.5"
+                className="w-full py-1.5 sm:py-2 bg-gradient-to-r from-accent-red via-primary-red to-slate-900 text-white rounded-xl font-bold text-xs sm:text-sm hover:shadow-[0_0_20px_rgba(153,27,27,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3 relative overflow-hidden group mt-1.5"
               >
                 <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 {isLoading ? (
@@ -436,14 +455,14 @@ export const Login = ({ onLogin }: LoginProps) => {
                 <button
                   type="button"
                   onClick={() => setIsRegistering(false)}
-                  className="text-xs sm:text-sm text-slate-500 hover:text-accent-blue font-bold transition-colors"
+                  className="text-xs sm:text-sm text-slate-500 hover:text-accent-red font-bold transition-colors"
                 >
                   J'ai déjà un code d'accès
                 </button>
                 <button
                   type="button"
                   onClick={() => setLoginMode('production')}
-                  className="text-xs sm:text-sm text-slate-400 hover:text-accent-blue font-medium transition-colors"
+                  className="text-xs sm:text-sm text-slate-400 hover:text-accent-red font-medium transition-colors"
                 >
                   Retour à l'espace client
                 </button>
@@ -483,11 +502,11 @@ export const Login = ({ onLogin }: LoginProps) => {
               <div className="space-y-1">
                 <label className="text-[9px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-2">Email professionnel</label>
                 <div className="relative group">
-                  <Mail className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-blue transition-colors" />
+                  <Mail className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-red transition-colors" />
                   <input
                     type="email"
                     required
-                    className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-blue/10 border border-blue-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue hover:border-accent-blue transition-all placeholder:text-slate-400 shadow-sm"
+                    className="w-full pl-9 sm:pl-10 pr-3 sm:pr-4 py-1 sm:py-2 bg-soft-red/10 border border-red-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red hover:border-accent-red transition-all placeholder:text-slate-400 shadow-sm"
                     placeholder="nom@entreprise.cg"
                     value={email || ''}
                     onChange={(e) => setEmail(e.target.value)}
@@ -500,11 +519,11 @@ export const Login = ({ onLogin }: LoginProps) => {
                   {loginMode === 'demo' ? 'Mot de passe / Code' : 'Mot de passe'}
                 </label>
                 <div className="relative group">
-                  <Lock className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-blue transition-colors" />
+                  <Lock className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 group-focus-within:text-accent-red transition-colors" />
                   <input
                     type={showPassword ? "text" : "password"}
                     required
-                    className="w-full pl-9 sm:pl-10 pr-10 py-1 sm:py-2 bg-soft-blue/10 border border-blue-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-blue/20 focus:border-accent-blue hover:border-accent-blue transition-all placeholder:text-slate-400 shadow-sm"
+                    className="w-full pl-9 sm:pl-10 pr-10 py-1 sm:py-2 bg-soft-red/10 border border-red-100 rounded-xl text-xs sm:text-sm focus:outline-none focus:bg-white focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red hover:border-accent-red transition-all placeholder:text-slate-400 shadow-sm"
                     placeholder="••••••••"
                     value={password || ''}
                     onChange={(e) => setPassword(e.target.value)}
@@ -512,48 +531,57 @@ export const Login = ({ onLogin }: LoginProps) => {
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-accent-blue transition-colors p-1"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-accent-red transition-colors p-1"
                   >
                     {showPassword ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                   </button>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between px-1 pt-1 sm:pt-2">
-                <label className="flex items-center gap-2 sm:gap-3 cursor-pointer group">
-                  <div className="relative flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-lg sm:rounded-xl border-2 border-slate-200 bg-white group-hover:border-accent-blue transition-all duration-300">
-                    <input type="checkbox" className="peer absolute opacity-0 w-full h-full cursor-pointer z-10" />
-                    <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-accent-blue rounded-sm opacity-0 peer-checked:opacity-100 peer-checked:scale-110 transition-all duration-300 shadow-[0_0_10px_rgba(37,99,235,0.5)]" />
+              <div className="flex items-center justify-between px-1 pt-2 sm:pt-4">
+                <label className="flex items-center gap-3 cursor-pointer group">
+                  <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-red-50 border border-red-100 group-hover:bg-red-100 transition-all duration-300">
+                    <input 
+                      type="checkbox" 
+                      className="peer absolute opacity-0 w-full h-full cursor-pointer z-10" 
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                    />
+                    <div className={`w-3.5 h-3.5 bg-accent-red rounded-[4px] transition-all duration-300 ${rememberMe ? 'opacity-100 scale-100' : 'opacity-0 scale-50'}`} />
                   </div>
-                  <span className="text-[10px] sm:text-xs text-slate-500 font-bold group-hover:text-slate-700 transition-colors">Se souvenir de moi</span>
+                  <span className="text-sm text-slate-500 font-semibold group-hover:text-slate-700 transition-colors">Se souvenir de moi</span>
                 </label>
-                <button type="button" className="text-[10px] sm:text-xs text-accent-blue font-black hover:text-accent-blue/80 transition-colors uppercase tracking-widest">
-                  Oublié ?
+                <button 
+                  type="button" 
+                  className="text-sm text-accent-red font-bold hover:text-accent-red/80 transition-colors uppercase tracking-tight"
+                  onClick={() => alert('Fonctionnalité de récupération de mot de passe à venir')}
+                >
+                  OUBLIÉ ?
                 </button>
               </div>
 
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-1.5 sm:py-2 bg-gradient-to-r from-accent-blue via-primary-blue to-slate-900 text-white rounded-xl font-bold text-xs sm:text-sm hover:shadow-[0_0_20px_rgba(37,99,235,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3 relative overflow-hidden group mt-1.5 sm:mt-2"
+                className="w-full py-2 sm:py-3 bg-gradient-to-r from-accent-red via-primary-red to-slate-900 text-white rounded-xl font-bold text-sm hover:shadow-[0_0_20px_rgba(153,27,27,0.4)] transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3 relative overflow-hidden group mt-2"
               >
                 <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 {isLoading ? (
-                  <div className="w-3.5 h-3.5 sm:w-4 sm:h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
                   <>
-                    <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <Lock className="w-4 h-4" />
                     {loginMode === 'demo' ? "Se connecter à la démo" : "Se connecter à l'espace client"}
                   </>
                 )}
               </button>
-              
+
               {loginMode === 'demo' && (
                 <div className="text-center mt-2 sm:mt-3">
                   <button
                     type="button"
                     onClick={() => setLoginMode('production')}
-                    className="text-xs sm:text-sm text-slate-500 hover:text-accent-blue font-bold transition-colors"
+                    className="text-xs sm:text-sm text-slate-500 hover:text-accent-red font-bold transition-colors"
                   >
                     Retour à l'espace client
                   </button>
@@ -570,7 +598,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="p-2 sm:p-3 bg-soft-blue/10 border-t border-blue-50 shrink-0"
+                  className="p-2 sm:p-3 bg-soft-red/10 border-t border-red-50 shrink-0"
                 >
                   <button
                     type="button"
@@ -579,12 +607,12 @@ export const Login = ({ onLogin }: LoginProps) => {
                       setIsRegistering(true);
                     }}
                     disabled={isLoading}
-                    className="w-full py-1.5 sm:py-2 bg-white border border-blue-100 text-primary-blue rounded-xl font-bold text-xs sm:text-sm hover:bg-soft-blue/20 hover:border-blue-200 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3 shadow-sm"
+                    className="w-full py-1.5 sm:py-2 bg-white border border-red-100 text-primary-red rounded-xl font-bold text-xs sm:text-sm hover:bg-soft-red/20 hover:border-red-200 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3 shadow-sm"
                   >
-                    <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-blue" />
+                    <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-red" />
                     Demander un accès démo
                   </button>
-                  <p className="text-center text-[9px] sm:text-[10px] text-blue-300 mt-1.5 sm:mt-2 font-bold uppercase tracking-widest">
+                  <p className="text-center text-[9px] sm:text-[10px] text-red-300 mt-1.5 sm:mt-2 font-bold uppercase tracking-widest">
                     Explorez l'application avec des données fictives
                   </p>
                 </motion.div>
@@ -596,13 +624,13 @@ export const Login = ({ onLogin }: LoginProps) => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
-                  className="p-2 sm:p-3 bg-soft-blue/10 border-t border-blue-50 space-y-1.5 sm:space-y-2 shrink-0"
+                  className="p-2 sm:p-3 bg-soft-red/10 border-t border-red-50 space-y-1.5 sm:space-y-2 shrink-0"
                 >
                   <button
                     type="button"
                     onClick={handleQuickDemo}
                     disabled={isLoading}
-                    className="w-full py-1.5 sm:py-2 bg-soft-blue text-accent-blue rounded-xl font-bold text-xs sm:text-sm hover:bg-blue-100 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3"
+                    className="w-full py-1.5 sm:py-2 bg-soft-red text-accent-red rounded-xl font-bold text-xs sm:text-sm hover:bg-red-100 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3"
                   >
                     <PlayCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     Accès rapide démo
@@ -611,12 +639,12 @@ export const Login = ({ onLogin }: LoginProps) => {
                     type="button"
                     onClick={() => setIsRegistering(true)}
                     disabled={isLoading}
-                    className="w-full py-1.5 sm:py-2 bg-white border border-blue-100 text-primary-blue rounded-xl font-bold text-xs sm:text-sm hover:bg-soft-blue/20 hover:border-blue-200 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3 shadow-sm"
+                    className="w-full py-1.5 sm:py-2 bg-white border border-red-100 text-primary-red rounded-xl font-bold text-xs sm:text-sm hover:bg-soft-red/20 hover:border-red-200 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 sm:gap-3 shadow-sm"
                   >
-                    <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-blue" />
+                    <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-accent-red" />
                     Demander un accès démo
                   </button>
-                  <p className="text-center text-[9px] sm:text-[10px] text-blue-300 mt-1.5 sm:mt-2 font-bold uppercase tracking-widest">
+                  <p className="text-center text-[9px] sm:text-[10px] text-red-300 mt-1.5 sm:mt-2 font-bold uppercase tracking-widest">
                     Inscrivez-vous pour obtenir un code d'accès
                   </p>
                 </motion.div>
@@ -624,6 +652,14 @@ export const Login = ({ onLogin }: LoginProps) => {
           </AnimatePresence>
         </motion.div>
         
+        <div className="flex items-center justify-center gap-4 mt-3 sm:mt-4 text-[9px] sm:text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+          <a href="#" className="hover:text-accent-red transition-colors">Aide</a>
+          <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+          <a href="#" className="hover:text-accent-red transition-colors">Confidentialité</a>
+          <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+          <a href="#" className="hover:text-accent-red transition-colors">Conditions</a>
+        </div>
+
         <motion.div 
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -641,7 +677,7 @@ export const Login = ({ onLogin }: LoginProps) => {
             &copy; 2026 Tous droits réservés.
           </p>
           <p className="text-slate-600 text-[9px] sm:text-[10px] font-bold tracking-wider">
-            Propulsé par <a href="https://tbi-center.fr" target="_blank" rel="noopener noreferrer" className="text-accent-blue hover:text-blue-400 transition-colors">TBI CENTER</a>
+            Propulsé par <a href="https://tbi-center.fr" target="_blank" rel="noopener noreferrer" className="text-accent-red hover:text-red-400 transition-colors">TBI CENTER</a>
           </p>
         </motion.div>
       </div>
