@@ -5,6 +5,17 @@ import { db, seedDatabase, connectionString } from "./db";
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 
+// Global error handlers to prevent Node.js process from crashing
+process.on('uncaughtException', (err) => {
+  console.error('UNCAUGHT EXCEPTION! Shutting down gracefully...', err);
+  // In a serverless environment like Vercel, we just log it.
+  // The function will eventually exit, but we don't want to crash immediately if we can avoid it.
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('UNHANDLED REJECTION! Promise:', promise, 'Reason:', reason);
+});
+
 // Import routers
 import { contactsRouter } from './server/routes/contacts';
 import { productsRouter } from './server/routes/products';

@@ -15,6 +15,11 @@ export const db = new Pool({
   }
 });
 
+// Catch idle client errors to prevent Node.js process from crashing
+db.on('error', (err, client) => {
+  console.error('Unexpected error on idle database client', err);
+});
+
 const initSql = `
   CREATE TABLE IF NOT EXISTS companies (
     id TEXT PRIMARY KEY,
