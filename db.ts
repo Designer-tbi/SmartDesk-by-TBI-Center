@@ -12,7 +12,8 @@ export const db = new Pool({
   connectionString,
   ssl: {
     rejectUnauthorized: false
-  }
+  },
+  connectionTimeoutMillis: 10000, // Fail fast if DB is unreachable
 });
 
 // Catch idle client errors to prevent Node.js process from crashing

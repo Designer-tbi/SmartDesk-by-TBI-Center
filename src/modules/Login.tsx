@@ -37,6 +37,10 @@ export const Login = ({ onLogin }: LoginProps) => {
       });
 
       if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error("L'API n'est pas configurée correctement sur le serveur (HTML reçu au lieu de JSON).");
+        }
         const data = await response.json();
         localStorage.setItem('token', data.token);
         localStorage.setItem('demoMode', data.user.isDemo ? 'true' : 'false');
@@ -55,9 +59,9 @@ export const Login = ({ onLogin }: LoginProps) => {
         }
         setError(errorMessage);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login fetch error:', err);
-      setError(t('login.connectionError'));
+      setError(err.message || t('login.connectionError'));
     } finally {
       setIsLoading(false);
     }
@@ -74,6 +78,10 @@ export const Login = ({ onLogin }: LoginProps) => {
       });
 
       if (response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('text/html')) {
+          throw new Error("L'API n'est pas configurée correctement sur le serveur (HTML reçu au lieu de JSON).");
+        }
         const data = await response.json();
         localStorage.setItem('token', data.token);
         localStorage.setItem('demoMode', 'true');
@@ -91,9 +99,9 @@ export const Login = ({ onLogin }: LoginProps) => {
         }
         setError(errorMessage);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Demo login failed:', error);
-      setError(t('login.connectionError'));
+      setError(error.message || t('login.connectionError'));
     } finally {
       setIsLoading(false);
     }

@@ -23,6 +23,14 @@ export const apiFetch = async (input: RequestInfo | URL, init?: RequestInit) => 
   if (response.status === 401) {
     window.dispatchEvent(new CustomEvent('auth-error'));
   }
+
+  if (response.ok) {
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('text/html') && url.includes('/api/')) {
+      console.error(`API returned HTML instead of JSON for ${url}. Vercel routing issue.`);
+      throw new Error("L'API n'est pas configurée correctement sur le serveur (HTML reçu au lieu de JSON).");
+    }
+  }
   
   return response;
 };
