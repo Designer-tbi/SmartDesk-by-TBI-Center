@@ -2,7 +2,6 @@ import express from "express";
 import path from "path";
 import compression from "compression";
 import { db, seedDatabase, connectionString } from "./db";
-import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 
 // Global error handlers to prevent Node.js process from crashing
@@ -62,8 +61,8 @@ const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 // WebSocket broadcast helper
 export const broadcast = (data: any) => {
   if (wss) {
-    wss.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
+    wss.clients.forEach((client: any) => {
+      if (client.readyState === 1) { // 1 is WebSocket.OPEN
         client.send(JSON.stringify(data));
       }
     });
