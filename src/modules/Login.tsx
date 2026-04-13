@@ -44,10 +44,19 @@ export const Login = ({ onLogin }: LoginProps) => {
         localStorage.removeItem('selectedCompanyId');
         onLogin(data.user);
       } else {
-        const errorData = await response.json();
-        setError(errorData.error || t('login.invalidCredentials'));
+        let errorMessage = t('login.invalidCredentials');
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
+        } catch (e) {
+          const errorText = await response.text();
+          console.error('Non-JSON error response:', errorText);
+          errorMessage = `Erreur serveur (${response.status})`;
+        }
+        setError(errorMessage);
       }
     } catch (err) {
+      console.error('Login fetch error:', err);
       setError(t('login.connectionError'));
     } finally {
       setIsLoading(false);
@@ -71,8 +80,16 @@ export const Login = ({ onLogin }: LoginProps) => {
         localStorage.removeItem('selectedCompanyId');
         onLogin(data.user);
       } else {
-        const data = await response.json();
-        setError(data.error || t('login.invalidCredentials'));
+        let errorMessage = t('login.invalidCredentials');
+        try {
+          const data = await response.json();
+          errorMessage = data.error || errorMessage;
+        } catch (e) {
+          const errorText = await response.text();
+          console.error('Non-JSON error response:', errorText);
+          errorMessage = `Erreur serveur (${response.status})`;
+        }
+        setError(errorMessage);
       }
     } catch (error) {
       console.error('Demo login failed:', error);

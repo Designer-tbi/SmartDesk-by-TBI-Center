@@ -61,11 +61,12 @@ export const logActivity = async (dbClient: any, userId: string | undefined, com
   }
 };
 
-// Always ensure the database is seeded, even on Vercel
-// We do this asynchronously to avoid blocking the server startup
-seedDatabase(db).catch(err => {
-  console.error('Failed to seed database:', err);
-});
+// Only seed database automatically if not on Vercel
+if (!process.env.VERCEL) {
+  seedDatabase(db).catch(err => {
+    console.error('Failed to seed database:', err);
+  });
+}
 
 // Attach database instance to request
 app.use(dbMiddleware);
@@ -82,6 +83,15 @@ app.get('/api/health', async (req, res) => {
       database: connectionString.includes('neon.tech') ? 'neon' : 'custom',
       tables: tablesRes.rows.map(r => r.table_name)
     });
+  } catch (err) {
+    res.status(500).json({ status: 'error', error: String(err) });
+  }
+});
+
+app.post('/api/seed', async (req, res) => {
+  try {
+    await seedDatabase(db);
+    res.json({ status: 'ok', message: 'Database seeded successfully' });
   } catch (err) {
     res.status(500).json({ status: 'error', error: String(err) });
   }
