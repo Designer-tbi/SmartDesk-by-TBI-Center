@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 
 const rawConnectionString = process.env.DATABASE_URL;
-const fallbackString = 'postgresql://neondb_owner:npg_j5oWLtA6DrXs@ep-twilight-hat-adrtam2f-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+const fallbackString = 'postgresql://neondb_owner:npg_j5oWLtA6DrXs@ep-twilight-hat-adrtam2f-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require';
 
 export const connectionString = (rawConnectionString && rawConnectionString.startsWith('postgres')) 
   ? (rawConnectionString.includes('sslmode=') ? rawConnectionString : `${rawConnectionString}${rawConnectionString.includes('?') ? '&' : '?'}sslmode=require`)
