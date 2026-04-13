@@ -71,6 +71,15 @@ if (!process.env.VERCEL) {
 // Attach database instance to request
 app.use(dbMiddleware);
 
+// Vercel path fix: if req.url doesn't start with /api, prepend it
+// This handles the case where Vercel strips /api from the URL
+app.use((req, res, next) => {
+  if (process.env.VERCEL && !req.url.startsWith('/api')) {
+    req.url = '/api' + (req.url === '/' ? '' : req.url);
+  }
+  next();
+});
+
 // API Routes
 // ... existing routes ...
 app.get('/api/health', async (req, res) => {
