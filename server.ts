@@ -6,15 +6,13 @@ import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 
 // Global error handlers to prevent Node.js process from crashing
-process.on('uncaughtException', (err) => {
-  console.error('UNCAUGHT EXCEPTION! Shutting down gracefully...', err);
-  // In a serverless environment like Vercel, we just log it.
-  // The function will eventually exit, but we don't want to crash immediately if we can avoid it.
-});
+const handleFatalError = (err: any, type: string) => {
+  console.error(`FATAL ${type}:`, err);
+  // On Vercel, we just log. In a real server, we might restart.
+};
 
-process.on('unhandledRejection', (reason, promise) => {
-  console.error('UNHANDLED REJECTION! Promise:', promise, 'Reason:', reason);
-});
+process.on('uncaughtException', (err) => handleFatalError(err, 'uncaughtException'));
+process.on('unhandledRejection', (reason) => handleFatalError(reason, 'unhandledRejection'));
 
 // Import routers
 import { contactsRouter } from './server/routes/contacts';
@@ -134,6 +132,14 @@ app.use('/api/admin', adminRouter);
 app.use('/api/company', companyRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/schedules', schedulesRouter);
+
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ 
+    error: 'Route non trouvée',
+    path: req.originalUrl
+  });
+});
 
 // Global Error Handler
 app.use(errorHandler);

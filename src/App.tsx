@@ -154,13 +154,17 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
   );
 };
 
+import { ErrorBoundary } from './components/common/ErrorBoundary';
+
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   return (
-    <I18nProvider>
-      <AppContent user={user} setUser={setUser} isLoading={isLoading} setIsLoading={setIsLoading} />
-    </I18nProvider>
+    <ErrorBoundary>
+      <I18nProvider>
+        <AppContent user={user} setUser={setUser} isLoading={isLoading} setIsLoading={setIsLoading} />
+      </I18nProvider>
+    </ErrorBoundary>
   );
 }

@@ -14,11 +14,14 @@ export const db = new Pool({
     rejectUnauthorized: false
   },
   connectionTimeoutMillis: 10000, // Fail fast if DB is unreachable
+  idleTimeoutMillis: 30000,      // Close idle clients after 30s
+  max: 10,                       // Limit max connections
 });
 
 // Catch idle client errors to prevent Node.js process from crashing
-db.on('error', (err, client) => {
-  console.error('Unexpected error on idle database client', err);
+db.on('error', (err) => {
+  console.error('Unexpected error on idle database client:', err.message);
+  // We don't exit the process here to keep the server running
 });
 
 const initSql = `
@@ -419,6 +422,9 @@ const initSql = `
 export async function initializeDatabase() {
   try {
     console.log("Initializing database...");
+    
+    // Check connection first
+    await db.query('SELECT 1');
     
     // Split initSql into individual statements to handle potential errors better
     const statements = initSql.split(';').filter(s => s.trim().length > 0);

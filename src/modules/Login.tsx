@@ -52,7 +52,10 @@ export const Login = ({ onLogin }: LoginProps) => {
         let errorMessage = t('login.invalidCredentials');
         try {
           const errorData = JSON.parse(text);
-          errorMessage = errorData.error || errorMessage;
+          errorMessage = errorData.message || errorData.error || errorMessage;
+          if (errorData.stack && process.env.NODE_ENV === 'development') {
+            console.error('Server Error Stack:', errorData.stack);
+          }
         } catch (e) {
           console.error('Non-JSON error response:', text);
           errorMessage = `Erreur serveur (${response.status})`;
