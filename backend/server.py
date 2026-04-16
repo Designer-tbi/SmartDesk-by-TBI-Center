@@ -58,12 +58,31 @@ async def proxy(full_path: str, request: Request) -> Response:
             headers=headers,
             content=body,
         )
-    except httpx.ConnectError:
-        return Response(
-            content=b'{"error":"Upstream Node server unavailable"}',
-            status_code=502,
-            media_type="application/json",
-        )
+    except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError):
+        # Node server is probably hot-reloading — retry a couple of times
+        # before giving up so a brief restart window doesn't surface as a
+        # 500 to the user.
+        import asyncio
+
+        upstream = None
+        for attempt in range(5):
+            await asyncio.sleep(0.4)
+            try:
+                upstream = await _client.request(
+                    request.method,
+                    url,
+                    headers=headers,
+                    content=body,
+                )
+                break
+            except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError):
+                continue
+        if upstream is None:
+            return Response(
+                content=b'{"error":"Serveur en cours de redemarrage, reessayez."}',
+                status_code=503,
+                media_type="application/json",
+            )
 
     resp_headers = {
         k: v for k, v in upstream.headers.items() if k.lower() not in HOP_BY_HOP
