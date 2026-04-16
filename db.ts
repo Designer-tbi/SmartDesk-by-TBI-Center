@@ -426,7 +426,52 @@ export async function initializeDatabase() {
     
     // Check connection first
     await db.query('SELECT 1');
-    
+
+    // Fast-path: if a previous run already finished initialization, skip the
+    // heavy ALTER/CREATE/RLS work. This is critical on Vercel serverless,
+    // where every cold start would otherwise re-run 80+ DDL statements and
+    // hit the function timeout.
+    try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS _app_meta (
+          key TEXT PRIMARY KEY,
+          value TEXT,
+          "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `);
+      const flag = await db.query(
+        `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
+      );
+      if (flag.rows[0]?.value === '2026-04-16-rls') {
+        console.log('Database schema already up-to-date, skipping init.');
+        return;
+      }
+
+      // Second fast-path: if the core tables already exist AND RLS is
+      // already enabled on `contacts`, we're fine. Just mark and exit
+      // without re-running DDL. This handles the transition from the
+      // previous deploy (which initialized everything) to this one.
+      const rlsCheck = await db.query(`
+        SELECT c.relrowsecurity
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relname = 'contacts'
+      `);
+      if (rlsCheck.rows[0]?.relrowsecurity === true) {
+        console.log('Tables exist & RLS already enabled, marking schema as current.');
+        await db.query(`
+          INSERT INTO _app_meta (key, value, "updatedAt")
+          VALUES ('schema_version', '2026-04-16-rls', NOW())
+          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
+        `);
+        return;
+      }
+    } catch (err) {
+      // If the fast-path itself fails (e.g. no permission), just continue
+      // with the full init — worst case we redo idempotent work.
+      console.error('Schema version check failed, running full init:', err);
+    }
+
     // Split initSql into individual statements to handle potential errors better
     const statements = initSql.split(';').filter(s => s.trim().length > 0);
     for (const statement of statements) {
@@ -525,6 +570,17 @@ export async function initializeDatabase() {
     // Enable Row-Level Security so that every tenant table is strictly
     // isolated at the DB layer (demo vs production companies included).
     await enableTenantRLS(db);
+
+    // Mark schema as initialized so future cold starts can short-circuit.
+    try {
+      await db.query(`
+        INSERT INTO _app_meta (key, value, "updatedAt")
+        VALUES ('schema_version', '2026-04-16-rls', NOW())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
+      `);
+    } catch (err) {
+      console.error('Could not write schema_version:', err);
+    }
   } catch (err) {
     console.error("Error initializing database:", err);
   }
@@ -625,6 +681,18 @@ export async function seedDatabase(dbInstance: Pool) {
     // Ensure database is initialized before seeding
     await initializeDatabase();
 
+    // Fast-path: if seeding was already done in a previous run, skip.
+    try {
+      const seedFlag = await dbInstance.query(
+        `SELECT value FROM _app_meta WHERE key = 'seed_version'`,
+      );
+      if (seedFlag.rows[0]?.value === '2026-04-16') {
+        return;
+      }
+    } catch {
+      /* table may not exist yet — continue with full seed */
+    }
+
     // Seeding runs outside of a user request, so we need to bypass RLS.
     // We grab a dedicated client, flag it as "super-admin" for the duration
     // of the seed and use it for every write.
@@ -634,6 +702,13 @@ export async function seedDatabase(dbInstance: Pool) {
         `SELECT set_config('app.is_super_admin', 'true', false)`,
       );
       await runSeed(seedClient);
+
+      // Mark seed as done so future cold starts can skip it instantly.
+      await seedClient.query(`
+        INSERT INTO _app_meta (key, value, "updatedAt")
+        VALUES ('seed_version', '2026-04-16', NOW())
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
+      `).catch(() => {});
     } finally {
       await seedClient.query(
         `SELECT set_config('app.is_super_admin', 'false', false)`,
