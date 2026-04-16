@@ -60,7 +60,7 @@ export const dbMiddleware = async (req: Request, res: Response, next: NextFuncti
   try {
     const connectionPromise = db.connect();
     const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error('Database connection timeout')), 5000)
+      setTimeout(() => reject(new Error('Database connection timeout')), 4000)
     );
 
     client = await Promise.race([connectionPromise, timeoutPromise]);

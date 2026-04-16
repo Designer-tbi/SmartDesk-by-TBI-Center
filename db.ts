@@ -14,9 +14,11 @@ export const db = new Pool({
   ssl: {
     rejectUnauthorized: false
   },
-  connectionTimeoutMillis: 10000, // Fail fast if DB is unreachable
-  idleTimeoutMillis: 30000,      // Close idle clients after 30s
-  max: 10,                       // Limit max connections
+  // Aggressively short timeouts so a slow Neon cold-start never burns the
+  // whole 10s Vercel serverless budget on a single connection attempt.
+  connectionTimeoutMillis: 5000,
+  idleTimeoutMillis: 30000,
+  max: process.env.VERCEL ? 1 : 10,
 });
 
 // Catch idle client errors to prevent Node.js process from crashing
