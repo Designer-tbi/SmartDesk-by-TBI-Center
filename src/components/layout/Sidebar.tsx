@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -13,6 +13,7 @@ import {
   Settings,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Calculator,
   X
 } from 'lucide-react';
@@ -25,12 +26,36 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+const COLLAPSED_SECTIONS_KEY = 'smartdesk.collapsedSections';
+
+function readCollapsed(): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(COLLAPSED_SECTIONS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+}
+
 export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolean, onClose?: () => void }) => {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(readCollapsed);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_SECTIONS_KEY, JSON.stringify(collapsedSections));
+    } catch {
+      /* noop */
+    }
+  }, [collapsedSections]);
+
+  const toggleSection = (key: string) =>
+    setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const navSections = [
     {
+      key: 'main',
       title: t('nav.section.main'),
       items: [
         { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/' },
@@ -38,6 +63,7 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
       ]
     },
     {
+      key: 'operations',
       title: t('nav.section.operations'),
       items: [
         { icon: Users, label: t('nav.crm'), path: '/crm' },
@@ -46,6 +72,7 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
       ]
     },
     {
+      key: 'management',
       title: t('nav.section.management'),
       items: [
         { icon: Clock, label: t('nav.planning'), path: '/planning' },
@@ -55,6 +82,7 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
       ]
     },
     {
+      key: 'config',
       title: t('nav.section.config'),
       items: [
         { icon: Shield, label: t('nav.users'), path: '/users' },
@@ -64,6 +92,7 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
   ];
 
   const superAdminSection = {
+    key: 'super-admin',
     title: t('nav.superAdmin'),
     items: [
       { icon: Shield, label: t('nav.saDashboard'), path: '/super-admin' },
@@ -93,6 +122,7 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
       )}>
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
+          data-testid="sidebar-collapse-toggle"
           className="absolute -right-3 top-8 bg-white border border-red-100 rounded-full p-1 text-slate-400 hover:text-accent-red hover:border-accent-red shadow-lg transition-colors z-30 hidden lg:block"
         >
           {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
@@ -126,52 +156,72 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
             )}
           </div>
         
-        <nav className="space-y-8">
-          {sectionsToRender.map((section) => (
-            <div key={section.title}>
-              {!isCollapsed ? (
-                <h3 className="px-3 text-[10px] font-bold text-red-300/60 uppercase tracking-widest mb-3 whitespace-nowrap">
-                  {section.title}
-                </h3>
-              ) : (
-                <div className="h-px mb-3 bg-white/10 mx-4"></div>
-              )}
-              <div className="space-y-1">
-                {section.items.map((item) => (
-                  <NavLink
-                    key={item.path}
-                    to={item.path}
-                    title={isCollapsed ? item.label : undefined}
-                    className={({ isActive }) => cn(
-                      "group flex items-center justify-between py-2.5 rounded-xl text-sm font-medium transition-all",
-                      isCollapsed ? "px-0 justify-center" : "px-3",
-                      isActive 
-                        ? "bg-accent-red text-white shadow-lg shadow-accent-red/20" 
-                        : "text-red-100/70 hover:bg-white/5 hover:text-white"
-                    )}
+        <nav className="space-y-6">
+          {sectionsToRender.map((section) => {
+            const isSectionCollapsed = !isCollapsed && !!collapsedSections[section.key];
+            return (
+              <div key={section.key}>
+                {!isCollapsed ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleSection(section.key)}
+                    aria-expanded={!isSectionCollapsed}
+                    data-testid={`sidebar-section-toggle-${section.key}`}
+                    className="group w-full flex items-center justify-between px-3 mb-2 rounded-md text-[10px] font-bold text-red-300/60 uppercase tracking-widest whitespace-nowrap hover:text-white hover:bg-white/5 py-1.5 transition-colors"
                   >
-                    {({ isActive }) => (
-                      <>
-                        <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
-                          <item.icon className={cn(
-                            "w-5 h-5 transition-colors shrink-0",
-                            isActive ? "text-white" : "text-red-300 group-hover:text-white"
-                          )} />
-                          {!isCollapsed && <span className="whitespace-nowrap">{item.label}</span>}
-                        </div>
-                        {!isCollapsed && (
-                          <ChevronRight className={cn(
-                            "w-4 h-4 transition-all opacity-0 -translate-x-2 shrink-0",
-                            "group-hover:opacity-100 group-hover:translate-x-0"
-                          )} />
-                        )}
-                      </>
-                    )}
-                  </NavLink>
-                ))}
+                    <span>{section.title}</span>
+                    <ChevronDown className={cn(
+                      "w-3.5 h-3.5 transition-transform duration-200 shrink-0",
+                      isSectionCollapsed && "-rotate-90"
+                    )} />
+                  </button>
+                ) : (
+                  <div className="h-px mb-3 bg-white/10 mx-4"></div>
+                )}
+                <div
+                  className={cn(
+                    "space-y-1 overflow-hidden transition-all duration-300 ease-out",
+                    // When collapsed we animate the height + opacity.
+                    isSectionCollapsed ? "max-h-0 opacity-0" : "max-h-[600px] opacity-100"
+                  )}
+                >
+                  {section.items.map((item) => (
+                    <NavLink
+                      key={item.path}
+                      to={item.path}
+                      title={isCollapsed ? item.label : undefined}
+                      data-testid={`sidebar-link-${item.path.replace(/\//g, '') || 'dashboard'}`}
+                      className={({ isActive }) => cn(
+                        "group flex items-center justify-between py-2.5 rounded-xl text-sm font-medium transition-all",
+                        isCollapsed ? "px-0 justify-center" : "px-3",
+                        isActive 
+                          ? "bg-accent-red text-white shadow-lg shadow-accent-red/20" 
+                          : "text-red-100/70 hover:bg-white/5 hover:text-white"
+                      )}
+                    >
+                      {({ isActive }) => (
+                        <>
+                          <div className={cn("flex items-center", isCollapsed ? "justify-center" : "gap-3")}>
+                            <item.icon className={cn(
+                              "w-5 h-5 transition-colors shrink-0",
+                              isActive ? "text-white" : "text-red-300 group-hover:text-white"
+                            )} />
+                            {!isCollapsed && <span className="whitespace-nowrap">{item.label}</span>}
+                          </div>
+                          {!isCollapsed && (
+                            <ChevronRight className={cn(
+                              "w-4 h-4 transition-all opacity-0 -translate-x-2 shrink-0",
+                              "group-hover:opacity-100 group-hover:translate-x-0"
+                            )} />
+                          )}
+                        </>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </nav>
       </div>
       
