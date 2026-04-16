@@ -48,7 +48,7 @@ async def proxy(full_path: str, request: Request) -> Response:
     headers = {
         k: v
         for k, v in request.headers.items()
-        if k.lower() not in {"host", "content-length"}
+        if k.lower() not in {"host", "content-length", "accept-encoding"}
     }
 
     try:

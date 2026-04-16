@@ -1,5 +1,6 @@
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
+import { enableTenantRLS } from './server/tenancy';
 
 const rawConnectionString = process.env.DATABASE_URL;
 const fallbackString = 'postgresql://neondb_owner:npg_j5oWLtA6DrXs@ep-twilight-hat-adrtam2f-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require';
@@ -520,6 +521,10 @@ export async function initializeDatabase() {
     } catch (e) {
       // Constraint might already exist
     }
+
+    // Enable Row-Level Security so that every tenant table is strictly
+    // isolated at the DB layer (demo vs production companies included).
+    await enableTenantRLS(db);
   } catch (err) {
     console.error("Error initializing database:", err);
   }
@@ -620,6 +625,28 @@ export async function seedDatabase(dbInstance: Pool) {
     // Ensure database is initialized before seeding
     await initializeDatabase();
 
+    // Seeding runs outside of a user request, so we need to bypass RLS.
+    // We grab a dedicated client, flag it as "super-admin" for the duration
+    // of the seed and use it for every write.
+    const seedClient = await dbInstance.connect();
+    try {
+      await seedClient.query(
+        `SELECT set_config('app.is_super_admin', 'true', false)`,
+      );
+      await runSeed(seedClient);
+    } finally {
+      await seedClient.query(
+        `SELECT set_config('app.is_super_admin', 'false', false)`,
+      ).catch(() => {});
+      seedClient.release();
+    }
+  } catch (error) {
+    console.error('Error seeding database:', error);
+  }
+}
+
+async function runSeed(dbInstance: any) {
+  try {
     // Check if any company exists
     const companyRes = await dbInstance.query('SELECT * FROM companies LIMIT 1');
     let defaultCompanyId = 'comp_default';
@@ -718,6 +745,25 @@ export async function seedDatabase(dbInstance: Pool) {
       await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedDemoPassword, demoUserEmail]);
     }
 
+    // Seed an admin user for demo-2 as well so each demo company is
+    // independently usable & auditable.
+    const demo2Email = 'admin@greenenergy.demo';
+    const res5 = await dbInstance.query('SELECT * FROM users WHERE email = $1', [demo2Email]);
+    if (res5.rows.length === 0) {
+      console.log(`Seeding demo user: ${demo2Email}`);
+      await dbInstance.query(
+        'INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)',
+        ['demo_user_2', 'demo-2', demo2Email, hashedDemoPassword, `role_admin_demo-2`, 'GreenEnergy Admin'],
+      );
+    } else {
+      await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedDemoPassword, demo2Email]);
+    }
+
+    // Per-tenant demo sample data (each demo company gets ITS OWN rows, fully
+    // isolated by companyId + Row-Level Security).
+    await seedDemoCompanyData(dbInstance, 'demo-1', 'TechCorp');
+    await seedDemoCompanyData(dbInstance, 'demo-2', 'GreenEnergy');
+
     console.log('Database seeded successfully with admin and demo accounts');
   } catch (error) {
     console.error('Error seeding database:', error);
@@ -743,3 +789,84 @@ export async function seedDefaultRoles(dbInstance: any, companyId: string) {
     }
   }
 }
+
+/**
+ * Seed a small, self-contained set of sample data for a demo company.
+ *
+ * Each demo tenant gets ITS OWN contacts, products and invoice — every row
+ * carries the correct `companyId`, and Row-Level Security guarantees that
+ * users of demo-1 never see rows from demo-2 (and vice-versa).
+ */
+export async function seedDemoCompanyData(dbInstance: any, companyId: string, label: string) {
+  // Only seed if this company has no contacts yet (idempotent).
+  const existing = await dbInstance.query(
+    'SELECT COUNT(*)::int AS c FROM contacts WHERE "companyId" = $1',
+    [companyId],
+  );
+  if (existing.rows[0].c > 0) return;
+
+  console.log(`Seeding demo data for company ${companyId} (${label})...`);
+
+  const contacts = [
+    {
+      id: `${companyId}_contact_1`,
+      name: `${label} — Client Alpha`,
+      email: `alpha@${companyId}.demo`,
+      company: `Alpha Corp (${label})`,
+      role: 'Directeur',
+      status: 'Actif',
+    },
+    {
+      id: `${companyId}_contact_2`,
+      name: `${label} — Client Beta`,
+      email: `beta@${companyId}.demo`,
+      company: `Beta SARL (${label})`,
+      role: 'Acheteur',
+      status: 'Prospect',
+    },
+  ];
+  for (const c of contacts) {
+    await dbInstance.query(
+      `INSERT INTO contacts (id, "companyId", name, email, company, role, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [c.id, companyId, c.name, c.email, c.company, c.role, c.status],
+    );
+  }
+
+  const products = [
+    {
+      id: `${companyId}_product_1`,
+      name: `${label} Service Pro`,
+      sku: `${companyId.toUpperCase()}-PRO-01`,
+      price: 250000,
+      stock: 10,
+    },
+    {
+      id: `${companyId}_product_2`,
+      name: `${label} Licence Standard`,
+      sku: `${companyId.toUpperCase()}-STD-02`,
+      price: 75000,
+      stock: 50,
+    },
+  ];
+  for (const p of products) {
+    await dbInstance.query(
+      `INSERT INTO products (id, "companyId", name, sku, price, stock, "tvaRate")
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [p.id, companyId, p.name, p.sku, p.price, p.stock, 18],
+    );
+  }
+
+  const invoiceId = `${companyId}_inv_1`;
+  await dbInstance.query(
+    `INSERT INTO invoices (id, "companyId", type, "contactId", date, "dueDate", "totalHT", "tvaTotal", total, status)
+     VALUES ($1, $2, 'Invoice', $3, CURRENT_DATE::text, (CURRENT_DATE + INTERVAL '30 day')::text, $4, $5, $6, 'Sent')`,
+    [invoiceId, companyId, contacts[0].id, 250000, 45000, 295000],
+  );
+  await dbInstance.query(
+    `INSERT INTO invoice_items ("companyId", "invoiceId", "productId", name, quantity, price, "tvaRate", "tvaAmount")
+     VALUES ($1, $2, $3, $4, 1, $5, 18, $6)`,
+    [companyId, invoiceId, products[0].id, products[0].name, products[0].price, 45000],
+  );
+}
+

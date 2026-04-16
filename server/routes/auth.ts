@@ -221,6 +221,13 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
         VALUES ($1, $2, 'demo', 'active', $3, $4, CURRENT_TIMESTAMP)
       `, [companyId, finalCompanyName, country || 'FR', state || null]);
       
+      // Bind the RLS session to this new tenant so subsequent INSERTs into
+      // the isolated tables (roles, ...) pass the WITH CHECK policy.
+      await db.query(
+        `SELECT set_config('app.current_company_id', $1, false)`,
+        [companyId],
+      );
+
       // Seed default roles for the new demo company
       await seedDefaultRoles(db, companyId);
       

@@ -12,12 +12,43 @@ adminRouter.get('/stats', async (req, res, next) => {
     const realCompaniesCount = await req.db.query("SELECT COUNT(*) as count FROM public.companies WHERE type = 'real'");
     const demoCompaniesCount = await req.db.query("SELECT COUNT(*) as count FROM public.companies WHERE type = 'demo'");
     const totalUsers = await req.db.query("SELECT COUNT(*) as count FROM public.users");
+    const realUsers = await req.db.query(
+      `SELECT COUNT(*) as count FROM public.users u
+       JOIN public.companies c ON u."companyId" = c.id
+       WHERE c.type = 'real'`,
+    );
+    const demoUsers = await req.db.query(
+      `SELECT COUNT(*) as count FROM public.users u
+       JOIN public.companies c ON u."companyId" = c.id
+       WHERE c.type = 'demo'`,
+    );
 
     res.json({
       realCompanies: parseInt(realCompaniesCount.rows[0]?.count || '0', 10),
       demoCompanies: parseInt(demoCompaniesCount.rows[0]?.count || '0', 10),
-      totalUsers: parseInt(totalUsers.rows[0]?.count || '0', 10)
+      totalUsers: parseInt(totalUsers.rows[0]?.count || '0', 10),
+      realUsers: parseInt(realUsers.rows[0]?.count || '0', 10),
+      demoUsers: parseInt(demoUsers.rows[0]?.count || '0', 10),
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Return companies grouped by type so the admin UI can render a separated
+// "Production" vs "Démo" view.
+adminRouter.get('/companies/by-type', async (req, res, next) => {
+  try {
+    const result = await req.db.query(
+      `SELECT id, name, type, status, country, "createdAt"
+       FROM public.companies
+       ORDER BY type, name`,
+    );
+    const grouped = { real: [] as any[], demo: [] as any[] };
+    for (const row of result.rows) {
+      (row.type === 'demo' ? grouped.demo : grouped.real).push(row);
+    }
+    res.json(grouped);
   } catch (error) {
     next(error);
   }
@@ -91,7 +122,11 @@ adminRouter.post('/companies', async (req, res, next) => {
     // Initialize schema
     await initializeTenantSchema(schemaName);
 
-    // Seed default roles
+    // Seed default roles (set RLS session so INSERTs pass WITH CHECK)
+    await req.db.query(
+      `SELECT set_config('app.current_company_id', $1, false)`,
+      [id],
+    );
     await seedDefaultRoles(req.db, id);
 
     // Create admin user if details provided
