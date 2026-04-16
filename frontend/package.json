@@ -1,0 +1,8 @@
+{
+  "name": "smartdesk-frontend-launcher",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "start": "cd /app && PORT=3000 NODE_ENV=development node_modules/.bin/tsx server.ts"
+  }
+}
