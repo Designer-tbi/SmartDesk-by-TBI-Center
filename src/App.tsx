@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { AnimatePresence, motion } from 'motion/react';
-import { apiFetch } from './lib/api';
+import { apiFetch, setApiSession, clearApiSession } from './lib/api';
 import { I18nProvider, useTranslation } from './lib/i18n';
 
 // Lazy load modules for better initial load time
@@ -85,38 +85,46 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
 const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
   const { setLanguage } = useTranslation();
 
+  const logout = useCallback(async () => {
+    try {
+      await apiFetch('/api/auth/logout', { method: 'POST' });
+    } catch {
+      /* network errors are non-fatal during logout */
+    }
+    clearApiSession();
+    setUser(null);
+  }, [setUser]);
+
   useEffect(() => {
     const handleAuthError = () => {
-      localStorage.removeItem('token');
+      clearApiSession();
       setUser(null);
     };
-
     window.addEventListener('auth-error', handleAuthError);
     return () => window.removeEventListener('auth-error', handleAuthError);
   }, [setUser]);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      apiFetch('/api/auth/me')
-        .then(res => {
-          if (res.ok) return res.json();
-          throw new Error('Invalid token');
-        })
-        .then(userData => {
-          setUser(userData);
-          if (userData.language) {
-            setLanguage(userData.language);
-          }
-          setIsLoading(false);
-        })
-        .catch(() => {
-          localStorage.removeItem('token');
-          setIsLoading(false);
+    // The session cookie is sent automatically — just ask the backend who
+    // the user is. If none, /api/auth/me returns 401 and we stay logged out.
+    apiFetch('/api/auth/me')
+      .then((res) => {
+        if (res.ok) return res.json();
+        throw new Error('Not authenticated');
+      })
+      .then((userData) => {
+        setApiSession({
+          companyId: userData?.preferences?.selectedCompanyId || userData?.companyId || null,
+          isDemo: !!userData.isDemo,
         });
-    } else {
-      setIsLoading(false);
-    }
+        setUser(userData);
+        if (userData.language) setLanguage(userData.language);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        clearApiSession();
+        setIsLoading(false);
+      });
   }, [setUser, setIsLoading, setLanguage]);
 
   if (isLoading) {
@@ -127,6 +135,10 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
     return (
       <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
         <Login onLogin={(u: any) => {
+          setApiSession({
+            companyId: u?.preferences?.selectedCompanyId || u?.companyId || null,
+            isDemo: !!u.isDemo,
+          });
           setUser(u);
           if (u.language) setLanguage(u.language);
         }} />
@@ -136,7 +148,7 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
 
   return (
     <Router>
-      <PageWrapper onLogout={() => { localStorage.removeItem('token'); setUser(null); }} user={user}>
+      <PageWrapper onLogout={logout} user={user}>
         <Suspense fallback={<div className="flex items-center justify-center h-64">Chargement du module...</div>}>
           <Routes>
             <Route path="/" element={<Dashboard user={user} />} />

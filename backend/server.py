@@ -12,13 +12,8 @@ NODE_UPSTREAM = os.environ.get("NODE_UPSTREAM", "http://127.0.0.1:3000")
 
 app = FastAPI(title="SmartDesk API Proxy")
 
-# Shared async client with generous timeouts for long-running API calls.
-_client = httpx.AsyncClient(base_url=NODE_UPSTREAM, timeout=httpx.Timeout(120.0))
-
-
-@app.on_event("shutdown")
-async def _shutdown() -> None:
-    await _client.aclose()
+# Timeout configuration for long-running API calls.
+TIMEOUT = httpx.Timeout(120.0)
 
 
 HOP_BY_HOP = {
@@ -40,7 +35,7 @@ HOP_BY_HOP = {
     methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"],
 )
 async def proxy(full_path: str, request: Request) -> Response:
-    url = f"/{full_path}"
+    url = f"{NODE_UPSTREAM}/{full_path}"
     if request.url.query:
         url = f"{url}?{request.url.query}"
 
@@ -51,38 +46,42 @@ async def proxy(full_path: str, request: Request) -> Response:
         if k.lower() not in {"host", "content-length", "accept-encoding"}
     }
 
-    try:
-        upstream = await _client.request(
-            request.method,
-            url,
-            headers=headers,
-            content=body,
-        )
-    except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError):
-        # Node server is probably hot-reloading — retry a couple of times
-        # before giving up so a brief restart window doesn't surface as a
-        # 500 to the user.
-        import asyncio
-
-        upstream = None
-        for attempt in range(5):
-            await asyncio.sleep(0.4)
-            try:
-                upstream = await _client.request(
-                    request.method,
-                    url,
-                    headers=headers,
-                    content=body,
-                )
-                break
-            except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError):
-                continue
-        if upstream is None:
-            return Response(
-                content=b'{"error":"Serveur en cours de redemarrage, reessayez."}',
-                status_code=503,
-                media_type="application/json",
+    # Use a fresh client for each request to avoid cookie leakage between users.
+    # This is critical for security - we don't want one user's session cookie
+    # to be sent with another user's request.
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        try:
+            upstream = await client.request(
+                request.method,
+                url,
+                headers=headers,
+                content=body,
             )
+        except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError):
+            # Node server is probably hot-reloading — retry a couple of times
+            # before giving up so a brief restart window doesn't surface as a
+            # 500 to the user.
+            import asyncio
+
+            upstream = None
+            for attempt in range(5):
+                await asyncio.sleep(0.4)
+                try:
+                    upstream = await client.request(
+                        request.method,
+                        url,
+                        headers=headers,
+                        content=body,
+                    )
+                    break
+                except (httpx.ConnectError, httpx.ReadError, httpx.RemoteProtocolError):
+                    continue
+            if upstream is None:
+                return Response(
+                    content=b'{"error":"Serveur en cours de redemarrage, reessayez."}',
+                    status_code=503,
+                    media_type="application/json",
+                )
 
     resp_headers = {
         k: v for k, v in upstream.headers.items() if k.lower() not in HOP_BY_HOP

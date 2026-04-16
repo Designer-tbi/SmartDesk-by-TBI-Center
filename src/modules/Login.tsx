@@ -32,6 +32,7 @@ export const Login = ({ onLogin }: LoginProps) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password, demoMode: loginMode === 'demo' })
       });
@@ -42,10 +43,8 @@ export const Login = ({ onLogin }: LoginProps) => {
           throw new Error("L'API n'est pas configurée correctement sur le serveur (HTML reçu au lieu de JSON).");
         }
         const data = await response.json();
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('demoMode', data.user.isDemo ? 'true' : 'false');
-        // Clear selectedCompanyId to ensure the new user's company is used
-        localStorage.removeItem('selectedCompanyId');
+        // Session is now stored in an HttpOnly cookie set by the server —
+        // we only need to hand the user object over to the app shell.
         onLogin(data.user);
       } else {
         const text = await response.text();
@@ -76,6 +75,7 @@ export const Login = ({ onLogin }: LoginProps) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: 'admin@smartdesk.cg', password: 'admin', demoMode: true })
       });
@@ -86,9 +86,6 @@ export const Login = ({ onLogin }: LoginProps) => {
           throw new Error("L'API n'est pas configurée correctement sur le serveur (HTML reçu au lieu de JSON).");
         }
         const data = await response.json();
-        localStorage.setItem('token', data.token);
-        localStorage.setItem('demoMode', 'true');
-        localStorage.removeItem('selectedCompanyId');
         onLogin(data.user);
       } else {
         const text = await response.text();

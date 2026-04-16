@@ -4,13 +4,19 @@ import jwt from 'jsonwebtoken';
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
 
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: Missing or invalid token' });
+  // Primary: read from HttpOnly cookie. Fallback to Authorization header so
+  // the API remains usable by non-browser clients (curl, tests, CLI).
+  let token: string | undefined = (req as any).cookies?.smartdesk_session;
+  if (!token) {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.split(' ')[1];
+    }
   }
 
-  const token = authHeader.split(' ')[1];
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized: Missing session' });
+  }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as any;

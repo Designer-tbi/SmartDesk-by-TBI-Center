@@ -31,32 +31,39 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-const COLLAPSED_SECTIONS_KEY = 'smartdesk.collapsedSections';
-
-function readCollapsed(): Record<string, boolean> {
-  try {
-    const raw = localStorage.getItem(COLLAPSED_SECTIONS_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
+const COLLAPSED_SECTIONS_KEY = 'sidebarCollapsedSections';
 
 export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolean, onClose?: () => void }) => {
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(readCollapsed);
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(
+    () => user?.preferences?.[COLLAPSED_SECTIONS_KEY] || {},
+  );
 
+  // Sync with the user preferences once the /api/auth/me payload arrives.
   useEffect(() => {
-    try {
-      localStorage.setItem(COLLAPSED_SECTIONS_KEY, JSON.stringify(collapsedSections));
-    } catch {
-      /* noop */
+    if (user?.preferences?.[COLLAPSED_SECTIONS_KEY]) {
+      setCollapsedSections(user.preferences[COLLAPSED_SECTIONS_KEY]);
     }
-  }, [collapsedSections]);
+  }, [user?.preferences]);
 
-  const toggleSection = (key: string) =>
-    setCollapsedSections((prev) => ({ ...prev, [key]: !prev[key] }));
+  const toggleSection = (key: string) => {
+    setCollapsedSections((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      // Fire-and-forget: persist to DB.
+      try {
+        fetch('/api/auth/preferences', {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ [COLLAPSED_SECTIONS_KEY]: next }),
+        }).catch(() => {});
+      } catch {
+        /* noop */
+      }
+      return next;
+    });
+  };
 
   const navSections = [
     {

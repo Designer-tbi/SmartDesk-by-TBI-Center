@@ -633,9 +633,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                 <div className="flex items-center gap-3">
                   <button
                     type="button"
-                    onClick={() => {
-                      localStorage.removeItem('token');
-                      window.location.href = '/login';
+                    onClick={async () => {
+                      try {
+                        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                      } catch { /* noop */ }
+                      window.location.href = '/';
                     }}
                     className="flex items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 rounded-xl text-sm font-bold transition-all active:scale-95"
                   >

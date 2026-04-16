@@ -1,6 +1,7 @@
 import express from "express";
 import path from "path";
 import compression from "compression";
+import cookieParser from "cookie-parser";
 import { dbMiddleware } from './server/middleware/db';
 import { errorHandler } from './server/middleware/error';
 
@@ -22,6 +23,7 @@ const app = express();
 
 app.use(compression());
 app.use(express.json());
+app.use(cookieParser());
 
 // Diagnostic logging for Vercel
 app.use((req, res, next) => {

@@ -25,7 +25,14 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
       req.user!.language = company.language || 'fr';
       req.user!.currency = company.currency || 'XAF';
     }
-    res.json(req.user);
+    // Return persisted user preferences so the SPA can rehydrate its UI
+    // state (language, sidebar, ...) without touching localStorage.
+    const prefs = user.preferences || {};
+    res.json({
+      ...req.user,
+      preferences: prefs,
+      language: prefs.language || req.user!.language || 'fr',
+    });
   } catch (error) {
     next(error);
   }
@@ -177,8 +184,21 @@ authRouter.post('/login', async (req, res, next) => {
       // Don't block login if session logging fails, but it's good to have
     }
 
-    res.json({ 
-      token, 
+    // Set the JWT as an HttpOnly cookie. The frontend never sees the token
+    // directly, which makes the app immune to XSS token exfiltration.
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production' || !!process.env.VERCEL,
+      sameSite: 'lax' as const,
+      maxAge: 24 * 60 * 60 * 1000, // 24h
+      path: '/',
+    };
+    res.cookie('smartdesk_session', token, cookieOptions);
+
+    // Load persisted user preferences (language, sidebar state, ...).
+    const prefs = user.preferences || {};
+
+    res.json({
       user: {
         id: user.id,
         companyId: user.companyId,
@@ -187,13 +207,61 @@ authRouter.post('/login', async (req, res, next) => {
         name: user.name,
         country: company?.country || 'FR',
         state: company?.state || null,
-        language: company?.language || 'fr',
+        language: prefs.language || company?.language || 'fr',
         currency: company?.currency || 'XAF',
-        isDemo
-      } 
+        isDemo,
+        preferences: prefs,
+      }
     });
   } catch (error) {
     console.error('Login error:', error);
+    next(error);
+  }
+});
+
+/**
+ * Log out: invalidate the server session and clear the auth cookie.
+ */
+authRouter.post('/logout', async (req, res, next) => {
+  try {
+    const token = (req as any).cookies?.smartdesk_session;
+    if (token) {
+      await req.db.query('DELETE FROM sessions WHERE token = $1', [token]).catch(() => {});
+    }
+    res.clearCookie('smartdesk_session', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production' || !!process.env.VERCEL,
+      sameSite: 'lax',
+      path: '/',
+    });
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Persist user preferences (language, sidebar state, selected company, ...).
+ * Replaces what was previously stored in browser localStorage.
+ *
+ * Body: { [key: string]: any } — shallow-merged into users.preferences.
+ */
+authRouter.put('/preferences', requireAuth, async (req, res, next) => {
+  try {
+    const patch = req.body || {};
+    if (typeof patch !== 'object' || Array.isArray(patch)) {
+      return res.status(400).json({ error: 'Preferences payload must be an object' });
+    }
+    // jsonb_set / || merge: shallow merge patch into existing preferences.
+    const result = await req.db.query(
+      `UPDATE users
+       SET preferences = COALESCE(preferences, '{}'::jsonb) || $1::jsonb
+       WHERE id = $2
+       RETURNING preferences`,
+      [JSON.stringify(patch), req.user!.id],
+    );
+    res.json({ preferences: result.rows[0]?.preferences || {} });
+  } catch (error) {
     next(error);
   }
 });

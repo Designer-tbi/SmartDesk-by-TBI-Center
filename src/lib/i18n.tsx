@@ -2406,14 +2406,24 @@ const translations: Record<Language, Record<string, string>> = {
 const I18nContext = createContext<I18nContextType | undefined>(undefined);
 
 export const I18nProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [language, setLanguage] = useState<Language>(() => {
-    const savedLang = localStorage.getItem('language') as Language;
-    return (savedLang === 'fr' || savedLang === 'en') ? savedLang : 'fr';
-  });
+  // Default to French until the /api/auth/me call in <AppContent> hydrates
+  // the real preference via setLanguage(userData.language).
+  const [language, setLanguage] = useState<Language>('fr');
 
   const handleSetLanguage = useCallback((lang: Language) => {
     setLanguage(lang);
-    localStorage.setItem('language', lang);
+    // Fire-and-forget: persist to DB if the user is logged in. Errors are
+    // harmless because the in-memory state already changed.
+    try {
+      fetch('/api/auth/preferences', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: lang }),
+      }).catch(() => {});
+    } catch {
+      /* noop */
+    }
   }, []);
 
   const dateLocale = useMemo(() => (language === 'fr' ? fr : enUS), [language]);

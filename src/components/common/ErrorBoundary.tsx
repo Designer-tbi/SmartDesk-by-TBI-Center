@@ -48,8 +48,10 @@ export class ErrorBoundary extends Component<Props, State> {
                 Recharger la page
               </button>
               <button
-                onClick={() => {
-                  localStorage.clear();
+                onClick={async () => {
+                  try {
+                    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                  } catch { /* noop */ }
                   window.location.href = '/';
                 }}
                 className="w-full py-3 px-4 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl font-medium transition-colors"
