@@ -15,6 +15,11 @@ import {
   ChevronLeft,
   ChevronDown,
   Calculator,
+  Landmark,
+  HeartHandshake,
+  BarChart3,
+  ScrollText,
+  FileBadge,
   X
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
@@ -79,6 +84,18 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
         { icon: Briefcase, label: t('nav.projects'), path: '/projects' },
         { icon: UserCircle, label: t('nav.hr'), path: '/hr' },
         { icon: Calculator, label: t('nav.accounting'), path: '/accounting' },
+      ]
+    },
+    {
+      key: 'declarations',
+      title: t('nav.section.declarations'),
+      items: [
+        { icon: LayoutDashboard, label: t('nav.declarations.dashboard'), path: '/declarations' },
+        { icon: Calendar, label: t('nav.declarations.calendar'), path: '/declarations/calendar' },
+        { icon: Landmark, label: t('nav.declarations.dgid'), path: '/declarations/dgid' },
+        { icon: HeartHandshake, label: t('nav.declarations.cnss'), path: '/declarations/cnss' },
+        { icon: BarChart3, label: t('nav.declarations.ins'), path: '/declarations/ins' },
+        { icon: FileBadge, label: t('nav.declarations.greffe'), path: '/declarations/greffe' },
       ]
     },
     {

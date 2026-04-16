@@ -20,6 +20,7 @@ const Agenda = lazy(() => import('./modules/Agenda').then(m => ({ default: m.Age
 const Planning = lazy(() => import('./modules/Planning').then(m => ({ default: m.Planning })));
 const Login = lazy(() => import('./modules/Login').then(m => ({ default: m.Login })));
 const SuperAdmin = lazy(() => import('./modules/SuperAdmin').then(m => ({ default: m.SuperAdmin })));
+const Declarations = lazy(() => import('./modules/Declarations').then(m => ({ default: m.Declarations })));
 
 const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, onLogout?: () => void, user: any }) => {
   const location = useLocation();
@@ -41,7 +42,10 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
       case '/super-admin': return t('header.superAdmin');
       case '/agenda': return t('header.agenda');
       case '/planning': return t('header.planning');
-      default: return 'SmartDesk';
+      case '/declarations': return t('nav.section.declarations');
+      default:
+        if (path.startsWith('/declarations/')) return t('nav.section.declarations');
+        return 'SmartDesk';
     }
   }, [t]);
 
@@ -144,6 +148,7 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
             <Route path="/accounting" element={<Accounting user={user} />} />
             <Route path="/agenda" element={<Agenda user={user} />} />
             <Route path="/planning" element={<Planning user={user} />} />
+            <Route path="/declarations/*" element={<Declarations />} />
             <Route path="/users" element={<Users user={user} />} />
             <Route path="/settings" element={<Settings user={user} setUser={setUser} />} />
             {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
