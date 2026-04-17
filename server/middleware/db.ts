@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { db } from '../../db';
-import { setTenantContext, clearTenantContext } from '../tenancy';
+import { db } from '../../db.js';
+import { setTenantContext, clearTenantContext } from '../tenancy.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
 

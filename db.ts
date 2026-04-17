@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
 import fs from 'fs';
 import path from 'path';
-import { enableTenantRLS } from './server/tenancy';
+import { enableTenantRLS } from './server/tenancy.js';
 
 // Load .env only when running outside Vercel (which injects env vars natively).
 // Using a manual parser so we don't depend on dotenv at runtime and stay

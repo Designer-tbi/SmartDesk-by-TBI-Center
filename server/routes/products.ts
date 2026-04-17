@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { requireTenant } from '../middleware/auth';
-import { logActivity } from '../activity';
+import { requireTenant } from '../middleware/auth.js';
+import { logActivity } from '../activity.js';
 
 export const productsRouter = Router();
 

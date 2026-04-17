@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireTenant } from '../middleware/auth';
+import { requireTenant } from '../middleware/auth.js';
 import bcrypt from 'bcryptjs';
 
 export const companyRouter = Router();

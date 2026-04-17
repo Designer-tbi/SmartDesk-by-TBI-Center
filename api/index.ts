@@ -12,7 +12,7 @@ let app: any = null;
 try {
   // Dynamic import wrapped in try/catch so a module-level error in app.ts
   // (e.g. missing dep, bad env) doesn't bubble up as FUNCTION_INVOCATION_FAILED.
-  const mod = await import('../app');
+  const mod = await import('../app.js');
   app = mod.default;
 } catch (err: any) {
   appImportError = err;

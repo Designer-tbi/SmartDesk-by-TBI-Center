@@ -2,8 +2,8 @@ import express from "express";
 import path from "path";
 import compression from "compression";
 import cookieParser from "cookie-parser";
-import { dbMiddleware } from './server/middleware/db';
-import { errorHandler } from './server/middleware/error';
+import { dbMiddleware } from './server/middleware/db.js';
+import { errorHandler } from './server/middleware/error.js';
 
 // Install global error handlers ASAP — this is critical on Vercel where an
 // unhandled rejection in a background task would otherwise crash the whole
@@ -19,18 +19,18 @@ if (!(process as any).__smartdesk_handlers_installed) {
 }
 
 // Import routers
-import { contactsRouter } from './server/routes/contacts';
-import { productsRouter } from './server/routes/products';
-import { invoicesRouter } from './server/routes/invoices';
-import { projectsRouter } from './server/routes/projects';
-import { employeesRouter } from './server/routes/employees';
-import { accountingRouter } from './server/routes/accounting';
-import { statsRouter } from './server/routes/stats';
-import { authRouter } from './server/routes/auth';
-import { adminRouter } from './server/routes/admin';
-import { companyRouter } from './server/routes/company';
-import { eventsRouter } from './server/routes/events';
-import { schedulesRouter } from './server/routes/schedules';
+import { contactsRouter } from './server/routes/contacts.js';
+import { productsRouter } from './server/routes/products.js';
+import { invoicesRouter } from './server/routes/invoices.js';
+import { projectsRouter } from './server/routes/projects.js';
+import { employeesRouter } from './server/routes/employees.js';
+import { accountingRouter } from './server/routes/accounting.js';
+import { statsRouter } from './server/routes/stats.js';
+import { authRouter } from './server/routes/auth.js';
+import { adminRouter } from './server/routes/admin.js';
+import { companyRouter } from './server/routes/company.js';
+import { eventsRouter } from './server/routes/events.js';
+import { schedulesRouter } from './server/routes/schedules.js';
 
 const app = express();
 

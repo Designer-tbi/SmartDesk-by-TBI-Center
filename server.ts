@@ -1,12 +1,12 @@
-import app from "./app";
-import { db, seedDatabase } from "./db";
+import app from "./app.js";
+import { db, seedDatabase } from "./db.js";
 import http from 'http';
 import path from "path";
 import express from "express";
-import { setWebSocketServer, broadcast, logActivity } from './server/activity';
+import { setWebSocketServer, broadcast, logActivity } from './server/activity.js';
 
 // Re-export helpers for any lingering deep-imports. NOTE: new code should
-// import directly from './server/activity' to avoid the circular-import
+// import directly from './server/activity.js' to avoid the circular-import
 // trap that crashed Vercel before.
 export { broadcast, logActivity };
 

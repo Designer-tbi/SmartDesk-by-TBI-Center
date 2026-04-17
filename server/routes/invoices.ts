@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireCompany } from '../middleware/auth';
+import { requireAuth, requireCompany } from '../middleware/auth.js';
 import nodemailer from 'nodemailer';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
