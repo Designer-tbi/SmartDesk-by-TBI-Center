@@ -28,6 +28,11 @@ export type Locale = {
 };
 
 const COUNTRY_TABLE: Record<string, Partial<Locale>> = {
+  // --- Coarse region keys used by the Settings UI ---
+  EUROPE: { continent: 'EU', taxIdLabel: 'TVA', taxIdPlaceholder: 'FR00 000000000', phonePlaceholder: '+33 6 XX XX XX XX', isOhada: false, isCemac: false },
+  AFRIQUE: { continent: 'AF', taxIdLabel: 'NIF', taxIdPlaceholder: 'P2012345678', phonePlaceholder: '+2XX XX XX XX XX', isOhada: true, isCemac: false },
+  USA: { continent: 'NA', taxIdLabel: 'EIN / SSN', taxIdPlaceholder: '00-0000000', phonePlaceholder: '+1 (XXX) XXX-XXXX', isOhada: false, isCemac: false },
+  CONTINENT: { continent: 'XX', taxIdLabel: 'ID fiscal', taxIdPlaceholder: '123456789', phonePlaceholder: '+XXX XX XX XX XX', isOhada: false, isCemac: false },
   // --- CEMAC / Congo zone (OHADA + NIU) ---
   CG: { continent: 'AF', taxIdLabel: 'NIU', taxIdPlaceholder: 'P2012345678', phonePlaceholder: '+242 06 XX XX XXX', isOhada: true, isCemac: true },
   CONGO: { continent: 'AF', taxIdLabel: 'NIU', taxIdPlaceholder: 'P2012345678', phonePlaceholder: '+242 06 XX XX XXX', isOhada: true, isCemac: true },

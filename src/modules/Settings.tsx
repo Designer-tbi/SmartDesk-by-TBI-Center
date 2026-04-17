@@ -106,11 +106,13 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           setLanguage(company.language as any);
         }
         
-        // Update global user state to reflect currency/language changes
+        // Update global user state to reflect currency/language/country changes
+        // so downstream modules (CRM locale, Accounting, etc.) react immediately.
         setGlobalUser((prev: any) => ({
           ...prev,
           currency: company.currency,
-          language: company.language
+          language: company.language,
+          country: company.country,
         }));
 
         setTimeout(() => setIsSaved(false), 3000);

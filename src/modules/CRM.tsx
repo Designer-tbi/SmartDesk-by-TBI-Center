@@ -76,8 +76,10 @@ export const CRM = ({ user }: { user?: any }) => {
   });
 
   // Locale-aware adaptations (tax ID label, address hint, phone placeholder)
-  // come from the user's company country preference.
-  const locale = resolveLocale(user?.country || selectedCompany?.country);
+  // come from the currently-selected company — this is the entity whose
+  // contacts we're editing. Fall back to the user's own country if a company
+  // hasn't loaded yet.
+  const locale = resolveLocale(selectedCompany?.country || user?.country);
 
   useEffect(() => {
     if (selectedCompany) {

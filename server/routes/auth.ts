@@ -24,6 +24,10 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
       }
       req.user!.language = company.language || 'fr';
       req.user!.currency = company.currency || 'XAF';
+      // Pull fresh regional info from the company so the SPA can adapt
+      // tax-ID labels, phone placeholders, etc. without a re-login.
+      req.user!.country = company.country || req.user!.country || 'FR';
+      (req.user as any).state = company.state || (req.user as any).state || null;
     }
     // Return persisted user preferences so the SPA can rehydrate its UI
     // state (language, sidebar, ...) without touching localStorage.

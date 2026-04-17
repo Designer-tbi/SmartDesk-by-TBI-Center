@@ -88,6 +88,30 @@ Voir `/app/memory/test_credentials.md`.
 - `/app/backend/tests/test_cookie_auth_migration.py` — cookie flow + prefs.
 - 15/15 tests backend + tous les flux frontend validés (iteration 2).
 
+## Réactivité des libellés régionaux (2026-04-17 — iteration 3)
+
+Bug : après changement du pays dans Paramètres, le formulaire CRM « Nouveau
+contact » continuait à afficher les anciens libellés (NIU au lieu de TVA,
+etc.) jusqu'à un F5.
+
+### Fixes appliqués
+1. Backend `/api/auth/me` (`/app/server/routes/auth.ts`) : charge à nouveau
+   `country` et `state` depuis la société à chaque appel (plus seulement
+   `language`/`currency`). Les infos régionales ne sont donc plus figées
+   par le JWT.
+2. Frontend `Settings.tsx` `handleCompanySubmit` : propagation de
+   `country` dans `setGlobalUser` (pas seulement `currency`/`language`).
+3. Frontend `CRM.tsx` : `resolveLocale` utilise en priorité
+   `selectedCompany.country` (source de vérité rafraîchie à chaque
+   navigation) avec repli sur `user.country`.
+4. Frontend `lib/locale.ts` : ajout des clés régionales grossières
+   utilisées par le sélecteur UI (`EUROPE`, `AFRIQUE`, `USA`,
+   `CONTINENT`) pour qu'elles aient des placeholders TVA / NIF / EIN
+   corrects au lieu du fallback générique « ID fiscal ».
+
+Validé end-to-end via Playwright (login → Settings EUROPE → CRM shows
+TVA + `+33` ; login → Settings CONGO → CRM shows NIU + `+242`).
+
 ## Backlog / Prochaines actions
 - P1 : migrer la DB Neon vers un compte propriétaire (DATABASE_URL vient de
   `.env.example` — partagée avec la preview).
