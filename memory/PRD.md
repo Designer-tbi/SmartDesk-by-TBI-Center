@@ -199,6 +199,41 @@ mettent en anglais instantanément.
 - Formulaire Settings affiche NIU + ID NAT, sauvegarde fonctionnelle.
 - Accounting / Liasse fiscale affiche le NIU sous « Unique Taxpayer ID ».
 
+## Modèles de contrats RH dynamiques (2026-04-17 — iteration 7)
+
+### Fichiers créés
+- `/app/src/lib/contractTemplates.ts` : 4 modèles déclaratifs (CDD, CDI,
+  Mission/Intérim, Prestation indépendant). Chaque modèle définit
+  parties, articles avec variables typées (`text`/`textarea`/`date`/
+  `number`) et option `extensible` pour ajouter du texte libre par
+  article. Fonction `renderContract()` qui génère le markdown final.
+- `/app/src/components/ContractBuilder.tsx` : composant réutilisable
+  qui affiche :
+  - Picker visuel des 4 modèles (cartes cliquables).
+  - Formulaire dynamique généré depuis les variables du modèle choisi.
+  - Auto-remplissage via un `autofillContext` (nom société, employé,
+    salaire, date de début, ville…).
+  - Textarea « Texte additionnel » pour chaque article extensible.
+  - Aperçu en temps réel du contrat généré (toggle on/off).
+
+### `/app/src/modules/HR.tsx`
+- Modal « Nouveau Contrat » refondue :
+  - Champs métadonnées (Employé / Date début / Salaire) conservés.
+  - `ContractBuilder` remplace l'ancienne textarea mono-bloc.
+  - `onChange` du builder synchronise `newContract.type` +
+    `newContract.content` (markdown rendu).
+- `companyInfo` chargé via `/api/company` pour alimenter l'autofill
+  (nom entreprise, adresse…).
+- Bouton "Créer brouillon" désactivé tant que `content` et `employeeId`
+  manquent.
+
+### Validé
+- Picker affiche les 4 modèles. Clic CDI → formulaire dynamique avec 6
+  articles. Remplissage du poste « Développeur Full-Stack » et salaire
+  500 000 → aperçu contient :
+  `**CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE (CDI)**`
+  `Entre : TechCorp Demo …Développeur Full-Stack… 500000 FCFA`.
+
 ## Backlog / Prochaines actions
 - P1 : migrer la DB Neon vers un compte propriétaire (DATABASE_URL vient de
   `.env.example` — partagée avec la preview).

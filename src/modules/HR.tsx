@@ -13,6 +13,7 @@ import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, en
 import { useTranslation } from '../lib/i18n';
 
 import { ConfirmModal } from '../components/ConfirmModal';
+import { ContractBuilder, ContractBuilderValue } from '../components/ContractBuilder';
 
 export const HR = ({ user }: { user: any }) => {
   const { t, dateLocale } = useTranslation();
@@ -29,6 +30,7 @@ export const HR = ({ user }: { user: any }) => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [templates, setTemplates] = useState<ContractTemplate[]>([]);
   const [tasks, setTasks] = useState<EmployeeTask[]>([]);
+  const [companyInfo, setCompanyInfo] = useState<any | null>(null);
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
@@ -79,13 +81,14 @@ export const HR = ({ user }: { user: any }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [empRes, leavesRes, payslipsRes, contractsRes, templatesRes, tasksRes] = await Promise.all([
+      const [empRes, leavesRes, payslipsRes, contractsRes, templatesRes, tasksRes, companyRes] = await Promise.all([
         apiFetch('/api/employees'),
         apiFetch('/api/employees/leaves'),
         apiFetch('/api/employees/payslips'),
         apiFetch('/api/employees/contracts'),
         apiFetch('/api/employees/contract-templates'),
-        apiFetch('/api/employees/tasks')
+        apiFetch('/api/employees/tasks'),
+        apiFetch('/api/company')
       ]);
       
       if (empRes.ok) setEmployees(await empRes.json());
@@ -94,6 +97,7 @@ export const HR = ({ user }: { user: any }) => {
       if (contractsRes.ok) setContracts(await contractsRes.json());
       if (templatesRes.ok) setTemplates(await templatesRes.json());
       if (tasksRes.ok) setTasks(await tasksRes.json());
+      if (companyRes.ok) setCompanyInfo(await companyRes.json());
     } catch (error) {
       console.error('Failed to fetch HR data:', error);
     } finally {
@@ -1148,11 +1152,11 @@ export const HR = ({ user }: { user: any }) => {
         </div>
       )}
 
-      {/* Contract Modal */}
+      {/* Contract Modal — driven by the structured ContractBuilder */}
       {isContractModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto border border-slate-200">
-            <div className="flex justify-between items-center mb-8">
+          <div className="bg-white w-full max-w-4xl rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto border border-slate-200">
+            <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
                 {t('hr.newContractTitle')}
               </h3>
@@ -1160,27 +1164,17 @@ export const HR = ({ user }: { user: any }) => {
                 <X className="w-6 h-6 text-slate-400"/>
               </button>
             </div>
-            <form onSubmit={handleSaveContract} className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.templateOptional')}</label>
-                  <select 
-                    className="w-full px-4 py-2.5 bg-soft-red/50 border border-red-100 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-medium text-accent-red"
-                    onChange={e => applyTemplate(e.target.value)}
-                  >
-                    <option value="">{t('hr.chooseTemplate')}</option>
-                    {templates.map(tmp => (
-                      <option key={tmp.id} value={tmp.id}>{tmp.name}</option>
-                    ))}
-                  </select>
-                </div>
+            <form onSubmit={handleSaveContract} className="space-y-6">
+              {/* Core contract metadata */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.employee')}</label>
-                  <select 
+                  <select
                     className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none"
                     value={newContract.employeeId || ''}
                     onChange={e => setNewContract({...newContract, employeeId: e.target.value})}
                     required
+                    data-testid="contract-employee-select"
                   >
                     <option value="">{t('hr.selectEmployee')}</option>
                     {employees.map(emp => (
@@ -1189,43 +1183,59 @@ export const HR = ({ user }: { user: any }) => {
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Type de Contrat</label>
-                  <select 
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none"
-                    value={newContract.type || 'CDI'}
-                    onChange={e => setNewContract({...newContract, type: e.target.value as any})}
-                    required
-                  >
-                    <option value="CDI">CDI</option>
-                    <option value="CDD">CDD</option>
-                    <option value="Freelance">Freelance</option>
-                    <option value="Stage">Stage</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.startDate')}</label>
-                  <input type="date" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none" value={newContract.startDate || ''} onChange={e => setNewContract({...newContract, startDate: e.target.value})} required />
+                  <input
+                    type="date"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none"
+                    value={newContract.startDate || ''}
+                    onChange={e => setNewContract({...newContract, startDate: e.target.value})}
+                    required
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.monthlySalary')} ({currencySymbol})</label>
-                  <input type="number" className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newContract.salary || 0} onChange={e => setNewContract({...newContract, salary: parseInt(e.target.value) || 0})} required />
+                  <input
+                    type="number"
+                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold"
+                    value={newContract.salary || 0}
+                    onChange={e => setNewContract({...newContract, salary: parseInt(e.target.value) || 0})}
+                    required
+                  />
                 </div>
               </div>
-              
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.contractContent')}</label>
-                <textarea 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none min-h-[200px]"
-                  placeholder={t('hr.contractContentPlaceholder')}
-                  value={newContract.content || ''}
-                  onChange={e => setNewContract({...newContract, content: e.target.value})}
-                  required
-                ></textarea>
-              </div>
-              
+
+              {/* Structured template + dynamic form */}
+              <ContractBuilder
+                autofillContext={{
+                  companyName: companyInfo?.name,
+                  companyAddress: companyInfo?.address,
+                  companyRepresentative: user?.name,
+                  employeeName: employees.find(e => e.id === newContract.employeeId)?.name,
+                  employeeAddress: employees.find(e => e.id === newContract.employeeId)?.address,
+                  employeeRole: employees.find(e => e.id === newContract.employeeId)?.role,
+                  employeeSalary: newContract.salary,
+                  contractStartDate: newContract.startDate,
+                  city: companyInfo?.country === 'CONGO' ? 'Brazzaville' : '',
+                }}
+                onChange={(v: ContractBuilderValue) => {
+                  setNewContract(prev => ({
+                    ...prev,
+                    type: v.type,
+                    content: v.content,
+                  }));
+                }}
+              />
+
               <div className="flex gap-4 pt-4 border-t border-slate-100">
                 <button type="button" onClick={() => setIsContractModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
-                <button type="submit" className="flex-1 py-3 bg-accent-red text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20">{t('hr.createDraft')}</button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-accent-red text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={!newContract.content || !newContract.employeeId}
+                  data-testid="contract-save-btn"
+                >
+                  {t('hr.createDraft')}
+                </button>
               </div>
             </form>
           </div>
