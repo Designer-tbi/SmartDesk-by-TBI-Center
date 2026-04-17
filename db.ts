@@ -469,7 +469,7 @@ export async function initializeDatabase() {
       const flag = await db.query(
         `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
       );
-      if (flag.rows[0]?.value === '2026-04-17-prefs') {
+      if (flag.rows[0]?.value === '2026-04-17-contact-types') {
         console.log('Database schema already up-to-date, skipping init.');
         return;
       }
@@ -485,13 +485,19 @@ export async function initializeDatabase() {
         WHERE n.nspname = 'public' AND c.relname = 'contacts'
       `);
       if (rlsCheck.rows[0]?.relrowsecurity === true) {
-        console.log('Tables exist & RLS already enabled, marking schema as current.');
+        console.log('Tables exist & RLS already enabled, applying incremental migrations.');
+        // Idempotent migrations that must run regardless of schema_version.
         await db.query(
           `ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'::jsonb`,
         );
+        await db.query('ALTER TABLE contacts ADD COLUMN IF NOT EXISTS niu TEXT');
+        await db.query('ALTER TABLE contacts ADD COLUMN IF NOT EXISTS address TEXT');
+        await db.query(
+          `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "contactType" TEXT DEFAULT 'professionnel'`,
+        );
         await db.query(`
           INSERT INTO _app_meta (key, value, "updatedAt")
-          VALUES ('schema_version', '2026-04-17-prefs', NOW())
+          VALUES ('schema_version', '2026-04-17-contact-types', NOW())
           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
         `);
         return;
@@ -589,6 +595,8 @@ export async function initializeDatabase() {
     await db.query('ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS "companyId" TEXT');
     await db.query('ALTER TABLE quote_template_items ADD COLUMN IF NOT EXISTS "companyId" TEXT');
     await db.query('ALTER TABLE contacts ADD COLUMN IF NOT EXISTS niu TEXT');
+    await db.query('ALTER TABLE contacts ADD COLUMN IF NOT EXISTS address TEXT');
+    await db.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "contactType" TEXT DEFAULT 'professionnel'`);
     // Per-user preferences (language, sidebar state, etc.) stored in DB so
     // that the frontend can get rid of localStorage entirely.
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'::jsonb`);
@@ -608,7 +616,7 @@ export async function initializeDatabase() {
     try {
       await db.query(`
         INSERT INTO _app_meta (key, value, "updatedAt")
-        VALUES ('schema_version', '2026-04-17-prefs', NOW())
+        VALUES ('schema_version', '2026-04-17-contact-types', NOW())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
       `);
     } catch (err) {

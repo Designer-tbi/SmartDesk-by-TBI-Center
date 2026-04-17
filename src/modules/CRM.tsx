@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../lib/api';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Filter, MoreVertical, Mail, Phone, ExternalLink, X, User, Building2, Globe, Tag, Briefcase, Check, Pencil, Trash2, Eye, Calendar, Loader2, AlertCircle, Search, Users, UserPlus, TrendingUp, Hash } from 'lucide-react';
+import { Plus, Filter, MoreVertical, Mail, Phone, ExternalLink, X, User, Building2, Globe, Tag, Briefcase, Check, Pencil, Trash2, Eye, Calendar, Loader2, AlertCircle, Search, Users, UserPlus, TrendingUp, Hash, MapPin, UserCircle } from 'lucide-react';
 import { Contact, Company } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 import { useTranslation } from '../lib/i18n';
+import { resolveLocale, formatAddressHint } from '../lib/locale';
 
 export const CRM = ({ user }: { user?: any }) => {
   const { t, language } = useTranslation();
@@ -68,8 +69,15 @@ export const CRM = ({ user }: { user?: any }) => {
     role: '',
     notes: '',
     status: 'Lead',
-    lastContact: new Date().toISOString().split('T')[0]
+    lastContact: new Date().toISOString().split('T')[0],
+    niu: '',
+    address: '',
+    contactType: 'professionnel',
   });
+
+  // Locale-aware adaptations (tax ID label, address hint, phone placeholder)
+  // come from the user's company country preference.
+  const locale = resolveLocale(user?.country || selectedCompany?.country);
 
   useEffect(() => {
     if (selectedCompany) {
@@ -126,7 +134,9 @@ export const CRM = ({ user }: { user?: any }) => {
       notes: '', 
       status: 'Lead', 
       lastContact: new Date().toISOString().split('T')[0],
-      niu: ''
+      niu: '',
+      address: '',
+      contactType: 'professionnel',
     });
     setEditingContactId(null);
     setIsModalOpen(false);
@@ -198,7 +208,12 @@ export const CRM = ({ user }: { user?: any }) => {
   };
 
   const openEdit = (contact: Contact) => {
-    setNewContact(contact);
+    setNewContact({
+      ...contact,
+      address: contact.address || '',
+      niu: contact.niu || '',
+      contactType: contact.contactType || 'professionnel',
+    });
     setEditingContactId(contact.id);
     setIsModalOpen(true);
   };
@@ -364,13 +379,31 @@ export const CRM = ({ user }: { user?: any }) => {
                     <td className="px-6 py-6">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-luxury-gray flex items-center justify-center text-slate-600 font-black text-lg group-hover:bg-accent-red group-hover:text-white transition-all shadow-inner">
-                          {contact.name?.charAt(0) || '?'}
+                          {contact.contactType === 'particulier' ? <UserCircle className="w-6 h-6" /> : (contact.name?.charAt(0) || '?')}
                         </div>
                         <div>
-                          <div className="text-sm font-black text-slate-900 group-hover:text-accent-red transition-colors">{contact.name}</div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <div className="text-sm font-black text-slate-900 group-hover:text-accent-red transition-colors">{contact.name}</div>
+                            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
+                              contact.contactType === 'particulier'
+                                ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                                : 'bg-violet-50 text-violet-600 border border-violet-100'
+                            }`}>
+                              {t(`crm.type.${contact.contactType || 'professionnel'}`)}
+                            </span>
+                          </div>
                           <div className="text-[10px] font-black text-slate-400 flex items-center gap-1 uppercase tracking-wider mt-0.5">
-                            <Building2 className="w-3 h-3" />
-                            {contact.company}
+                            {contact.contactType === 'particulier' ? (
+                              <>
+                                <MapPin className="w-3 h-3" />
+                                {contact.address ? contact.address.split('\n')[0].slice(0, 40) : '—'}
+                              </>
+                            ) : (
+                              <>
+                                <Building2 className="w-3 h-3" />
+                                {contact.company}
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -465,7 +498,32 @@ export const CRM = ({ user }: { user?: any }) => {
               <form id="new-contact-form" onSubmit={handleAddOrUpdateContact} className="space-y-6">
                 <div className="flex justify-center mb-6">
                   <div className="w-20 h-20 rounded-full bg-soft-red border-2 border-red-100 flex items-center justify-center text-red-300">
-                    <User className="w-8 h-8" />
+                    {newContact.contactType === 'particulier' ? <UserCircle className="w-8 h-8" /> : <Building2 className="w-8 h-8" />}
+                  </div>
+                </div>
+
+                {/* Particulier vs Professionnel toggle */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                    {t('crm.contactType')}
+                  </label>
+                  <div className="grid grid-cols-2 gap-3" data-testid="crm-contact-type-toggle">
+                    {(['particulier', 'professionnel'] as const).map((kind) => (
+                      <button
+                        key={kind}
+                        type="button"
+                        onClick={() => setNewContact({ ...newContact, contactType: kind })}
+                        data-testid={`crm-contact-type-${kind}`}
+                        className={`flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold border transition-all ${
+                          newContact.contactType === kind
+                            ? 'bg-soft-red border-red-200 text-accent-red ring-2 ring-accent-red/10'
+                            : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {kind === 'particulier' ? <UserCircle className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+                        {t(`crm.type.${kind}`)}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
@@ -485,19 +543,22 @@ export const CRM = ({ user }: { user?: any }) => {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.jobTitle')}</label>
-                    <div className="relative">
-                      <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input 
-                        type="text" 
-                        placeholder={t('crm.placeholder.role')}
-                        className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
-                        value={newContact.role || ''}
-                        onChange={(e) => setNewContact({...newContact, role: e.target.value})}
-                      />
+                  {/* Job title — only for professionnel */}
+                  {newContact.contactType === 'professionnel' && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.jobTitle')}</label>
+                      <div className="relative">
+                        <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input 
+                          type="text" 
+                          placeholder={t('crm.placeholder.role')}
+                          className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                          value={newContact.role || ''}
+                          onChange={(e) => setNewContact({...newContact, role: e.target.value})}
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
@@ -521,7 +582,7 @@ export const CRM = ({ user }: { user?: any }) => {
                         <input 
                           required
                           type="tel" 
-                          placeholder={t('crm.placeholder.phone')}
+                          placeholder={locale.phonePlaceholder}
                           className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                           value={newContact.phone || ''}
                           onChange={(e) => setNewContact({...newContact, phone: e.target.value})}
@@ -530,36 +591,63 @@ export const CRM = ({ user }: { user?: any }) => {
                     </div>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.company')} *</label>
-                    <div className="relative">
-                      <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input 
-                        required
-                        type="text" 
-                        placeholder={t('crm.placeholder.company')}
-                        className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
-                        value={newContact.company || ''}
-                        onChange={(e) => setNewContact({...newContact, company: e.target.value})}
-                      />
-                    </div>
-                  </div>
-
-                  {selectedCompany?.country === 'CONGO' && (
+                  {/* Company name — required only for professionnel */}
+                  {newContact.contactType === 'professionnel' && (
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.niu')}</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.company')} *</label>
                       <div className="relative">
-                        <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input 
+                          required
                           type="text" 
-                          placeholder={t('crm.niu')}
+                          placeholder={t('crm.placeholder.company')}
                           className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
-                          value={newContact.niu || ''}
-                          onChange={(e) => setNewContact({...newContact, niu: e.target.value})}
+                          value={newContact.company || ''}
+                          onChange={(e) => setNewContact({...newContact, company: e.target.value})}
                         />
                       </div>
                     </div>
                   )}
+
+                  {/* Address — always visible, placeholder adapts to region */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.address')}</label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3.5 top-3.5 w-4 h-4 text-slate-400" />
+                      <textarea
+                        rows={2}
+                        placeholder={formatAddressHint(locale, language)}
+                        data-testid="crm-contact-address"
+                        className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all resize-none"
+                        value={newContact.address || ''}
+                        onChange={(e) => setNewContact({ ...newContact, address: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tax ID — always visible, label adapts to region */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                      {locale.taxIdLabel}
+                      {newContact.contactType === 'professionnel' && locale.isCemac ? ' *' : ''}
+                    </label>
+                    <div className="relative">
+                      <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder={locale.taxIdPlaceholder}
+                        data-testid="crm-contact-niu"
+                        className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                        value={newContact.niu || ''}
+                        onChange={(e) => setNewContact({ ...newContact, niu: e.target.value })}
+                      />
+                    </div>
+                    <p className="text-[10px] text-slate-400 ml-1 mt-1">
+                      {locale.country === 'XX'
+                        ? t('crm.taxId.hintGeneric')
+                        : `${t('crm.taxId.hintLocalised')} (${locale.country})`}
+                    </p>
+                  </div>
 
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('common.status')} *</label>

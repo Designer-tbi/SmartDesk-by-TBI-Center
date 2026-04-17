@@ -10,6 +10,8 @@ export interface Contact {
   status: 'Lead' | 'Client' | 'Partner';
   lastContact: string;
   niu?: string;
+  address?: string;
+  contactType?: 'particulier' | 'professionnel';
 }
 
 export interface Product {
