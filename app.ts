@@ -5,6 +5,19 @@ import cookieParser from "cookie-parser";
 import { dbMiddleware } from './server/middleware/db';
 import { errorHandler } from './server/middleware/error';
 
+// Install global error handlers ASAP — this is critical on Vercel where an
+// unhandled rejection in a background task would otherwise crash the whole
+// lambda invocation as FUNCTION_INVOCATION_FAILED.
+if (!(process as any).__smartdesk_handlers_installed) {
+  (process as any).__smartdesk_handlers_installed = true;
+  process.on('uncaughtException', (err) =>
+    console.error('[SmartDesk] uncaughtException:', err),
+  );
+  process.on('unhandledRejection', (reason) =>
+    console.error('[SmartDesk] unhandledRejection:', reason),
+  );
+}
+
 // Import routers
 import { contactsRouter } from './server/routes/contacts';
 import { productsRouter } from './server/routes/products';
@@ -22,7 +35,15 @@ import { schedulesRouter } from './server/routes/schedules';
 const app = express();
 
 app.use(compression());
-app.use(express.json());
+// Vercel's Node runtime may pre-parse the JSON body before it reaches
+// Express. If `req.body` is already an object, skip the express.json()
+// middleware — otherwise it would hang waiting on an empty stream.
+app.use((req, res, next) => {
+  if (req.body && typeof req.body === 'object' && !Buffer.isBuffer(req.body)) {
+    return next();
+  }
+  express.json({ limit: '10mb' })(req, res, next);
+});
 app.use(cookieParser());
 
 // Diagnostic logging for Vercel
@@ -50,15 +71,38 @@ app.use('/api/company', companyRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/schedules', schedulesRouter);
 
-// Debug route
-app.get('/api/debug', (req, res) => {
-  res.json({
+// Debug route — CRITICAL for diagnosing Vercel 500s. Visit /api/debug on the
+// live deployment to see exactly what's failing.
+app.get('/api/debug', async (req, res) => {
+  const info: any = {
     status: 'ok',
     vercel: !!process.env.VERCEL,
     env: process.env.NODE_ENV,
+    nodeVersion: process.version,
     hasDbUrl: !!process.env.DATABASE_URL,
-    timestamp: new Date().toISOString()
-  });
+    hasJwtSecret: !!process.env.JWT_SECRET,
+    timestamp: new Date().toISOString(),
+  };
+  try {
+    // req.db is already acquired by dbMiddleware — a successful SELECT 1
+    // proves the whole chain (env → pg.Pool → Neon → RLS session vars) works.
+    const t = Date.now();
+    const result = await req.db.query('SELECT NOW() as now, version() as pg_version');
+    info.db = {
+      ok: true,
+      latencyMs: Date.now() - t,
+      now: result.rows[0].now,
+      pgVersion: result.rows[0].pg_version?.split(' ').slice(0, 2).join(' '),
+    };
+  } catch (err: any) {
+    info.status = 'error';
+    info.db = {
+      ok: false,
+      error: err?.message || String(err),
+      code: err?.code,
+    };
+  }
+  res.json(info);
 });
 
 // 404 handler for API routes

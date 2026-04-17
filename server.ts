@@ -4,13 +4,19 @@ import http from 'http';
 import path from "path";
 import express from "express";
 
-// Global error handlers to prevent Node.js process from crashing
+// Global error handlers to prevent Node.js process from crashing (dev/prod).
+// On Vercel these prevent the whole lambda invocation from being marked as
+// FUNCTION_INVOCATION_FAILED if a stray promise rejects after the response
+// has been sent.
 const handleFatalError = (err: any, type: string) => {
   console.error(`FATAL ${type}:`, err);
 };
 
-process.on('uncaughtException', (err) => handleFatalError(err, 'uncaughtException'));
-process.on('unhandledRejection', (reason) => handleFatalError(reason, 'unhandledRejection'));
+if (!(process as any).__smartdesk_handlers_installed) {
+  (process as any).__smartdesk_handlers_installed = true;
+  process.on('uncaughtException', (err) => handleFatalError(err, 'uncaughtException'));
+  process.on('unhandledRejection', (reason) => handleFatalError(reason, 'unhandledRejection'));
+}
 
 const server = http.createServer(app);
 let wss: any = null;

@@ -1,40 +1,26 @@
 import app from '../app';
-import { db, seedDatabase } from '../db';
 
 /**
  * Vercel serverless entry point.
  *
- * IMPORTANT: we do NOT run seedDatabase/initializeDatabase synchronously here.
- * Vercel Hobby functions have a 10-second hard timeout and even an idempotent
- * DDL sweep against Neon can exceed that on a cold connection. The production
- * database is already fully set up (schema + seed data), so we just serve
- * requests. If a later deploy ever needs to migrate, run the seed manually
- * through /api/admin/init or a one-off script.
+ * We deliberately do NOT call seedDatabase() here. The production DB is
+ * already set up and reseeding on every cold start burns the 10s Vercel
+ * budget. Migrations should be run manually via /api/admin/init (TODO) or a
+ * one-off CLI script.
  *
- * The only thing we do asynchronously (fire-and-forget) is kick off a seed
- * attempt — this is harmless on an already-initialized DB thanks to the
- * schema_version fast-path in seedDatabase().
+ * Any thrown error is caught and serialized so the developer sees a real
+ * message in the Runtime Logs instead of the opaque FUNCTION_INVOCATION_FAILED.
  */
-let seedKickedOff = false;
-function kickOffSeedOnce() {
-  if (seedKickedOff) return;
-  seedKickedOff = true;
-  // Never await this — purely background, errors are logged and swallowed.
-  seedDatabase(db).catch((err: any) => {
-    console.error('Background seed failed (non-fatal):', err?.message || err);
-  });
-}
-
 export default async (req: any, res: any) => {
   try {
-    kickOffSeedOnce();
     return app(req, res);
   } catch (err: any) {
-    console.error('Vercel Entry Point Error:', err);
+    console.error('[Vercel Entry] Unhandled error:', err);
     if (!res.headersSent) {
       res.status(500).json({
-        error: 'Vercel Entry Point Error',
+        error: 'VercelEntryPointError',
         message: err?.message || String(err),
+        code: err?.code,
       });
     }
   }

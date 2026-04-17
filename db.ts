@@ -1,6 +1,31 @@
 import { Pool } from 'pg';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
 import { enableTenantRLS } from './server/tenancy';
+
+// Load .env only when running outside Vercel (which injects env vars natively).
+// Using a manual parser so we don't depend on dotenv at runtime and stay
+// ESM-compatible.
+if (!process.env.VERCEL && !process.env.DATABASE_URL) {
+  try {
+    const envPath = path.resolve(process.cwd(), '.env');
+    if (fs.existsSync(envPath)) {
+      const content = fs.readFileSync(envPath, 'utf8');
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eq = trimmed.indexOf('=');
+        if (eq === -1) continue;
+        const key = trimmed.slice(0, eq).trim();
+        const value = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, '');
+        if (!process.env[key]) process.env[key] = value;
+      }
+    }
+  } catch {
+    /* ignore — rely on OS env vars */
+  }
+}
 
 const rawConnectionString = process.env.DATABASE_URL;
 const fallbackString = 'postgresql://neondb_owner:npg_j5oWLtA6DrXs@ep-twilight-hat-adrtam2f-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require';
