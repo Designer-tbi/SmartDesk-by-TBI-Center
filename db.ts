@@ -733,7 +733,7 @@ export async function seedDatabase(dbInstance: Pool) {
       const seedFlag = await dbInstance.query(
         `SELECT value FROM _app_meta WHERE key = 'seed_version'`,
       );
-      if (seedFlag.rows[0]?.value === '2026-04-17-clean-demo') {
+      if (seedFlag.rows[0]?.value === '2026-04-17-cg-default') {
         return;
       }
     } catch {
@@ -753,7 +753,7 @@ export async function seedDatabase(dbInstance: Pool) {
       // Mark seed as done so future cold starts can skip it instantly.
       await seedClient.query(`
         INSERT INTO _app_meta (key, value, "updatedAt")
-        VALUES ('seed_version', '2026-04-17-clean-demo', NOW())
+        VALUES ('seed_version', '2026-04-17-cg-default', NOW())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
       `).catch(() => {});
     } finally {
@@ -828,7 +828,8 @@ async function runSeed(dbInstance: any) {
       await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedAdminPassword, 'contact@tbi-center.fr']);
     }
 
-    // Seed demo companies
+    // Seed demo companies (default country = CG — marché cible du Congo,
+    // le libellé du champ "NIU" s'affichera correctement dans le CRM).
     const demoCompanies = [
       { id: 'demo-1', name: 'TechCorp Demo', type: 'demo' },
       { id: 'demo-2', name: 'GreenEnergy Demo', type: 'demo' }
@@ -838,11 +839,18 @@ async function runSeed(dbInstance: any) {
       if (res.rows.length === 0) {
         console.log(`Seeding demo company: ${dc.name}`);
         await dbInstance.query(`
-          INSERT INTO companies (id, name, type, status, address, email, phone, website, "taxId", rccm, "idNat", "createdAt")
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          INSERT INTO companies (id, name, type, status, country, address, email, phone, website, "taxId", rccm, "idNat", "createdAt")
+          VALUES ($1, $2, $3, $4, 'CG', $5, $6, $7, $8, $9, $10, $11, $12)
         `, [
           dc.id, dc.name, dc.type, 'active', 'Demo Address', 'demo@' + dc.id + '.com', '+242 00 000 00 00', 'https://demo.com', 'NIF: DEMO', 'RCCM: DEMO', 'ID NAT: DEMO', new Date().toISOString()
         ]);
+      } else {
+        // Backfill — align existing demo companies to the Congo defaults
+        // so the CRM shows the correct locale-specific labels.
+        await dbInstance.query(
+          `UPDATE companies SET country = 'CG' WHERE id = $1 AND (country IS NULL OR country = 'FR')`,
+          [dc.id],
+        );
       }
     }
 

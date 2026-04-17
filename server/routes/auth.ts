@@ -313,7 +313,7 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
       await db.query(`
         INSERT INTO companies (id, name, type, status, country, state, "createdAt")
         VALUES ($1, $2, 'demo', 'active', $3, $4, CURRENT_TIMESTAMP)
-      `, [companyId, finalCompanyName, country || 'FR', state || null]);
+      `, [companyId, finalCompanyName, country || 'CG', state || null]);
       
       // Bind the RLS session to this new tenant so subsequent INSERTs into
       // the isolated tables (roles, ...) pass the WITH CHECK policy.
