@@ -3,13 +3,15 @@
 ## Problème initial
 > je ne parviens pas à me connecter, regarde le dossier github joint au Chat
 
-Dans un 2ᵉ temps :
-> Créer les tables multi entreprise dans la base de donnée et séparer et isolé
-> les donnée de chaque entreprise démo, et en production
+Puis trois itérations successives :
+1. Créer les tables multi entreprise + séparer et isoler les données démo / prod
+2. Ajouter des sections repliables dans le menu de navigation
+3. Ajouter une section « Mes déclarations » (DGID, CNSS, INS, Greffe)
+4. Supprimer le stockage local et utiliser uniquement la base Neon
 
 ## Architecture
 - Front : React 19 + Vite 6 + Tailwind 4 (`/app/src`)
-- Back : Express 4 + pg (PostgreSQL Neon) + JWT + WebSocket
+- Back : Express 4 + pg (PostgreSQL Neon) + JWT + cookieParser + WebSocket
   (`/app/app.ts`, `/app/server.ts`, `/app/server/**`)
 - Un seul process Node (`tsx server.ts`) sert à la fois le front (Vite
   middleware) et l'API (`/api/*`).
@@ -17,74 +19,81 @@ Dans un 2ᵉ temps :
 
 ## Adaptation à l'environnement Emergent (K8s)
 - `/app/frontend/package.json` → lance `tsx /app/server.ts` sur PORT=3000.
-- `/app/backend/server.py` → FastAPI qui proxy vers `127.0.0.1:3000` (port
-  Node). Exposé sur 8001 par supervisor. Supprime `accept-encoding` du header
-  amont pour éviter les doubles décodages gzip.
-- `/app/vite.config.ts` → `allowedHosts: true` pour autoriser l'hôte preview.
+- `/app/backend/server.py` → FastAPI qui proxy vers `127.0.0.1:3000`. **Un
+  client httpx frais par requête** pour éviter toute fuite de cookie entre
+  utilisateurs (fix de sécurité critique appliqué iteration 2).
+- `/app/vite.config.ts` → `allowedHosts: true` pour l'hôte preview.
 - `/app/.env` → DATABASE_URL (Neon) + JWT_SECRET.
 
 ## Isolation multi-entreprise (2026-04-16)
 
 ### Couche base de données
-- `/app/server/tenancy.ts` : module qui active `ENABLE/FORCE ROW LEVEL
-  SECURITY` sur **20 tables tenant** (contacts, products, invoices,
-  invoice_items, projects, employees, employee_tasks, transactions,
-  journal_entries, journal_items, quote_templates, quote_template_items,
-  leave_requests, payslips, contracts, contract_templates, roles,
-  activity_log, events, schedules).
-- Policy unique `tenant_isolation` (USING + WITH CHECK) :
-  ```sql
-  "companyId" = current_setting('app.current_company_id', true)
-  OR current_setting('app.is_super_admin', true) = 'true'
-  ```
-- Variables de session posées au début de chaque requête HTTP par
-  `dbMiddleware` via `set_config('app.current_company_id', …, false)`.
-- Le contexte est **réinitialisé** au `release` du client (empêche toute fuite
-  entre deux requêtes pooled).
+- `/app/server/tenancy.ts` : active RLS sur **20 tables tenant**.
+- Policy `tenant_isolation` (USING + WITH CHECK) :
+  `"companyId" = current_setting('app.current_company_id') OR current_setting('app.is_super_admin') = 'true'`.
+- Variables de session posées au début de chaque requête par `dbMiddleware`.
+- Contexte **réinitialisé** au release du client pool.
 
 ### Couche applicative
-- `dbMiddleware` décode le JWT **avant** l'auth pour détecter le `companyId`
-  et le rôle super_admin (override via header `x-company-id` ou query
-  `?companyId=`).
-- Fix de fuite : `server/routes/events.ts` n'ajoutait plus `companyId` ni ne
-  filtrait par tenant → corrigé sur GET/POST/PUT/DELETE.
-- Route `/api/auth/send-demo-email` et `/api/admin/companies` : setting de
-  `app.current_company_id` avant `seedDefaultRoles` (sinon les INSERTs dans
-  `roles` sont rejetés par WITH CHECK).
-- `seedDatabase` utilise un client dédié avec `app.is_super_admin = 'true'`
-  pour bypasser RLS pendant l'initialisation.
+- Fix de fuite `server/routes/events.ts` (companyId manquant).
+- Fast-path schema (`_app_meta.schema_version`) pour skip les DDL sur cold start.
+- `seedDemoCompanyData(companyId, label)` crée contacts/produits/factures
+  pour demo-1 (TechCorp) et demo-2 (GreenEnergy) séparément.
 
-### Données démo isolées
-- `seedDemoCompanyData(companyId, label)` : crée 2 contacts, 2 produits et 1
-  facture **par** société démo (demo-1 TechCorp, demo-2 GreenEnergy).
-- Chaque société démo a son propre utilisateur admin :
-  - `admin@smartdesk.cg` → demo-1
-  - `admin@greenenergy.demo` → demo-2
+## Menu de navigation (2026-04-16)
+- Sections repliables (chevron ↓/→), animations (max-height + opacity).
+- Nouvelle section `MES DÉCLARATIONS` avec 6 sous-items :
+  Tableau de bord, Calendrier, DGID, CNSS, INS, Greffe.
+- Module placeholder `/app/src/modules/Declarations.tsx` avec sous-routes.
 
-### Endpoints admin
-- `GET /api/admin/stats` retourne désormais `realCompanies`, `demoCompanies`,
-  `totalUsers`, `realUsers`, `demoUsers`.
-- `GET /api/admin/companies/by-type` retourne `{ real: [...], demo: [...] }`
-  pour un affichage séparé démo / production.
+## Migration localStorage → DB + cookie HttpOnly (2026-04-17)
 
-### Tests d'isolation validés
-- ✅ Demo-1 liste UNIQUEMENT ses contacts (même ID de contact `cnt_1_demo-1`
-  distinct de `cnt_1_demo-2`).
-- ✅ UPDATE/DELETE cross-tenant = 0 lignes affectées.
-- ✅ Spoofing `companyId=demo-2` dans le body : la route force
-  `req.user.companyId` → enregistré côté demo-1 uniquement.
-- ✅ Super admin voit toutes les sociétés via `/api/admin/companies`.
+### Auth : cookie HttpOnly au lieu de localStorage
+- `/api/auth/login` pose `smartdesk_session` (HttpOnly, SameSite=Lax, 24h).
+- Nouveau `/api/auth/logout` (POST) efface cookie + session en DB.
+- `requireAuth` lit d'abord le cookie, puis fallback `Authorization: Bearer`
+  pour les clients non-navigateur (curl, tests).
+- `cookie-parser` ajouté comme middleware Express.
+
+### Préférences utilisateur en DB
+- Colonne `users.preferences JSONB` (schema_version `2026-04-17-prefs`).
+- Nouvelle route `PUT /api/auth/preferences` (shallow merge via `jsonb ||`).
+- `/api/auth/me` retourne désormais aussi `preferences`.
+
+### Frontend (suppression 100% du localStorage)
+- `/app/src/lib/api.ts` — `apiFetch` utilise `credentials: 'include'` et une
+  session in-memory (`setApiSession`/`clearApiSession`).
+- `/app/src/App.tsx` — `logout` appelle `POST /api/auth/logout`.
+- `/app/src/modules/Login.tsx` — `fetch` avec `credentials:'include'`,
+  plus jamais de token stocké côté client.
+- `/app/src/lib/i18n.tsx` — `setLanguage` persiste via `PUT /api/auth/preferences`.
+- `/app/src/components/layout/Header.tsx` — `selectedCompanyId` (super-admin)
+  lu/écrit depuis `user.preferences`.
+- `/app/src/components/layout/Sidebar.tsx` — `collapsedSections` lu/écrit
+  depuis `user.preferences.sidebarCollapsedSections`.
+- `/app/src/modules/Settings.tsx` + `ErrorBoundary.tsx` — logout via API.
+- `grep -rn 'localStorage' /app/src` → **0 occurrence**.
+
+### Fix de sécurité critique (2026-04-17 — iteration 2)
+- `/app/backend/server.py` — remplacement du client httpx partagé par un
+  `async with httpx.AsyncClient(...)` par requête. Évite qu'un cookie
+  `Set-Cookie` de l'utilisateur A ne soit envoyé avec la prochaine requête
+  de l'utilisateur B (cookie jar partagé).
 
 ## Comptes
 Voir `/app/memory/test_credentials.md`.
 
+## Tests automatisés
+- `/app/backend/tests/test_smartdesk_api.py` — auth, RLS, cross-tenant, admin.
+- `/app/backend/tests/test_cookie_auth_migration.py` — cookie flow + prefs.
+- 15/15 tests backend + tous les flux frontend validés (iteration 2).
+
 ## Backlog / Prochaines actions
-- P1 : migrer la DB Neon vers un compte propriétaire (la DATABASE_URL
-  actuelle vient de `.env.example` — partagée).
+- P1 : migrer la DB Neon vers un compte propriétaire (DATABASE_URL vient de
+  `.env.example` — partagée avec la preview).
+- P1 : déployer sur Vercel (user doit push via « Save to Github »).
 - P2 : build de prod (`yarn build`) + serve statique.
-- P2 : ajouter un toggle dans l'UI super-admin pour "impersonate" une société
-  (utilise déjà `x-company-id`).
-- P2 : audit périodique des permissions RLS (script qui vérifie qu'aucune
-  nouvelle table sensible n'oublie d'activer RLS).
-- P2 : retirer les indices de mot de passe des erreurs 401 en production
-  (`server/routes/auth.ts` ligne ~100).
+- P2 : UI super-admin "Impersonate" société (utilise déjà `x-company-id` +
+  `selectedCompanyId` dans user.preferences).
+- P2 : rate-limit sur `/api/auth/login` (brute force).
+- P2 : retirer les indices de mot de passe des erreurs 401 en production.
