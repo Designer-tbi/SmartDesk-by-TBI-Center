@@ -101,7 +101,23 @@ adminRouter.get('/test-schema', async (req, res, next) => {
 
 adminRouter.get('/companies', async (req, res, next) => {
   try {
-    const companies = await req.db.query('SELECT * FROM public.companies');
+    // Include lifecycle fields so the super-admin UI can show the
+    // 15-day demo countdown + CRM row counts for each tenant.
+    const companies = await req.db.query(`
+      SELECT
+        c.*,
+        COALESCE((SELECT COUNT(*) FROM contacts WHERE "companyId" = c.id), 0)::int AS "contactsCount",
+        COALESCE((SELECT COUNT(*) FROM products WHERE "companyId" = c.id), 0)::int AS "productsCount",
+        COALESCE((SELECT COUNT(*) FROM invoices WHERE "companyId" = c.id), 0)::int AS "invoicesCount",
+        COALESCE((SELECT COUNT(*) FROM public.users WHERE "companyId" = c.id), 0)::int AS "usersCount",
+        CASE
+          WHEN c.type = 'demo' AND c."demoExpiresAt" IS NOT NULL
+          THEN GREATEST(0, EXTRACT(EPOCH FROM (c."demoExpiresAt" - NOW())) / 86400)::int
+          ELSE NULL
+        END AS "daysRemaining"
+      FROM public.companies c
+      ORDER BY c.type, c.name
+    `);
     res.json(companies.rows);
   } catch (error) {
     next(error);

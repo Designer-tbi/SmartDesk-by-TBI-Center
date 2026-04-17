@@ -117,20 +117,46 @@ authRouter.post('/login', async (req, res, next) => {
     let company: any = null;
     // Check if company is active (if not super admin)
     if (user.companyId && user.role !== 'super_admin') {
-      const companyRes = await req.db.query('SELECT status, type, country, state, language, currency FROM companies WHERE id = $1', [user.companyId]);
+      const companyRes = await req.db.query(
+        'SELECT status, type, country, state, language, currency, "firstLoginAt", "demoExpiresAt" FROM companies WHERE id = $1',
+        [user.companyId],
+      );
       company = companyRes.rows[0];
       if (!company || company.status !== 'active') {
         console.log('Login failed: Company inactive');
         return res.status(403).json({ error: 'Compte entreprise inactif.' });
       }
-      
+
       if (demoMode && company.type !== 'demo') {
         console.log('Login failed: Not a demo company');
         return res.status(403).json({ error: 'Cet utilisateur ne peut pas se connecter en mode démo.' });
       }
-      
-      // If it's a demo company, we allow login even from the production tab.
-      // We will set isDemo in the response so the frontend can adjust.
+
+      // --- Demo lifecycle: 15-day countdown from first login ---
+      if (company.type === 'demo') {
+        const now = new Date();
+        if (!company.firstLoginAt) {
+          // First ever login: stamp the clock and compute the expiry.
+          const expires = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
+          await req.db.query(
+            `UPDATE companies SET "firstLoginAt" = $1, "demoExpiresAt" = $2 WHERE id = $3`,
+            [now.toISOString(), expires.toISOString(), user.companyId],
+          );
+          company.firstLoginAt = now.toISOString();
+          company.demoExpiresAt = expires.toISOString();
+        } else if (company.demoExpiresAt && new Date(company.demoExpiresAt) < now) {
+          // Past the 15-day window: deactivate the company and refuse login.
+          await req.db.query(
+            `UPDATE companies SET status = 'inactive' WHERE id = $1`,
+            [user.companyId],
+          );
+          console.log(`Demo ${user.companyId} expired, account deactivated.`);
+          return res.status(403).json({
+            error:
+              'Votre période d\'essai de 15 jours est terminée. Contactez-nous pour activer votre abonnement.',
+          });
+        }
+      }
     } else if (user.companyId && user.role === 'super_admin') {
       // Still fetch company info for super admin to get country/state
       const companyRes = await req.db.query('SELECT status, type, country, state, language, currency FROM companies WHERE id = $1', [user.companyId]);

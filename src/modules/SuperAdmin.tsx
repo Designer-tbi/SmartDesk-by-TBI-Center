@@ -416,6 +416,8 @@ export const SuperAdmin = () => {
                     <th className="px-6 py-4">{t('admin.name')}</th>
                     <th className="px-6 py-4">{t('admin.type')}</th>
                     <th className="px-6 py-4">{t('admin.status')}</th>
+                    <th className="px-6 py-4">Essai démo</th>
+                    <th className="px-6 py-4">Données</th>
                     <th className="px-6 py-4">{t('admin.creation')}</th>
                     <th className="px-6 py-4 text-right">{t('admin.actions')}</th>
                   </tr>
@@ -440,6 +442,37 @@ export const SuperAdmin = () => {
                           {company.status === 'active' ? <CheckCircle2 className="w-3.5 h-3.5" /> : <XCircle className="w-3.5 h-3.5" />}
                           {company.status === 'active' ? t('admin.active') : t('admin.inactive')}
                         </span>
+                      </td>
+                      <td className="px-6 py-4" data-testid={`company-demo-countdown-${company.id}`}>
+                        {company.type !== 'demo' ? (
+                          <span className="text-xs text-slate-300">—</span>
+                        ) : !company.firstLoginAt ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-50 text-slate-500 border border-slate-200">
+                            Pas encore connecté
+                          </span>
+                        ) : company.daysRemaining === null || company.daysRemaining <= 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-50 text-red-700 border border-red-200">
+                            Expiré
+                          </span>
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                            company.daysRemaining <= 3
+                              ? 'bg-red-50 text-red-700 border-red-200'
+                              : company.daysRemaining <= 7
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          }`}>
+                            {company.daysRemaining} j restant{company.daysRemaining > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-xs text-slate-500">
+                        <div className="flex flex-col gap-0.5">
+                          <span>{company.usersCount ?? 0} utilisateur{(company.usersCount ?? 0) > 1 ? 's' : ''}</span>
+                          <span className="text-slate-400">
+                            {company.contactsCount ?? 0} contacts · {company.productsCount ?? 0} produits · {company.invoicesCount ?? 0} factures
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-slate-500">
                         {new Date(company.createdAt || company.created_at).toLocaleDateString('fr-FR')}

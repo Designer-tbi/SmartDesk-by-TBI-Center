@@ -469,7 +469,7 @@ export async function initializeDatabase() {
       const flag = await db.query(
         `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
       );
-      if (flag.rows[0]?.value === '2026-04-17-contact-types') {
+      if (flag.rows[0]?.value === '2026-04-17-demo-lifecycle') {
         console.log('Database schema already up-to-date, skipping init.');
         return;
       }
@@ -495,9 +495,11 @@ export async function initializeDatabase() {
         await db.query(
           `ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "contactType" TEXT DEFAULT 'professionnel'`,
         );
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "firstLoginAt" TIMESTAMPTZ`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "demoExpiresAt" TIMESTAMPTZ`);
         await db.query(`
           INSERT INTO _app_meta (key, value, "updatedAt")
-          VALUES ('schema_version', '2026-04-17-contact-types', NOW())
+          VALUES ('schema_version', '2026-04-17-demo-lifecycle', NOW())
           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
         `);
         return;
@@ -597,6 +599,10 @@ export async function initializeDatabase() {
     await db.query('ALTER TABLE contacts ADD COLUMN IF NOT EXISTS niu TEXT');
     await db.query('ALTER TABLE contacts ADD COLUMN IF NOT EXISTS address TEXT');
     await db.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "contactType" TEXT DEFAULT 'professionnel'`);
+    // Demo lifecycle — track first login so we can auto-deactivate demo
+    // companies 15 days after the first sign-in (lazy enforcement on login).
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "firstLoginAt" TIMESTAMPTZ`);
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "demoExpiresAt" TIMESTAMPTZ`);
     // Per-user preferences (language, sidebar state, etc.) stored in DB so
     // that the frontend can get rid of localStorage entirely.
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'::jsonb`);
@@ -616,7 +622,7 @@ export async function initializeDatabase() {
     try {
       await db.query(`
         INSERT INTO _app_meta (key, value, "updatedAt")
-        VALUES ('schema_version', '2026-04-17-contact-types', NOW())
+        VALUES ('schema_version', '2026-04-17-demo-lifecycle', NOW())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
       `);
     } catch (err) {
@@ -727,7 +733,7 @@ export async function seedDatabase(dbInstance: Pool) {
       const seedFlag = await dbInstance.query(
         `SELECT value FROM _app_meta WHERE key = 'seed_version'`,
       );
-      if (seedFlag.rows[0]?.value === '2026-04-16') {
+      if (seedFlag.rows[0]?.value === '2026-04-17-clean-demo') {
         return;
       }
     } catch {
@@ -747,7 +753,7 @@ export async function seedDatabase(dbInstance: Pool) {
       // Mark seed as done so future cold starts can skip it instantly.
       await seedClient.query(`
         INSERT INTO _app_meta (key, value, "updatedAt")
-        VALUES ('seed_version', '2026-04-16', NOW())
+        VALUES ('seed_version', '2026-04-17-clean-demo', NOW())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
       `).catch(() => {});
     } finally {
@@ -875,15 +881,66 @@ async function runSeed(dbInstance: any) {
       await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedDemoPassword, demo2Email]);
     }
 
-    // Per-tenant demo sample data (each demo company gets ITS OWN rows, fully
-    // isolated by companyId + Row-Level Security).
-    await seedDemoCompanyData(dbInstance, 'demo-1', 'TechCorp');
-    await seedDemoCompanyData(dbInstance, 'demo-2', 'GreenEnergy');
+    // NOTE : les nouvelles entreprises démo démarrent avec 0 donnée CRM —
+    // elles sont prêtes à être vendues. Aucun seed de contacts / produits
+    // / factures n'est effectué ici, afin de ne pas polluer l'espace client.
+
+    // Nettoyage one-shot des anciennes données démo (CRM, produits, factures)
+    // pour s'assurer que les tenants démo sont bien vides après migration.
+    await clearDemoTenantData(dbInstance);
 
     console.log('Database seeded successfully with admin and demo accounts');
   } catch (error) {
     console.error('Error seeding database:', error);
   }
+}
+
+/**
+ * Purge all tenant data (CRM, inventory, invoices, projects, accounting) of
+ * every demo company so the tenants are factory-fresh, ready for sales.
+ * Runs once when seed_version reaches the "2026-04-17-clean-demo" marker.
+ */
+export async function clearDemoTenantData(dbInstance: any) {
+  const demoIds = await dbInstance.query(
+    `SELECT id FROM companies WHERE type = 'demo'`,
+  );
+  if (demoIds.rows.length === 0) return;
+  const ids = demoIds.rows.map((r: any) => r.id);
+
+  const tables = [
+    'invoice_items', 'invoices',
+    'journal_items', 'journal_entries',
+    'quote_template_items', 'quote_templates',
+    'employee_tasks', 'leave_requests', 'payslips', 'contracts', 'contract_templates', 'employees',
+    'transactions',
+    'projects',
+    'products',
+    'contacts',
+    'events', 'schedules',
+    'activity_log',
+  ];
+  for (const t of tables) {
+    try {
+      await dbInstance.query(`DELETE FROM ${t} WHERE "companyId" = ANY($1::text[])`, [ids]);
+    } catch (err: any) {
+      // Table may not exist in the schema — ignore.
+      if (err?.code !== '42P01') {
+        console.error(`Failed to clear ${t}:`, err?.message);
+      }
+    }
+  }
+  console.log(`Purged CRM/accounting data of ${ids.length} demo compan${ids.length === 1 ? 'y' : 'ies'}.`);
+}
+
+/**
+ * Called when creating a brand-new company. Starts it truly empty (no seed
+ * data other than default roles — which are created elsewhere by the caller).
+ */
+export async function seedDemoCompanyData(_dbInstance: any, _companyId: string, _label: string) {
+  // Intentionally a no-op. New companies (demo and production) must start
+  // fresh with zero CRM rows so the first impression the customer gets is
+  // a clean slate they fill themselves.
+  return;
 }
 
 export async function seedDefaultRoles(dbInstance: any, companyId: string) {
@@ -913,76 +970,7 @@ export async function seedDefaultRoles(dbInstance: any, companyId: string) {
  * carries the correct `companyId`, and Row-Level Security guarantees that
  * users of demo-1 never see rows from demo-2 (and vice-versa).
  */
-export async function seedDemoCompanyData(dbInstance: any, companyId: string, label: string) {
-  // Only seed if this company has no contacts yet (idempotent).
-  const existing = await dbInstance.query(
-    'SELECT COUNT(*)::int AS c FROM contacts WHERE "companyId" = $1',
-    [companyId],
-  );
-  if (existing.rows[0].c > 0) return;
 
-  console.log(`Seeding demo data for company ${companyId} (${label})...`);
-
-  const contacts = [
-    {
-      id: `${companyId}_contact_1`,
-      name: `${label} — Client Alpha`,
-      email: `alpha@${companyId}.demo`,
-      company: `Alpha Corp (${label})`,
-      role: 'Directeur',
-      status: 'Actif',
-    },
-    {
-      id: `${companyId}_contact_2`,
-      name: `${label} — Client Beta`,
-      email: `beta@${companyId}.demo`,
-      company: `Beta SARL (${label})`,
-      role: 'Acheteur',
-      status: 'Prospect',
-    },
-  ];
-  for (const c of contacts) {
-    await dbInstance.query(
-      `INSERT INTO contacts (id, "companyId", name, email, company, role, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [c.id, companyId, c.name, c.email, c.company, c.role, c.status],
-    );
-  }
-
-  const products = [
-    {
-      id: `${companyId}_product_1`,
-      name: `${label} Service Pro`,
-      sku: `${companyId.toUpperCase()}-PRO-01`,
-      price: 250000,
-      stock: 10,
-    },
-    {
-      id: `${companyId}_product_2`,
-      name: `${label} Licence Standard`,
-      sku: `${companyId.toUpperCase()}-STD-02`,
-      price: 75000,
-      stock: 50,
-    },
-  ];
-  for (const p of products) {
-    await dbInstance.query(
-      `INSERT INTO products (id, "companyId", name, sku, price, stock, "tvaRate")
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [p.id, companyId, p.name, p.sku, p.price, p.stock, 18],
-    );
-  }
-
-  const invoiceId = `${companyId}_inv_1`;
-  await dbInstance.query(
-    `INSERT INTO invoices (id, "companyId", type, "contactId", date, "dueDate", "totalHT", "tvaTotal", total, status)
-     VALUES ($1, $2, 'Invoice', $3, CURRENT_DATE::text, (CURRENT_DATE + INTERVAL '30 day')::text, $4, $5, $6, 'Sent')`,
-    [invoiceId, companyId, contacts[0].id, 250000, 45000, 295000],
-  );
-  await dbInstance.query(
-    `INSERT INTO invoice_items ("companyId", "invoiceId", "productId", name, quantity, price, "tvaRate", "tvaAmount")
-     VALUES ($1, $2, $3, $4, 1, $5, 18, $6)`,
-    [companyId, invoiceId, products[0].id, products[0].name, products[0].price, 45000],
-  );
-}
+// Legacy seedDemoCompanyData body removed: new companies now start empty
+// (see the no-op `seedDemoCompanyData` declared earlier in this file).
 
