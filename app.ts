@@ -34,7 +34,7 @@ import { schedulesRouter } from './server/routes/schedules';
 
 const app = express();
 
-app.use(compression());
+app.use(compression() as any);
 // Vercel's Node runtime may pre-parse the JSON body before it reaches
 // Express. If `req.body` is already an object, skip the express.json()
 // middleware — otherwise it would hang waiting on an empty stream.

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { requireTenant } from '../middleware/auth';
-import { logActivity } from '../../server';
+import { logActivity } from '../activity';
 
 export const projectsRouter = Router();
 
