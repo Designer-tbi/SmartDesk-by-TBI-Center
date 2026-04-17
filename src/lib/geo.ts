@@ -26,14 +26,31 @@ const EUROPE_ISO = new Set([
   'SE', 'CH', 'UA', 'GB', 'UK', 'VA',
 ]);
 
+export type DetectedLocale = {
+  country: string;
+  language?: string;
+  currency?: string;
+  accountingStandard?: string;
+};
+
 export async function fetchDetectedCountry(): Promise<string> {
+  const loc = await fetchDetectedLocale();
+  return loc.country;
+}
+
+export async function fetchDetectedLocale(): Promise<DetectedLocale> {
   try {
     const res = await fetch('/api/auth/geolocate', { credentials: 'include' });
-    if (!res.ok) return 'FR';
+    if (!res.ok) return { country: 'FR' };
     const data = await res.json();
-    return (data?.country || 'FR').toUpperCase();
+    return {
+      country: (data?.country || 'FR').toUpperCase(),
+      language: data?.language,
+      currency: data?.currency,
+      accountingStandard: data?.accountingStandard,
+    };
   } catch {
-    return 'FR';
+    return { country: 'FR' };
   }
 }
 

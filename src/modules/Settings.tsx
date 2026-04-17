@@ -5,7 +5,7 @@ import { CompanyInfo, User as UserType } from '../types';
 import { apiFetch } from '../lib/api';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { motion, AnimatePresence } from 'motion/react';
-import { fetchDetectedCountry, mapIsoToRegion } from '../lib/geo';
+import { fetchDetectedLocale, mapIsoToRegion } from '../lib/geo';
 
 import { useTranslation } from '../lib/i18n';
 
@@ -63,25 +63,26 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
     setIsDetectingGeo(true);
     setGeoMessage(null);
     try {
-      const iso = await fetchDetectedCountry();
-      const region = mapIsoToRegion(iso);
-      // Sensible currency/accounting defaults per region.
-      const regionDefaults: Record<string, { currency?: string; accountingStandard?: string }> = {
-        CONGO:    { currency: 'XAF', accountingStandard: 'OHADA' },
-        AFRIQUE:  { currency: 'XAF', accountingStandard: 'OHADA' },
-        EUROPE:   { currency: 'EUR', accountingStandard: 'FRANCE' },
-        USA:      { currency: 'USD', accountingStandard: 'US_GAAP' },
-        CONTINENT:{},
-      };
-      const defaults = regionDefaults[region] || {};
+      const loc = await fetchDetectedLocale();
+      const region = mapIsoToRegion(loc.country);
+      // The backend already returns optimal currency / accounting standard /
+      // language per country. Apply them in one shot so the user doesn't
+      // have to configure each dropdown manually.
       setCompany((prev) => ({
         ...prev,
         country: region,
-        currency: prev.currency || defaults.currency || 'XAF',
-        accountingStandard: (prev.accountingStandard as any) || (defaults.accountingStandard as any) || 'OHADA',
+        currency: loc.currency || prev.currency || 'XAF',
+        accountingStandard: (loc.accountingStandard as any) || prev.accountingStandard || 'OHADA',
+        language: loc.language || prev.language || 'fr',
       }));
-      setGeoMessage(`${iso} → ${region}`);
-      setTimeout(() => setGeoMessage(null), 4000);
+      if (loc.language && (loc.language === 'fr' || loc.language === 'en')) {
+        setLanguage(loc.language as any);
+      }
+      const bits: string[] = [loc.country, `→ ${region}`];
+      if (loc.currency) bits.push(loc.currency);
+      if (loc.accountingStandard) bits.push(loc.accountingStandard);
+      setGeoMessage(bits.join(' · '));
+      setTimeout(() => setGeoMessage(null), 5000);
     } catch {
       setGeoMessage('Détection impossible');
       setTimeout(() => setGeoMessage(null), 3000);
@@ -119,7 +120,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
     };
 
     fetchInitialData();
-  }, [setGlobalUser, t]);
+    // Only run once on mount. `t` would otherwise change every time the
+    // language is toggled and re-fetch the company, silently clobbering
+    // any unsaved edits the user just made (including auto-detect).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault();

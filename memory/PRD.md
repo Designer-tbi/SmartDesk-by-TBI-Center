@@ -136,6 +136,37 @@ TVA + `+33` ; login → Settings CONGO → CRM shows NIU + `+242`).
   l'Afrique, Europe/EUR/FRANCE, USA/USD/US_GAAP).
 - Feedback visuel : `IP détectée : US → USA` (vert, auto-hide 4 s).
 
+## Auto-configuration étendue : langue + comptabilité (2026-04-17 — iteration 5)
+
+### Backend (`/app/server/routes/auth.ts`)
+- Nouveau helper `regionalDefaultsFromCountry(iso)` qui dérive :
+  - `currency` : XAF (CEMAC), XOF (UEMOA), EUR, GBP, USD, CAD…
+  - `accountingStandard` : OHADA, FRANCE, US_GAAP.
+  - `language` : fr / en (pays francophones vs anglophones).
+- `GET /api/auth/geolocate` renvoie désormais `{ country, language, currency, accountingStandard, source }`.
+- `POST /api/auth/send-demo-email` (création compte démo) insère déjà
+  la société avec les bons défauts (`language`, `currency`,
+  `"accountingStandard"`) selon le pays — plus besoin de les configurer
+  manuellement après inscription.
+
+### Frontend
+- `/app/src/lib/geo.ts` : nouveau `fetchDetectedLocale()` qui retourne
+  tous les défauts régionaux. `fetchDetectedCountry()` conservé (compat).
+- `/app/src/modules/Login.tsx` : auto-pré-sélection de la langue UI
+  (fr/en) dès le chargement, basée sur l'IP.
+- `/app/src/modules/Settings.tsx` :
+  - Le bouton « Auto-détecter (IP) » applique en un clic **pays + devise
+    + standard comptable + langue UI**.
+  - Bug fix : `useEffect` de chargement initial ne dépend plus de `t` →
+    ne réécrase plus les valeurs fraîchement auto-détectées lors du
+    changement de langue.
+  - Badge de confirmation enrichi : `IP détectée : US · → USA · USD · US_GAAP`.
+
+### Validé
+Playwright : clic « Auto-détecter » depuis une IP US → les 4 selects
+passent à USA / US_GAAP / English / USD et tous les libellés UI se
+mettent en anglais instantanément.
+
 ## Backlog / Prochaines actions
 - P1 : migrer la DB Neon vers un compte propriétaire (DATABASE_URL vient de
   `.env.example` — partagée avec la preview).

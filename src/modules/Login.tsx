@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { DEMO_ACCOUNTS } from '../constants';
 import { Lock, Mail, Eye, EyeOff, AlertCircle, PlayCircle, User, Phone, CheckCircle2, Building2, MapPin, Zap, BarChart3, ShieldCheck } from 'lucide-react';
 import { useTranslation } from '../lib/i18n';
-import { fetchDetectedCountry } from '../lib/geo';
+import { fetchDetectedCountry, fetchDetectedLocale } from '../lib/geo';
 
 interface LoginProps {
   onLogin: (user: any) => void;
@@ -24,6 +24,24 @@ export const Login = ({ onLogin }: LoginProps) => {
   
   const [regForm, setRegForm] = useState({ nom: '', prenom: '', email: '', telephone: '', companyName: '', country: 'FR', state: '' });
   const [geoDetected, setGeoDetected] = useState(false);
+  const [langAutoApplied, setLangAutoApplied] = useState(false);
+
+  // On initial mount: use the visitor's IP to pre-select the UI language
+  // (FR vs EN). Runs once — never overrides an explicit user toggle.
+  useEffect(() => {
+    if (langAutoApplied) return;
+    let cancelled = false;
+    (async () => {
+      const loc = await fetchDetectedLocale();
+      if (cancelled) return;
+      if (loc.language && (loc.language === 'fr' || loc.language === 'en')) {
+        setLanguage(loc.language as any);
+      }
+      setLangAutoApplied(true);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Pre-fill the country from the visitor's IP as soon as the user opens
   // the inscription form. We only override the default 'FR' placeholder,

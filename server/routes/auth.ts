@@ -5,6 +5,36 @@ import nodemailer from 'nodemailer';
 import { requireAuth } from '../middleware/auth.js';
 import { seedDefaultRoles } from '../../db.js';
 
+/**
+ * Derive sensible accounting defaults (currency, standard, language) from
+ * the user's country ISO-2 code. Used both by the demo-signup endpoint and
+ * by the `/api/auth/geolocate` endpoint so the UI can pre-fill everything
+ * in one shot.
+ */
+function regionalDefaultsFromCountry(code: string | null | undefined) {
+  const iso = (code || '').toUpperCase();
+  // OHADA / CEMAC member states use XAF or XOF + OHADA standard.
+  const OHADA_XAF = new Set(['CG', 'CM', 'GA', 'CF', 'TD', 'GQ', 'CONGO']);
+  const OHADA_XOF = new Set(['CI', 'SN', 'BF', 'ML', 'BJ', 'TG', 'NE', 'GW']);
+  const EU_EURO = new Set(['FR', 'BE', 'DE', 'ES', 'IT', 'NL', 'LU', 'PT', 'AT', 'IE', 'FI', 'GR', 'EUROPE']);
+  const EU_NON_EURO = new Set(['GB', 'UK', 'CH', 'SE', 'NO', 'DK', 'PL', 'CZ']);
+  const FR_SPEAKING = new Set([
+    'FR', 'BE', 'LU', 'MC', 'CH',
+    'CG', 'CM', 'GA', 'CF', 'TD', 'GQ', 'CI', 'SN', 'BF', 'ML', 'BJ', 'TG',
+    'NE', 'GN', 'MG', 'CD', 'DJ', 'KM', 'MA', 'DZ', 'TN', 'MU',
+    'CONGO', 'AFRIQUE',
+  ]);
+
+  if (OHADA_XAF.has(iso)) return { currency: 'XAF', accountingStandard: 'OHADA', language: 'fr' };
+  if (OHADA_XOF.has(iso)) return { currency: 'XOF', accountingStandard: 'OHADA', language: 'fr' };
+  if (EU_EURO.has(iso))   return { currency: 'EUR', accountingStandard: 'FRANCE', language: FR_SPEAKING.has(iso) ? 'fr' : 'en' };
+  if (EU_NON_EURO.has(iso)) return { currency: iso === 'GB' || iso === 'UK' ? 'GBP' : 'EUR', accountingStandard: 'FRANCE', language: FR_SPEAKING.has(iso) ? 'fr' : 'en' };
+  if (iso === 'US' || iso === 'USA') return { currency: 'USD', accountingStandard: 'US_GAAP', language: 'en' };
+  if (iso === 'CA') return { currency: 'CAD', accountingStandard: 'US_GAAP', language: 'en' };
+  // Default: OHADA / XAF / French (the app's primary market).
+  return { currency: 'XAF', accountingStandard: 'OHADA', language: FR_SPEAKING.has(iso) ? 'fr' : 'fr' };
+}
+
 const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
 
 export const authRouter = Router();
@@ -306,13 +336,17 @@ authRouter.put('/preferences', requireAuth, async (req, res, next) => {
  *   3. 'FR' default.
  */
 authRouter.get('/geolocate', async (req, res) => {
+  const sendResponse = (country: string, source: string) => {
+    const defaults = regionalDefaultsFromCountry(country);
+    res.json({ country, source, ...defaults });
+  };
   try {
     // 1. Edge headers.
     const vercelCountry = req.headers['x-vercel-ip-country'] as string | undefined;
     const cfCountry = req.headers['cf-ipcountry'] as string | undefined;
     const edgeCountry = (vercelCountry || cfCountry || '').toUpperCase();
     if (edgeCountry && edgeCountry !== 'XX' && edgeCountry.length === 2) {
-      return res.json({ country: edgeCountry, source: 'edge' });
+      return sendResponse(edgeCountry, 'edge');
     }
 
     // 2. Fallback: resolve via ip-api.com (free tier, no key).
@@ -341,7 +375,7 @@ authRouter.get('/geolocate', async (req, res) => {
           const data = await r.json().catch(() => null) as { status?: string; countryCode?: string } | null;
           const code = (data?.countryCode || '').toUpperCase();
           if (data?.status === 'success' && /^[A-Z]{2}$/.test(code)) {
-            return res.json({ country: code, source: 'ip-api' });
+            return sendResponse(code, 'ip-api');
           }
         }
       } catch {
@@ -349,9 +383,9 @@ authRouter.get('/geolocate', async (req, res) => {
       }
     }
 
-    return res.json({ country: 'FR', source: 'default' });
+    return sendResponse('FR', 'default');
   } catch {
-    return res.json({ country: 'FR', source: 'error' });
+    return sendResponse('FR', 'error');
   }
 });
 
@@ -373,12 +407,13 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
     try {
       await db.query('BEGIN');
       
-      // Create company
+      // Create company with regional accounting defaults derived from country
       const finalCompanyName = companyName ? `${companyName} (${country || 'Démo'})` : `Démo - ${prenom} ${nom}`;
+      const defaults = regionalDefaultsFromCountry(country);
       await db.query(`
-        INSERT INTO companies (id, name, type, status, country, state, "createdAt")
-        VALUES ($1, $2, 'demo', 'active', $3, $4, CURRENT_TIMESTAMP)
-      `, [companyId, finalCompanyName, country || 'CG', state || null]);
+        INSERT INTO companies (id, name, type, status, country, state, language, currency, "accountingStandard", "createdAt")
+        VALUES ($1, $2, 'demo', 'active', $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+      `, [companyId, finalCompanyName, country || 'CG', state || null, defaults.language, defaults.currency, defaults.accountingStandard]);
       
       // Bind the RLS session to this new tenant so subsequent INSERTs into
       // the isolated tables (roles, ...) pass the WITH CHECK policy.
