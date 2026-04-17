@@ -112,6 +112,30 @@ etc.) jusqu'à un F5.
 Validé end-to-end via Playwright (login → Settings EUROPE → CRM shows
 TVA + `+33` ; login → Settings CONGO → CRM shows NIU + `+242`).
 
+## Détection automatique du pays via IP (2026-04-17 — iteration 4)
+
+### Backend
+- Nouvelle route publique `GET /api/auth/geolocate` (`/app/server/routes/auth.ts`).
+  Résolution :
+  1. Entêtes edge `x-vercel-ip-country` / `cf-ipcountry` (zéro latence).
+  2. Repli `ip-api.com` (gratuit, sans clé) pour les déploiements hors
+     Vercel/Cloudflare.
+  3. Défaut `FR`.
+
+### Frontend
+- Nouveau helper `/app/src/lib/geo.ts` :
+  - `fetchDetectedCountry()` → ISO-2 côté client.
+  - `mapIsoToRegion()` → bucket `CONGO / AFRIQUE / EUROPE / USA / CONTINENT`
+    pour alimenter le sélecteur Paramètres.
+- `/app/src/modules/Login.tsx` : lors de l'ouverture du formulaire de
+  demande d'accès démo, le pays est pré-rempli depuis l'IP (sans écraser
+  un choix explicite de l'utilisateur).
+- `/app/src/modules/Settings.tsx` : bouton « Auto-détecter (IP) » à côté
+  du champ Continent / Région. Applique également des valeurs par
+  défaut cohérentes de devise + standard comptable (OHADA/XAF pour
+  l'Afrique, Europe/EUR/FRANCE, USA/USD/US_GAAP).
+- Feedback visuel : `IP détectée : US → USA` (vert, auto-hide 4 s).
+
 ## Backlog / Prochaines actions
 - P1 : migrer la DB Neon vers un compte propriétaire (DATABASE_URL vient de
   `.env.example` — partagée avec la preview).

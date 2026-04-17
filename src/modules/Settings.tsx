@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut, Upload, Check, PlayCircle, Star, HelpCircle, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Settings as SettingsIcon } from 'lucide-react';
+import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut, Upload, Check, PlayCircle, Star, HelpCircle, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Settings as SettingsIcon, Radar } from 'lucide-react';
 import { HelpSection } from '../components/HelpSection';
 import { CompanyInfo, User as UserType } from '../types';
 import { apiFetch } from '../lib/api';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { motion, AnimatePresence } from 'motion/react';
+import { fetchDetectedCountry, mapIsoToRegion } from '../lib/geo';
 
 import { useTranslation } from '../lib/i18n';
 
@@ -44,6 +45,8 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
+  const [isDetectingGeo, setIsDetectingGeo] = useState(false);
+  const [geoMessage, setGeoMessage] = useState<string | null>(null);
 
   // Generate a stable API key for demo purposes based on company name or just once
   const apiKey = React.useMemo(() => {
@@ -54,6 +57,37 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
     navigator.clipboard.writeText(apiKey);
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2000);
+  };
+
+  const handleDetectCountry = async () => {
+    setIsDetectingGeo(true);
+    setGeoMessage(null);
+    try {
+      const iso = await fetchDetectedCountry();
+      const region = mapIsoToRegion(iso);
+      // Sensible currency/accounting defaults per region.
+      const regionDefaults: Record<string, { currency?: string; accountingStandard?: string }> = {
+        CONGO:    { currency: 'XAF', accountingStandard: 'OHADA' },
+        AFRIQUE:  { currency: 'XAF', accountingStandard: 'OHADA' },
+        EUROPE:   { currency: 'EUR', accountingStandard: 'FRANCE' },
+        USA:      { currency: 'USD', accountingStandard: 'US_GAAP' },
+        CONTINENT:{},
+      };
+      const defaults = regionDefaults[region] || {};
+      setCompany((prev) => ({
+        ...prev,
+        country: region,
+        currency: prev.currency || defaults.currency || 'XAF',
+        accountingStandard: (prev.accountingStandard as any) || (defaults.accountingStandard as any) || 'OHADA',
+      }));
+      setGeoMessage(`${iso} → ${region}`);
+      setTimeout(() => setGeoMessage(null), 4000);
+    } catch {
+      setGeoMessage('Détection impossible');
+      setTimeout(() => setGeoMessage(null), 3000);
+    } finally {
+      setIsDetectingGeo(false);
+    }
   };
 
   useEffect(() => {
@@ -380,7 +414,19 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.continentRegion')}</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.continentRegion')}</label>
+                      <button
+                        type="button"
+                        onClick={handleDetectCountry}
+                        disabled={isDetectingGeo}
+                        className="flex items-center gap-1.5 text-[10px] font-bold text-accent-red hover:text-primary-red uppercase tracking-widest transition-colors disabled:opacity-50"
+                        data-testid="settings-auto-detect-country-btn"
+                      >
+                        {isDetectingGeo ? <Loader2 className="w-3 h-3 animate-spin" /> : <Radar className="w-3 h-3" />}
+                        {isDetectingGeo ? 'Détection…' : 'Auto-détecter (IP)'}
+                      </button>
+                    </div>
                     <div className="relative">
                       <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                       <select
@@ -395,6 +441,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                         <option value="USA">{t('settings.usa')}</option>
                       </select>
                     </div>
+                    {geoMessage && (
+                      <p className="text-xs text-emerald-600 font-medium pl-1 animate-in fade-in slide-in-from-left-1">
+                        IP détectée : {geoMessage}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-1.5">

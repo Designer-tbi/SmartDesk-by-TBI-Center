@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DEMO_ACCOUNTS } from '../constants';
 import { Lock, Mail, Eye, EyeOff, AlertCircle, PlayCircle, User, Phone, CheckCircle2, Building2, MapPin, Zap, BarChart3, ShieldCheck } from 'lucide-react';
 import { useTranslation } from '../lib/i18n';
+import { fetchDetectedCountry } from '../lib/geo';
 
 interface LoginProps {
   onLogin: (user: any) => void;
@@ -22,6 +23,28 @@ export const Login = ({ onLogin }: LoginProps) => {
   const [isLoading, setIsLoading] = useState(false);
   
   const [regForm, setRegForm] = useState({ nom: '', prenom: '', email: '', telephone: '', companyName: '', country: 'FR', state: '' });
+  const [geoDetected, setGeoDetected] = useState(false);
+
+  // Pre-fill the country from the visitor's IP as soon as the user opens
+  // the inscription form. We only override the default 'FR' placeholder,
+  // never a choice the user already made.
+  useEffect(() => {
+    if (!isRegistering || geoDetected) return;
+    let cancelled = false;
+    (async () => {
+      const iso = await fetchDetectedCountry();
+      if (cancelled) return;
+      setRegForm((prev) => {
+        // Don't overwrite an explicit user choice.
+        if (prev.country && prev.country !== 'FR') return prev;
+        // Restrict to the list offered in the signup dropdown.
+        const allowed = new Set(['FR', 'CG', 'CI', 'SN', 'CM', 'CD']);
+        return { ...prev, country: allowed.has(iso) ? iso : prev.country };
+      });
+      setGeoDetected(true);
+    })();
+    return () => { cancelled = true; };
+  }, [isRegistering, geoDetected]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

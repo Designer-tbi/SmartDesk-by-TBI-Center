@@ -296,6 +296,67 @@ authRouter.put('/preferences', requireAuth, async (req, res, next) => {
   }
 });
 
+/**
+ * Detect the visitor's country from their IP address so the onboarding form
+ * can pre-fill the `country` field. No auth required.
+ *
+ * Resolution order:
+ *   1. Edge-network headers (Vercel, Cloudflare) — zero-latency.
+ *   2. Free IP-to-country API (ipapi.co) — fallback.
+ *   3. 'FR' default.
+ */
+authRouter.get('/geolocate', async (req, res) => {
+  try {
+    // 1. Edge headers.
+    const vercelCountry = req.headers['x-vercel-ip-country'] as string | undefined;
+    const cfCountry = req.headers['cf-ipcountry'] as string | undefined;
+    const edgeCountry = (vercelCountry || cfCountry || '').toUpperCase();
+    if (edgeCountry && edgeCountry !== 'XX' && edgeCountry.length === 2) {
+      return res.json({ country: edgeCountry, source: 'edge' });
+    }
+
+    // 2. Fallback: resolve via ip-api.com (free tier, no key).
+    const fwd = (req.headers['x-forwarded-for'] as string | undefined) || '';
+    const ip = fwd.split(',')[0].trim() || req.socket.remoteAddress || '';
+    // Skip private / loopback ranges.
+    const isPrivate = !ip
+      || ip === '::1'
+      || ip.startsWith('127.')
+      || ip.startsWith('10.')
+      || ip.startsWith('192.168.')
+      || /^172\.(1[6-9]|2\d|3[01])\./.test(ip);
+
+    if (!isPrivate) {
+      try {
+        const ctrl = new AbortController();
+        const timeout = setTimeout(() => ctrl.abort(), 2500);
+        // ip-api.com: free, no key, generous quota. HTTP is fine — this is a
+        // server-to-server call with no sensitive data in transit.
+        const r = await fetch(`http://ip-api.com/json/${encodeURIComponent(ip)}?fields=countryCode,status`, {
+          signal: ctrl.signal,
+          headers: { 'User-Agent': 'SmartDesk/1.0' },
+        });
+        clearTimeout(timeout);
+        if (r.ok) {
+          const data = await r.json().catch(() => null) as { status?: string; countryCode?: string } | null;
+          const code = (data?.countryCode || '').toUpperCase();
+          if (data?.status === 'success' && /^[A-Z]{2}$/.test(code)) {
+            return res.json({ country: code, source: 'ip-api' });
+          }
+        }
+      } catch {
+        /* network failure is non-fatal — fall through to default */
+      }
+    }
+
+    return res.json({ country: 'FR', source: 'default' });
+  } catch {
+    return res.json({ country: 'FR', source: 'error' });
+  }
+});
+
+
+
 authRouter.post('/send-demo-email', async (req, res, next) => {
   try {
     const { nom, prenom, email, telephone, code, companyName, country, state } = req.body;
