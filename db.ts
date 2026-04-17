@@ -63,6 +63,7 @@ const initSql = `
     "taxId" TEXT,
     rccm TEXT,
     "idNat" TEXT,
+    niu TEXT,
     siren TEXT,
     siret TEXT,
     email TEXT,
@@ -469,7 +470,7 @@ export async function initializeDatabase() {
       const flag = await db.query(
         `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
       );
-      if (flag.rows[0]?.value === '2026-04-17-demo-lifecycle') {
+      if (flag.rows[0]?.value === '2026-04-17-company-niu') {
         console.log('Database schema already up-to-date, skipping init.');
         return;
       }
@@ -497,9 +498,10 @@ export async function initializeDatabase() {
         );
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "firstLoginAt" TIMESTAMPTZ`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "demoExpiresAt" TIMESTAMPTZ`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS niu TEXT`);
         await db.query(`
           INSERT INTO _app_meta (key, value, "updatedAt")
-          VALUES ('schema_version', '2026-04-17-demo-lifecycle', NOW())
+          VALUES ('schema_version', '2026-04-17-company-niu', NOW())
           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
         `);
         return;
@@ -603,6 +605,9 @@ export async function initializeDatabase() {
     // companies 15 days after the first sign-in (lazy enforcement on login).
     await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "firstLoginAt" TIMESTAMPTZ`);
     await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "demoExpiresAt" TIMESTAMPTZ`);
+    // NIU (Numéro d'Identification Unique) — used by CEMAC/OHADA tax admins
+    // and displayed on invoices, fiscal liasse and declarations.
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS niu TEXT`);
     // Per-user preferences (language, sidebar state, etc.) stored in DB so
     // that the frontend can get rid of localStorage entirely.
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'::jsonb`);
@@ -622,7 +627,7 @@ export async function initializeDatabase() {
     try {
       await db.query(`
         INSERT INTO _app_meta (key, value, "updatedAt")
-        VALUES ('schema_version', '2026-04-17-demo-lifecycle', NOW())
+        VALUES ('schema_version', '2026-04-17-company-niu', NOW())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
       `);
     } catch (err) {

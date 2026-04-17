@@ -377,6 +377,7 @@ export const Accounting = ({ user }: { user?: any }) => {
       doc.text(`${t('accounting.taxId')} : ${companyInfo?.taxId || '-'}`, 20, 155);
       doc.text(`${t('accounting.rccm')} : ${companyInfo?.rccm || '-'}`, 20, 165);
       doc.text(`${t('accounting.idNat')} : ${companyInfo?.idNat || '-'}`, 20, 175);
+      doc.text(`${t('accounting.niu')} : ${companyInfo?.niu || '-'}`, 20, 185);
     }
 
     // Page 2: Bilan
@@ -740,6 +741,10 @@ export const Accounting = ({ user }: { user?: any }) => {
                       <div>
                         <label className="text-[10px] font-bold text-accent-red uppercase tracking-widest mb-1 block">{t('accounting.idNat')}</label>
                         <p className="text-sm font-medium text-slate-600">{companyInfo?.idNat || '-'}</p>
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold text-accent-red uppercase tracking-widest mb-1 block">{t('accounting.niu')}</label>
+                        <p className="text-sm font-medium text-slate-600" data-testid="accounting-company-niu">{companyInfo?.niu || '-'}</p>
                       </div>
                     </>
                   )}

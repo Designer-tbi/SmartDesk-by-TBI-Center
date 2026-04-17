@@ -23,6 +23,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
     taxId: '',
     rccm: '',
     idNat: '',
+    niu: '',
     siren: '',
     siret: '',
     logo: '',
@@ -527,6 +528,34 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                             value={company.rccm || ''}
                             onChange={(e) => setCompany({ ...company, rccm: e.target.value })}
                             required
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.niu')}</label>
+                        <div className="relative">
+                          <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="P2012345678"
+                            className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                            value={company.niu || ''}
+                            onChange={(e) => setCompany({ ...company, niu: e.target.value })}
+                            data-testid="settings-company-niu-input"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.idNat')}</label>
+                        <div className="relative">
+                          <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type="text"
+                            placeholder="01-123-A4567B"
+                            className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                            value={company.idNat || ''}
+                            onChange={(e) => setCompany({ ...company, idNat: e.target.value })}
+                            data-testid="settings-company-idnat-input"
                           />
                         </div>
                       </div>

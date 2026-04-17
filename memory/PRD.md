@@ -167,6 +167,38 @@ Playwright : clic « Auto-détecter » depuis une IP US → les 4 selects
 passent à USA / US_GAAP / English / USD et tous les libellés UI se
 mettent en anglais instantanément.
 
+## NIU (Numéro d'Identification Unique) sur les sociétés (2026-04-17 — iteration 6)
+
+### DB (`/app/db.ts`)
+- Colonne `niu TEXT` ajoutée à `companies` (CREATE TABLE + ALTER
+  idempotent).
+- Schema version bumpée à `2026-04-17-company-niu` (fast-path de cold
+  start mis à jour).
+
+### Backend
+- `/app/server/routes/company.ts` : `PUT /api/company` accepte et
+  persiste `niu`. `GET` renvoie `niu` dans la réponse (SELECT *).
+
+### Frontend
+- `/app/src/types.ts` : `CompanyInfo.niu` ajouté.
+- `/app/src/modules/Settings.tsx` : nouveaux champs **NIU** et **ID NAT**
+  dans le formulaire entreprise (région CONGO/AFRIQUE), avec
+  placeholders et data-testid.
+- `/app/src/modules/Accounting.tsx` :
+  - NIU affiché dans le bloc « Informations de l'entreprise » de la
+    Liasse fiscale (uniquement pour les standards OHADA).
+  - NIU inclus dans le PDF généré (ligne 185).
+- `/app/src/modules/Sales.tsx` : NIU affiché sous ID NAT dans l'entête
+  de la facture.
+- `/app/src/lib/i18n.tsx` : clés `settings.niu` et `accounting.niu`
+  (FR + EN).
+
+### Validé
+- `PUT /api/company { niu }` persiste ; `GET /api/company` renvoie
+  correctement la valeur.
+- Formulaire Settings affiche NIU + ID NAT, sauvegarde fonctionnelle.
+- Accounting / Liasse fiscale affiche le NIU sous « Unique Taxpayer ID ».
+
 ## Backlog / Prochaines actions
 - P1 : migrer la DB Neon vers un compte propriétaire (DATABASE_URL vient de
   `.env.example` — partagée avec la preview).

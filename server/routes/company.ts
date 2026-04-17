@@ -21,10 +21,10 @@ companyRouter.get('/', async (req, res, next) => {
 
 companyRouter.put('/', async (req, res, next) => {
   try {
-    const { name, taxId, rccm, idNat, siren, siret, email, phone, website, address, country, state, logo, accountingStandard, language, currency } = req.body;
+    const { name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address, country, state, logo, accountingStandard, language, currency } = req.body;
     console.log('Updating company for user:', req.user!.id, 'companyId:', req.user!.companyId);
-    const result = await req.db.query('UPDATE public.companies SET name = $1, "taxId" = $2, rccm = $3, "idNat" = $4, siren = $5, siret = $6, email = $7, phone = $8, website = $9, address = $10, country = $11, state = $12, logo = $13, "accountingStandard" = $14, language = $15, currency = $16 WHERE id = $17',
-      [name, taxId, rccm, idNat, siren, siret, email, phone, website, address, country || 'AFRIQUE', state, logo || null, accountingStandard || 'OHADA', language || 'fr', currency || 'XAF', req.user!.companyId]);
+    const result = await req.db.query('UPDATE public.companies SET name = $1, "taxId" = $2, rccm = $3, "idNat" = $4, niu = $5, siren = $6, siret = $7, email = $8, phone = $9, website = $10, address = $11, country = $12, state = $13, logo = $14, "accountingStandard" = $15, language = $16, currency = $17 WHERE id = $18',
+      [name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address, country || 'AFRIQUE', state, logo || null, accountingStandard || 'OHADA', language || 'fr', currency || 'XAF', req.user!.companyId]);
     
     console.log('Update result rows affected:', result.rowCount);
 

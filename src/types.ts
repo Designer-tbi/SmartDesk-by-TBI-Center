@@ -208,6 +208,7 @@ export interface CompanyInfo {
   taxId: string; // NIF
   rccm: string;
   idNat: string;
+  niu?: string; // Numéro d'Identification Unique (OHADA/CEMAC)
   siren?: string;
   siret?: string;
   country?: string;

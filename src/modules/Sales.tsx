@@ -1297,6 +1297,7 @@ export const Sales = ({ user }: { user: any }) => {
                       {companyInfo?.email}<br/>
                       {companyInfo?.taxId} | {companyInfo?.rccm}<br/>
                       {companyInfo?.idNat}
+                      {companyInfo?.niu && <><br/>NIU : {companyInfo.niu}</>}
                     </p>
                   </div>
                 </div>
