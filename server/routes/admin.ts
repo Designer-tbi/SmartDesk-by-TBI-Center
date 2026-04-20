@@ -131,9 +131,13 @@ adminRouter.post('/companies', async (req, res, next) => {
     
     await req.db.query('BEGIN');
     
-    // Create company
-    await req.db.query('INSERT INTO public.companies (id, name, type, status, phone, email, "createdAt", "schemaName") VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
-      [id, name, type, status || 'active', adminPhone || null, adminEmail || null, new Date().toISOString(), schemaName]);
+    // Create company. Demo companies get the DGID fiscalization API key
+    // baked in so invoices can be auto-certified on creation.
+    const dgidKey = type === 'demo'
+      ? (process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c')
+      : null;
+    await req.db.query('INSERT INTO public.companies (id, name, type, status, phone, email, "createdAt", "schemaName", "fiscalizationApiKey") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
+      [id, name, type, status || 'active', adminPhone || null, adminEmail || null, new Date().toISOString(), schemaName, dgidKey]);
     
     // Initialize schema
     await initializeTenantSchema(schemaName);
@@ -169,6 +173,17 @@ adminRouter.put('/companies/:id', async (req, res, next) => {
     const { name, type, status } = req.body;
     await req.db.query('UPDATE public.companies SET name = $1, type = $2, status = $3 WHERE id = $4',
       [name, type, status, id]);
+    // Keep the DGID demo key in sync when a company becomes demo / ceases
+    // to be demo. Non-demo companies get the key cleared for safety.
+    if (type === 'demo') {
+      const dgidKey = process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c';
+      await req.db.query(
+        `UPDATE public.companies SET "fiscalizationApiKey" = $1 WHERE id = $2 AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
+        [dgidKey, id],
+      );
+    } else {
+      await req.db.query(`UPDATE public.companies SET "fiscalizationApiKey" = NULL WHERE id = $1`, [id]);
+    }
     res.json({ id, name, type, status });
   } catch (error) {
     next(error);

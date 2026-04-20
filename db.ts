@@ -470,7 +470,7 @@ export async function initializeDatabase() {
       const flag = await db.query(
         `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
       );
-      if (flag.rows[0]?.value === '2026-04-17-company-niu') {
+      if (flag.rows[0]?.value === '2026-04-17-invoice-certif') {
         console.log('Database schema already up-to-date, skipping init.');
         return;
       }
@@ -499,9 +499,19 @@ export async function initializeDatabase() {
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "firstLoginAt" TIMESTAMPTZ`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "demoExpiresAt" TIMESTAMPTZ`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS niu TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "fiscalizationApiKey" TEXT`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationNumber" TEXT`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certifiedAt" TIMESTAMPTZ`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationStatus" TEXT`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationPayload" JSONB`);
+        await db.query(
+          `UPDATE companies SET "fiscalizationApiKey" = $1
+           WHERE type = 'demo' AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
+          [process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c'],
+        );
         await db.query(`
           INSERT INTO _app_meta (key, value, "updatedAt")
-          VALUES ('schema_version', '2026-04-17-company-niu', NOW())
+          VALUES ('schema_version', '2026-04-17-invoice-certif', NOW())
           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
         `);
         return;
@@ -608,6 +618,21 @@ export async function initializeDatabase() {
     // NIU (Numéro d'Identification Unique) — used by CEMAC/OHADA tax admins
     // and displayed on invoices, fiscal liasse and declarations.
     await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS niu TEXT`);
+    // DGID invoice fiscalization (per-company API key + invoice cert fields).
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "fiscalizationApiKey" TEXT`);
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationNumber" TEXT`);
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certifiedAt" TIMESTAMPTZ`);
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationStatus" TEXT`);
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationPayload" JSONB`);
+    // Auto-propagate the default DGID key to every existing demo company that
+    // doesn't have one yet. New demo companies get it on creation (see
+    // /api/auth/send-demo-email).
+    await db.query(
+      `UPDATE companies
+       SET "fiscalizationApiKey" = $1
+       WHERE type = 'demo' AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
+      [process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c'],
+    );
     // Per-user preferences (language, sidebar state, etc.) stored in DB so
     // that the frontend can get rid of localStorage entirely.
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'::jsonb`);
@@ -627,7 +652,7 @@ export async function initializeDatabase() {
     try {
       await db.query(`
         INSERT INTO _app_meta (key, value, "updatedAt")
-        VALUES ('schema_version', '2026-04-17-company-niu', NOW())
+        VALUES ('schema_version', '2026-04-17-invoice-certif', NOW())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
       `);
     } catch (err) {

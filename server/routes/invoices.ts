@@ -3,6 +3,7 @@ import { requireAuth, requireCompany } from '../middleware/auth.js';
 import nodemailer from 'nodemailer';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { certifyInvoice } from '../services/fiscalization.js';
 
 export const invoicesRouter = Router();
 
@@ -117,7 +118,59 @@ invoicesRouter.post('/', async (req, res, next) => {
       
       await req.db.query('COMMIT');
       console.log('POST /api/invoices - Success');
-      res.status(201).json(inv);
+
+      // Auto-certify via DGID for demo companies only. The per-company API
+      // key is stored in `companies.fiscalizationApiKey` (seeded on demo
+      // creation). Failures are non-fatal — the invoice still saves.
+      let certified: any = null;
+      try {
+        const companyRes = await req.db.query(
+          'SELECT id, name, niu, "taxId", type, "fiscalizationApiKey" FROM companies WHERE id = $1',
+          [req.user.companyId],
+        );
+        const company = companyRes.rows[0];
+        if (company?.type === 'demo' && inv.type === 'Invoice' && company.fiscalizationApiKey) {
+          let buyer: any = { name: null, niu: null, address: null };
+          if (contactId) {
+            const cRes = await req.db.query(
+              'SELECT name, niu, address FROM contacts WHERE id = $1 AND "companyId" = $2',
+              [contactId, req.user.companyId],
+            );
+            buyer = cRes.rows[0] || buyer;
+          }
+          const result = await certifyInvoice({
+            invoice: { ...inv, items: inv.items || [] },
+            company,
+            buyer,
+          });
+          await req.db.query(
+            `UPDATE invoices SET
+               "certificationNumber" = $1,
+               "certifiedAt" = $2,
+               "certificationStatus" = $3,
+               "certificationPayload" = $4::jsonb
+             WHERE id = $5 AND "companyId" = $6`,
+            [
+              result.certificationNumber,
+              result.certifiedAt,
+              result.status,
+              JSON.stringify({ source: result.source, qrPayload: result.qrPayload }),
+              inv.id,
+              req.user.companyId,
+            ],
+          );
+          certified = {
+            certificationNumber: result.certificationNumber,
+            certifiedAt: result.certifiedAt,
+            certificationStatus: result.status,
+            certificationPayload: { source: result.source, qrPayload: result.qrPayload },
+          };
+        }
+      } catch (certErr) {
+        console.error('POST /api/invoices - Certification failed (non-fatal):', certErr);
+      }
+
+      res.status(201).json({ ...inv, ...(certified || {}) });
     } catch (dbError) {
       await req.db.query('ROLLBACK');
       console.error('POST /api/invoices - Database Error:', dbError);
@@ -128,6 +181,85 @@ invoicesRouter.post('/', async (req, res, next) => {
     next(error);
   }
 });
+
+/**
+ * Manually (re)certify an invoice via DGID. Restricted to demo companies —
+ * this is a demo-only feature until the real API is wired.
+ */
+invoicesRouter.post('/:id/certify', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    if (!req.user?.companyId) {
+      return res.status(400).json({ error: 'Missing company context' });
+    }
+    const companyRes = await req.db.query(
+      'SELECT id, name, niu, "taxId", type, "fiscalizationApiKey" FROM companies WHERE id = $1',
+      [req.user.companyId],
+    );
+    const company = companyRes.rows[0];
+    if (!company) return res.status(404).json({ error: 'Company not found' });
+    if (company.type !== 'demo') {
+      return res.status(403).json({ error: 'Certification DGID réservée aux sociétés démo pour l\'instant.' });
+    }
+    if (!company.fiscalizationApiKey) {
+      return res.status(400).json({ error: "Clé API DGID absente pour cette entreprise." });
+    }
+
+    const invRes = await req.db.query(
+      'SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2',
+      [id, req.user.companyId],
+    );
+    const invoice = invRes.rows[0];
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+
+    const itemsRes = await req.db.query(
+      'SELECT * FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2',
+      [id, req.user.companyId],
+    );
+    let buyer: any = { name: null, niu: null, address: null };
+    if (invoice.contactId) {
+      const cRes = await req.db.query(
+        'SELECT name, niu, address FROM contacts WHERE id = $1 AND "companyId" = $2',
+        [invoice.contactId, req.user.companyId],
+      );
+      buyer = cRes.rows[0] || buyer;
+    }
+
+    const result = await certifyInvoice({
+      invoice: { ...invoice, items: itemsRes.rows },
+      company,
+      buyer,
+    });
+
+    await req.db.query(
+      `UPDATE invoices SET
+         "certificationNumber" = $1,
+         "certifiedAt" = $2,
+         "certificationStatus" = $3,
+         "certificationPayload" = $4::jsonb
+       WHERE id = $5 AND "companyId" = $6`,
+      [
+        result.certificationNumber,
+        result.certifiedAt,
+        result.status,
+        JSON.stringify({ source: result.source, qrPayload: result.qrPayload }),
+        id,
+        req.user.companyId,
+      ],
+    );
+
+    res.json({
+      certificationNumber: result.certificationNumber,
+      certifiedAt: result.certifiedAt,
+      certificationStatus: result.status,
+      certificationPayload: { source: result.source, qrPayload: result.qrPayload },
+    });
+  } catch (error) {
+    console.error('POST /api/invoices/:id/certify error', error);
+    next(error);
+  }
+});
+
 
 invoicesRouter.put('/:id', async (req, res, next) => {
   const { id } = req.params;

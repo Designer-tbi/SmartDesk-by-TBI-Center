@@ -58,6 +58,9 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
       // tax-ID labels, phone placeholders, etc. without a re-login.
       req.user!.country = company.country || req.user!.country || 'FR';
       (req.user as any).state = company.state || (req.user as any).state || null;
+      // Expose the company type so the UI can conditionally enable
+      // demo-only features (DGID certification, expiry countdown…).
+      (req.user as any).companyType = company.type || null;
     }
     // Return persisted user preferences so the SPA can rehydrate its UI
     // state (language, sidebar, ...) without touching localStorage.
@@ -269,6 +272,7 @@ authRouter.post('/login', async (req, res, next) => {
         state: company?.state || null,
         language: prefs.language || company?.language || 'fr',
         currency: company?.currency || 'XAF',
+        companyType: company?.type || null,
         isDemo,
         preferences: prefs,
       }
@@ -410,10 +414,11 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
       // Create company with regional accounting defaults derived from country
       const finalCompanyName = companyName ? `${companyName} (${country || 'Démo'})` : `Démo - ${prenom} ${nom}`;
       const defaults = regionalDefaultsFromCountry(country);
+      const dgidKey = process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c';
       await db.query(`
-        INSERT INTO companies (id, name, type, status, country, state, language, currency, "accountingStandard", "createdAt")
-        VALUES ($1, $2, 'demo', 'active', $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
-      `, [companyId, finalCompanyName, country || 'CG', state || null, defaults.language, defaults.currency, defaults.accountingStandard]);
+        INSERT INTO companies (id, name, type, status, country, state, language, currency, "accountingStandard", "fiscalizationApiKey", "createdAt")
+        VALUES ($1, $2, 'demo', 'active', $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
+      `, [companyId, finalCompanyName, country || 'CG', state || null, defaults.language, defaults.currency, defaults.accountingStandard, dgidKey]);
       
       // Bind the RLS session to this new tenant so subsequent INSERTs into
       // the isolated tables (roles, ...) pass the WITH CHECK policy.

@@ -234,6 +234,62 @@ mettent en anglais instantanément.
   `**CONTRAT DE TRAVAIL À DURÉE INDÉTERMINÉE (CDI)**`
   `Entre : TechCorp Demo …Développeur Full-Stack… 500000 FCFA`.
 
+## Certification DGID des factures (2026-04-17 — iteration 8)
+
+Intégration (mode démo uniquement) d'une API de certification des
+factures (DGID Congo / SIGICITT). La clé API par défaut est isolée par
+entreprise via `companies.fiscalizationApiKey` — chaque société démo
+reçoit automatiquement cette clé à sa création.
+
+### DB (`/app/db.ts`)
+- `companies.fiscalizationApiKey TEXT`.
+- `invoices.certificationNumber TEXT`.
+- `invoices.certifiedAt TIMESTAMPTZ`.
+- `invoices.certificationStatus TEXT` (`certified` / `failed` / `pending`).
+- `invoices.certificationPayload JSONB` (source + QR payload).
+- Migration automatique : toute société `type='demo'` existante sans
+  clé reçoit la clé par défaut. Nouvelle schema_version
+  `2026-04-17-invoice-certif`.
+- Clé par défaut injectable via `process.env.DGID_DEMO_API_KEY`
+  (fallback hardcodé : `97ecc28…943c`).
+
+### Backend
+- `/app/server/services/fiscalization.ts` : appel HTTP vers
+  `DGID_API_URL` avec bearer / `X-Api-Key`, timeout 4 s. En cas
+  d'échec ou d'absence d'URL, fallback déterministe **signature
+  locale** (HMAC-SHA256 de la clé + payload facture), certificat
+  format `DGID-YYMMDD-HHMM-XXXXXXXXXX`.
+- `/app/server/routes/invoices.ts` :
+  - Auto-certification sur `POST /api/invoices` (type `Invoice`,
+    société démo, clé présente). Échec non bloquant.
+  - `POST /api/invoices/:id/certify` : certification manuelle /
+    re-certification (demo-only, 403 sinon).
+- `/app/server/routes/auth.ts` :
+  - `POST /api/auth/send-demo-email` : seed de la clé à la création.
+  - `/api/auth/me` et login renvoient `companyType` pour que la UI
+    affiche (ou pas) le bloc de certification.
+- `/app/server/routes/admin.ts` : lors de la création/édition d'une
+  société depuis super-admin, la clé est ajoutée si type=demo, sinon
+  effacée.
+
+### Frontend
+- Nouveau paquet `qrcode.react` installé.
+- `/app/src/types.ts` : `Invoice.certificationNumber`, `certifiedAt`,
+  `certificationStatus`, `certificationPayload`.
+- `/app/src/modules/Sales.tsx` :
+  - Bloc « Certification DGID » dans l'aperçu de facture, affichant
+    QR code, numéro, horodatage, source (API réelle vs signature locale).
+  - Bouton « Certifier maintenant » / « Re-certifier » (démo only).
+  - `handleCertify()` appelle l'endpoint, met à jour liste + vue.
+
+### Validé
+- `POST /api/invoices` crée + certifie automatiquement une facture
+  démo → renvoie `certificationNumber: DGID-…`.
+- `POST /api/invoices/:id/certify` re-certifie avec un nouveau
+  numéro.
+- Aperçu affiche QR + N° de cert + badge « Document fiscalement
+  authentifié » correctement (screenshot validé).
+
 ## Backlog / Prochaines actions
 - P1 : migrer la DB Neon vers un compte propriétaire (DATABASE_URL vient de
   `.env.example` — partagée avec la preview).

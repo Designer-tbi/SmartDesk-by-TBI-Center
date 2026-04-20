@@ -4,9 +4,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, Download, FileText, CheckCircle, Clock, AlertCircle, Eye, Pencil, Trash2, Mail, X, 
   FileEdit, User, Calendar, Tag, Building2, PlusCircle, Link as LinkIcon, FileSignature, Eraser,
-  Copy, Layout, Send, Check
+  Copy, Layout, Send, Check, ShieldCheck
 } from 'lucide-react';
 import { Invoice, Contact, Product, QuoteTemplate } from '../types';
+import { QRCodeSVG } from 'qrcode.react';
 
 import { useTranslation } from '../lib/i18n';
 
@@ -270,6 +271,35 @@ export const Sales = ({ user }: { user: any }) => {
     setNewInvoice(invoice);
     setEditingInvoiceId(invoice.id);
     setIsModalOpen(true);
+  };
+
+  const [certifyingId, setCertifyingId] = useState<string | null>(null);
+
+  const handleCertify = async (invoice: Invoice) => {
+    setCertifyingId(invoice.id);
+    try {
+      const response = await apiFetch(`/api/invoices/${invoice.id}/certify`, {
+        method: 'POST',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Update the list + opened preview with fresh certification data
+        setInvoices((prev) =>
+          prev.map((inv) => (inv.id === invoice.id ? { ...inv, ...data } : inv)),
+        );
+        setViewInvoice((prev) => (prev && prev.id === invoice.id ? { ...prev, ...data } : prev));
+        setSuccessMessage(`Facture ${invoice.id} certifiée (${data.certificationNumber})`);
+        setTimeout(() => setSuccessMessage(null), 3500);
+      } else {
+        const err = await response.json().catch(() => ({}));
+        setError(err.error || 'Échec de la certification DGID.');
+      }
+    } catch (e) {
+      console.error('Certify failed', e);
+      setError('Échec de la certification DGID.');
+    } finally {
+      setCertifyingId(null);
+    }
   };
 
   const handleSendEmail = async (invoice: Invoice) => {
@@ -1403,6 +1433,72 @@ export const Sales = ({ user }: { user: any }) => {
                     )}
                   </div>
                 </div>
+
+                {/* DGID Fiscalization block — only shown for Invoices (not Quotes) */}
+                {viewInvoice.type === 'Invoice' && (
+                  <div className="pt-8 border-t border-slate-200" data-testid="invoice-dgid-block">
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        Certification DGID
+                      </h3>
+                      {user?.companyType === 'demo' && (
+                        <button
+                          type="button"
+                          onClick={() => handleCertify(viewInvoice)}
+                          disabled={certifyingId === viewInvoice.id}
+                          className="text-[10px] font-bold text-emerald-700 hover:text-emerald-800 uppercase tracking-widest disabled:opacity-50"
+                          data-testid="invoice-certify-btn"
+                        >
+                          {certifyingId === viewInvoice.id
+                            ? 'Certification…'
+                            : viewInvoice.certificationNumber
+                              ? 'Re-certifier'
+                              : 'Certifier maintenant'}
+                        </button>
+                      )}
+                    </div>
+                    {viewInvoice.certificationNumber ? (
+                      <div className="flex items-start gap-5 p-4 bg-emerald-50 border border-emerald-100 rounded-xl">
+                        <div className="shrink-0 bg-white p-2 rounded-lg border border-emerald-200">
+                          <QRCodeSVG
+                            value={viewInvoice.certificationPayload?.qrPayload || viewInvoice.certificationNumber}
+                            size={96}
+                            level="M"
+                            data-testid="invoice-dgid-qrcode"
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0 text-xs text-slate-700 space-y-1">
+                          <div>
+                            <span className="font-bold text-slate-900">N° de certification :</span>{' '}
+                            <span className="font-mono" data-testid="invoice-dgid-number">{viewInvoice.certificationNumber}</span>
+                          </div>
+                          {viewInvoice.certifiedAt && (
+                            <div>
+                              <span className="font-bold text-slate-900">Certifiée le :</span>{' '}
+                              {new Date(viewInvoice.certifiedAt).toLocaleString('fr-FR')}
+                            </div>
+                          )}
+                          <div>
+                            <span className="font-bold text-slate-900">Source :</span>{' '}
+                            {viewInvoice.certificationPayload?.source === 'dgid'
+                              ? 'API DGID (Congo)'
+                              : 'Signature locale (mode démo)'}
+                          </div>
+                          <div className="text-[10px] text-emerald-700 font-semibold pt-1">
+                            ✓ Document fiscalement authentifié — ne plus modifier après certification.
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-lg border border-slate-100">
+                        Facture non certifiée. {user?.companyType === 'demo'
+                          ? 'Cliquez « Certifier maintenant » pour la soumettre à la DGID.'
+                          : 'La certification DGID est réservée aux sociétés démo pour l’instant.'}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {viewInvoice.notes && (
                   <div className="pt-8 border-t border-slate-200">

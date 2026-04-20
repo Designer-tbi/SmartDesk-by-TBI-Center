@@ -52,6 +52,11 @@ export interface Invoice {
   notes?: string;
   signatureLink?: string;
   signedAt?: string;
+  // DGID fiscalization (demo-only for now)
+  certificationNumber?: string;
+  certifiedAt?: string;
+  certificationStatus?: 'certified' | 'failed' | 'pending';
+  certificationPayload?: { source?: 'dgid' | 'local'; qrPayload?: string };
 }
 
 export interface QuoteTemplate {
