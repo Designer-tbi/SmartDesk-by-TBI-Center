@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { requireAuth } from '../middleware/auth.js';
 import { seedDefaultRoles } from '../../db.js';
+import { getMailerForCompany } from '../services/mailer.js';
 
 /**
  * Derive sensible accounting defaults (currency, standard, language) from
@@ -453,20 +454,13 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
       throw e;
     }
 
-    // Use provided SMTP credentials
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "mail.tbi-center.fr",
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: process.env.SMTP_SECURE !== 'false', // true by default for 465
-      auth: {
-        user: process.env.SMTP_USER || "demo@tbi-center.fr",
-        pass: process.env.SMTP_PASS || "loub@ki2014D",
-      },
-    });
+    // Demo signup → use the dedicated OVH demo mailbox
+    // (`demo@smart-desk.pro`).
+    const { transporter, from } = getMailerForCompany('demo', 'SmartDesk Demo');
 
     // 1. Email to the user with their code
     const userMailOptions = {
-      from: '"SmartDesk Demo" <demo@tbi-center.fr>',
+      from,
       to: email,
       subject: "Vos accès à la démo SmartDesk",
       text: `Bonjour ${prenom} ${nom},\n\nVoici vos identifiants pour accéder à la démo de SmartDesk :\n\nIdentifiant : ${email}\nMot de passe : ${code}\n\nPour vous connecter :\n1. Rendez-vous sur la page de connexion de l'application.\n2. Saisissez votre identifiant et votre mot de passe.\n3. Cliquez sur "Se connecter".\n\nÀ bientôt !`,
@@ -489,7 +483,7 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
 
     // 2. Email to eden@tbi-center.fr with the summary
     const adminMailOptions = {
-      from: '"SmartDesk Demo" <demo@tbi-center.fr>',
+      from,
       to: "eden@tbi-center.fr",
       subject: "Nouvelle inscription Démo SmartDesk",
       text: `Nouvelle inscription à la démo :\n\nNom : ${nom}\nPrénom : ${prenom}\nEmail : ${email}\nTéléphone : ${telephone}\nEntreprise : ${companyName || 'Non renseigné'}\nPays : ${country || 'Non renseigné'}\nÉtat : ${state || 'Non renseigné'}\nCode généré : ${code}\nEntreprise ID: ${companyId}`,

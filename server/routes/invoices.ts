@@ -5,6 +5,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import { certifyInvoice } from '../services/fiscalization.js';
+import { getMailerForCompany } from '../services/mailer.js';
 
 export const invoicesRouter = Router();
 
@@ -463,18 +464,10 @@ invoicesRouter.put('/:id', async (req, res, next) => {
           
           const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
           
-          const transporter = nodemailer.createTransport({
-            host: process.env.SMTP_HOST || "mail.tbi-center.fr",
-            port: parseInt(process.env.SMTP_PORT || '465'),
-            secure: process.env.SMTP_SECURE !== 'false',
-            auth: {
-              user: process.env.SMTP_USER || "demo@tbi-center.fr",
-              pass: process.env.SMTP_PASS || "loub@ki2014D",
-            },
-          });
+          const { transporter, from } = getMailerForCompany(company.type, company.name);
           
           await transporter.sendMail({
-            from: `"${company.name}" <${process.env.SMTP_USER || "demo@tbi-center.fr"}>`,
+            from,
             to: contact.email,
             subject: `Votre ${inv.type === 'Quote' ? 'devis' : 'facture'} signé(e) - ${inv.id}`,
             html: `
@@ -678,16 +671,8 @@ invoicesRouter.post('/:id/send-email', async (req, res, next) => {
     const companyRes = await req.db.query('SELECT * FROM companies WHERE id = $1', [req.user!.companyId]);
     const company = companyRes.rows[0];
     
-    // 4. Configure nodemailer
-    const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || "mail.tbi-center.fr",
-      port: parseInt(process.env.SMTP_PORT || '465'),
-      secure: process.env.SMTP_SECURE !== 'false',
-      auth: {
-        user: process.env.SMTP_USER || "demo@tbi-center.fr",
-        pass: process.env.SMTP_PASS || "loub@ki2014D",
-      },
-    });
+    // 4. Configure nodemailer (per-company tenant — demo mailbox for demos)
+    const { transporter, from } = getMailerForCompany(company.type, company.name);
     
     const isQuote = invoice.type === 'Quote';
     const subject = isQuote ? `Devis ${invoice.id} - ${company.name}` : `Facture ${invoice.id} - ${company.name}`;
@@ -708,7 +693,7 @@ invoicesRouter.post('/:id/send-email', async (req, res, next) => {
     `).join('');
 
     const mailOptions = {
-      from: `"${company.name}" <${process.env.SMTP_USER || "demo@tbi-center.fr"}>`,
+      from,
       to: contact.email,
       subject: subject,
       html: `
