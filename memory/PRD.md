@@ -471,43 +471,38 @@ utilisateurs France et RDC.
 - P2 : rate-limit sur `/api/auth/login` (brute force).
 - P2 : retirer les indices de mot de passe des erreurs 401 en production.
 
-## Actions sur devis signés (2026-04-29 — iter 15)
+## Actions sur devis signés (2026-04-29 — iter 15 + iter 16)
 
 L'utilisateur peut désormais **prévisualiser, télécharger et supprimer**
-un devis signé directement depuis la liste Sales.
+un devis signé depuis la liste Sales **et** depuis l'onglet
+« Devis Signés / Réception » (Espace de Réception Devis).
 
 ### Frontend — `/app/src/modules/Sales.tsx`
-- `handleDownloadPdf(invoice)` : nouveau handler qui appelle
-  `GET /api/invoices/:id/pdf`, convertit la réponse en blob et déclenche
-  le téléchargement (filename `Devis_<id>.pdf` ou `Facture_<id>.pdf`).
-- Bouton **Download** ajouté entre « Envoyer » et « Modifier » dans
-  chaque ligne du tableau (`data-testid="download-pdf-<id>"`), spinner
-  pendant la génération.
-- Modale d'aperçu : nouveau bloc « Signature électronique » affiché si
-  `type === 'Quote' && status === 'Signed'`. Image manuscrite +
-  `Signé par` + `Date` + mention eIDAS/OHADA.
-- Helper `parseSignature(raw)` : décode soit le JSON
-  `{signerName, signatureDataUrl}` (nouveau format public/in-app), soit
-  la data-URL nue (rétro-compat).
+- `handleDownloadPdf(invoice)` : appel `GET /api/invoices/:id/pdf`,
+  blob → téléchargement (filename `Devis_<id>.pdf`).
+- **Liste principale** : bouton Download entre Envoyer et Modifier
+  (`data-testid="download-pdf-<id>"`).
+- **Onglet « Devis Signés / Réception »** (iter 16) : la colonne
+  Actions n'avait qu'un bouton Download sans handler → 3 boutons
+  fonctionnels (`Eye`, `Download`, `Trash2`) avec testids
+  `reception-{preview|download|delete}-<id>`. Date formatée FR.
+- Modale d'aperçu : bloc Signature électronique pour les devis Signed.
+- Helper `parseSignature(raw)` : JSON `{signerName, signatureDataUrl}`
+  ou data-URL nue (rétro-compat).
 
 ### Backend — `/app/server/routes/invoices.ts`
-- Endpoint `GET /api/invoices/:id/pdf` enrichi : pour les devis signés,
-  embed la signature manuscrite via `doc.addImage` (50 × 22 mm), avec
-  nom du signataire, date et mention juridique. Détection PNG/JPEG
-  d'après la data-URL.
+- `GET /api/invoices/:id/pdf` embed la signature manuscrite via
+  `doc.addImage` (50 × 22 mm) + nom signataire + date + mention eIDAS.
 
 ### Validé (curl + Playwright)
-- Création + signature publique d'un devis → `status='Signed'`.
-- `GET /api/invoices/:id/pdf` (auth démo) → 200, PDF valide 6.8 KB
-  contenant « DEVIS » et le nom du signataire.
-- Liste Sales : bouton télécharger trouvé via `data-testid` et
-  bouton supprimer non désactivé (devis signé non certifié).
-- Aperçu modale : bloc signature présent
+- Onglet Réception : 3 boutons (preview/download/delete) trouvés via
+  `data-testid` sur un devis signé seedé en demo-1.
+- Date affichée : `29/04/2026 20:25:39` (au lieu du timestamp ISO).
+- PDF généré ~7 KB contient DEVIS + nom signataire.
+- Aperçu modale : `[data-testid="quote-signature-image"]` +
+  `quote-signer-name` rendus.
 
 ## Précision signature + descriptions multi-lignes (2026-04-29 — iter 14)
-  (`[data-testid="quote-signature-image"]` + `quote-signer-name`
-  affiche « Marie Kabongo » + horodatage).
-
 
 ### Canvas de signature
 - `/app/src/pages/SignQuotePage.tsx` :

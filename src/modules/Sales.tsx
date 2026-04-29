@@ -771,17 +771,49 @@ export const Sales = ({ user }: { user: any }) => {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {invoices.filter(i => i.type === 'Quote' && (i.status === 'Signed' || i.status === 'Accepted')).map((quote) => (
-                    <tr key={quote.id} className="hover:bg-slate-50 transition-colors">
+                    <tr key={quote.id} className="hover:bg-slate-50 transition-colors" data-testid={`reception-row-${quote.id}`}>
                       <td className="px-6 py-4">
                         <div className="text-sm font-bold text-slate-900">{quote.id}</div>
                         <div className="text-[10px] text-slate-400">{quote.total.toLocaleString()} {currencySymbol}</div>
                       </td>
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">{getContactName(quote.contactId)}</td>
-                      <td className="px-6 py-4 text-sm text-slate-500 font-medium">{quote.signedAt || quote.date}</td>
-                      <td className="px-6 py-4 text-right">
-                        <button className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all">
-                          <Download className="w-4 h-4" />
-                        </button>
+                      <td className="px-6 py-4 text-sm text-slate-500 font-medium">
+                        {quote.signedAt
+                          ? new Date(quote.signedAt).toLocaleString('fr-FR')
+                          : new Date(quote.date).toLocaleDateString('fr-FR')}
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => setViewInvoice(quote)}
+                            className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"
+                            title={t('sales.preview') || 'Aperçu'}
+                            data-testid={`reception-preview-${quote.id}`}
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDownloadPdf(quote)}
+                            disabled={downloadingId === quote.id}
+                            className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"
+                            title={t('sales.downloadPdf') || 'Télécharger le PDF'}
+                            data-testid={`reception-download-${quote.id}`}
+                          >
+                            {downloadingId === quote.id ? (
+                              <div className="w-4 h-4 border-2 border-slate-300 border-t-accent-red rounded-full animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirmId(quote.id)}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                            title={t('sales.delete') || 'Supprimer'}
+                            data-testid={`reception-delete-${quote.id}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
