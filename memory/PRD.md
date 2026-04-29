@@ -470,3 +470,46 @@ utilisateurs France et RDC.
   `selectedCompanyId` dans user.preferences).
 - P2 : rate-limit sur `/api/auth/login` (brute force).
 - P2 : retirer les indices de mot de passe des erreurs 401 en production.
+
+## Page de signature publique (2026-04-29 — iter 13)
+
+Le lien public `/sign-quote/:id` redirigeait vers la page d'accueil
+(login) car le `<Router>` n'était monté qu'après authentification.
+Réécriture du flow d'auth pour gérer les routes publiques.
+
+### Frontend
+- `/app/src/App.tsx` : `<Router>` déplacé au niveau racine (`<App>`).
+  `AppContent` détecte les pathnames `/sign-quote/`, `/sign-contract/`
+  et `/sign/` (legacy HR) avant tout appel à `/api/auth/me` et rend
+  directement `SignQuotePage` sans Sidebar/Header ni écran de login.
+- `/app/src/pages/SignQuotePage.tsx` : page unifiée devis + contrats
+  HR. Détecte le type via `useLocation()`, appelle `/api/public/quotes`
+  ou `/api/public/contracts`, affiche soit le tableau d'items + totaux
+  TTC/HT/TVA (devis), soit le contenu du contrat + rémunération (HR).
+  Canvas de signature manuscrite + nom complet, POST sur l'endpoint
+  correspondant `…/sign`.
+
+### Backend
+- `/app/server/routes/publicSignature.ts` : nouveau router monté sur
+  `/api/public` **sans `requireAuth`**. Routes : `GET /quotes/:id`,
+  `POST /quotes/:id/sign`, `GET /contracts/:id`, `POST /contracts/:id/sign`.
+- `/app/server/middleware/db.ts` : `dbMiddleware` détecte le préfixe
+  `/api/public/` et active `isSuperAdmin=true` sur la session RLS
+  uniquement pour ces routes (sinon `req.user.companyId` est nul →
+  RLS bloquerait la lecture cross-tenant).
+- `/app/app.ts` : `app.use('/api/public', publicSignatureRouter)`
+  monté avant le 404 handler.
+- Sécurité : la signature stocke `{signerName, signatureDataUrl}` en
+  JSON dans la colonne existante `signatureLink`, met
+  `status='Signed'` + `signedAt=NOW()`, et renvoie 409 si déjà signé.
+
+### Validé (curl + screenshot Playwright)
+- `GET /api/public/quotes/:id` retourne 200 avec invoice + items + company + contact.
+- `GET /api/public/contracts/:id` retourne 404 quand inexistant, 200 sinon.
+- `POST /api/public/quotes/:id/sign` passe le devis à `Signed` + `signedAt`.
+- Re-signer → 409 « Ce devis est déjà signé ».
+- Page `/sign-quote/qt_unsigned_2` rendue sans login : header rouge,
+  parties, items 200 000 XAF / TTC 236 000 XAF, canvas + bouton
+  « Confirmer ma signature ».
+- Page d'un devis déjà signé : badge vert « DEVIS SIGNÉ » au lieu du formulaire.
+

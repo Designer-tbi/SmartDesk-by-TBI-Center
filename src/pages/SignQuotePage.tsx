@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation } from 'react-router-dom';
 import { CheckCircle2, AlertCircle, Eraser, Loader2, FileSignature, ShieldCheck } from 'lucide-react';
 
 /**
@@ -14,6 +14,17 @@ import { CheckCircle2, AlertCircle, Eraser, Loader2, FileSignature, ShieldCheck 
  */
 export default function SignQuotePage() {
   const { id } = useParams<{ id: string }>();
+  const location = useLocation();
+  // The same page handles three URL shapes:
+  //   /sign-quote/:id     → quote (devis)
+  //   /sign-contract/:id  → contract (HR)
+  //   /sign/:id           → contract (legacy HR link)
+  const isContract =
+    location.pathname.startsWith('/sign-contract/') ||
+    (location.pathname.startsWith('/sign/') && !location.pathname.startsWith('/sign-quote/'));
+  const apiBase = isContract ? '/api/public/contracts' : '/api/public/quotes';
+  const docLabel = isContract ? 'Contrat' : 'Devis';
+
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +40,7 @@ export default function SignQuotePage() {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch(`/api/public/quotes/${id}`, { credentials: 'omit' });
+        const r = await fetch(`${apiBase}/${id}`, { credentials: 'omit' });
         if (!r.ok) {
           const e = await r.json().catch(() => null);
           throw new Error(e?.error || `HTTP ${r.status}`);
@@ -43,7 +54,7 @@ export default function SignQuotePage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, apiBase]);
 
   /* ---- Canvas helpers ---- */
   const getCtx = () => canvasRef.current?.getContext('2d') || null;
@@ -96,7 +107,7 @@ export default function SignQuotePage() {
     const dataUrl = canvas.toDataURL('image/png');
     setSubmitting(true);
     try {
-      const r = await fetch(`/api/public/quotes/${id}/sign`, {
+      const r = await fetch(`${apiBase}/${id}/sign`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'omit',
@@ -117,7 +128,7 @@ export default function SignQuotePage() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-soft-red/30">
         <div className="flex items-center gap-3 text-slate-600">
           <Loader2 className="w-5 h-5 animate-spin text-accent-red" />
-          Chargement du devis…
+          Chargement du {docLabel.toLowerCase()}…
         </div>
       </div>
     );
@@ -136,13 +147,17 @@ export default function SignQuotePage() {
   }
 
   const inv = data?.invoice;
+  const contract = data?.contract;
   const company = data?.company;
   const contact = data?.contact;
+  const employee = data?.employee;
   const currency = company?.currency || '';
   const fmt = (n: number) => `${Number(n || 0).toLocaleString()} ${currency}`;
 
   // Already signed (either from the API on load, or after our own POST).
   const showSuccess = signedConfirmation || data?.alreadySigned;
+  const docId = isContract ? contract?.id : inv?.id;
+  const recipient = isContract ? employee : contact;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-soft-red/30 py-10 px-4">
@@ -154,7 +169,7 @@ export default function SignQuotePage() {
             Signature électronique
           </div>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight mt-1">
-            Devis n° {inv?.id}
+            {docLabel} n° {docId}
           </h1>
           <p className="text-sm text-white/85 mt-1">
             Émis par <strong>{company?.name}</strong>
@@ -174,55 +189,81 @@ export default function SignQuotePage() {
               {company?.niu && <div className="text-xs text-slate-500 mt-1">NIU : {company.niu}</div>}
             </div>
             <div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Destinataire</div>
-              <div className="text-sm font-black text-slate-900">{contact?.name || '—'}</div>
-              <div className="text-xs text-slate-500">{contact?.email || ''}</div>
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">
+                {isContract ? 'Salarié(e)' : 'Destinataire'}
+              </div>
+              <div className="text-sm font-black text-slate-900">{recipient?.name || '—'}</div>
+              <div className="text-xs text-slate-500">{recipient?.email || ''}</div>
+              {isContract && employee?.position && (
+                <div className="text-xs text-slate-500 mt-0.5">{employee.position}</div>
+              )}
             </div>
           </div>
 
-          {/* Items */}
-          <div className="rounded-2xl border border-slate-100 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-                <tr>
-                  <th className="px-4 py-3 text-left">Désignation</th>
-                  <th className="px-4 py-3 text-right">Qté</th>
-                  <th className="px-4 py-3 text-right">PU</th>
-                  <th className="px-4 py-3 text-right">Total HT</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(inv?.items || []).map((it: any, i: number) => (
-                  <tr key={i} className="border-t border-slate-100">
-                    <td className="px-4 py-2.5">
-                      <div className="font-medium text-slate-900">{it.name}</div>
-                      {it.description && <div className="text-xs text-slate-500">{it.description}</div>}
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-slate-700">{it.quantity}</td>
-                    <td className="px-4 py-2.5 text-right text-slate-700">{fmt(it.price)}</td>
-                    <td className="px-4 py-2.5 text-right font-bold text-slate-900">{fmt(it.quantity * it.price)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          <div className="flex justify-end">
-            <div className="w-full md:w-72 space-y-1 text-sm">
-              <div className="flex justify-between text-slate-600"><span>Total HT</span><span>{fmt(inv?.totalHT)}</span></div>
-              <div className="flex justify-between text-slate-600"><span>TVA</span><span>{fmt(inv?.tvaTotal)}</span></div>
-              <div className="flex justify-between text-base font-black text-accent-red border-t border-slate-200 pt-1.5">
-                <span>Total TTC</span><span>{fmt(inv?.total)}</span>
+          {/* Body — items table for quotes, contract content for HR */}
+          {isContract ? (
+            <div className="rounded-2xl border border-slate-100 p-5 bg-slate-50/40">
+              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
+                {contract?.type} — {contract?.startDate}
+                {contract?.endDate ? ` → ${contract.endDate}` : ''}
+              </div>
+              <div
+                className="prose prose-sm max-w-none text-slate-700 whitespace-pre-wrap"
+                data-testid="sign-contract-content"
+              >
+                {contract?.content}
+              </div>
+              <div className="mt-4 pt-4 border-t border-slate-200 text-sm">
+                <span className="text-slate-500">Rémunération : </span>
+                <span className="font-black text-slate-900">{fmt(contract?.salary)}</span>
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div className="rounded-2xl border border-slate-100 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <tr>
+                      <th className="px-4 py-3 text-left">Désignation</th>
+                      <th className="px-4 py-3 text-right">Qté</th>
+                      <th className="px-4 py-3 text-right">PU</th>
+                      <th className="px-4 py-3 text-right">Total HT</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(inv?.items || []).map((it: any, i: number) => (
+                      <tr key={i} className="border-t border-slate-100">
+                        <td className="px-4 py-2.5">
+                          <div className="font-medium text-slate-900">{it.name}</div>
+                          {it.description && <div className="text-xs text-slate-500">{it.description}</div>}
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-slate-700">{it.quantity}</td>
+                        <td className="px-4 py-2.5 text-right text-slate-700">{fmt(it.price)}</td>
+                        <td className="px-4 py-2.5 text-right font-bold text-slate-900">{fmt(it.quantity * it.price)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex justify-end">
+                <div className="w-full md:w-72 space-y-1 text-sm">
+                  <div className="flex justify-between text-slate-600"><span>Total HT</span><span>{fmt(inv?.totalHT)}</span></div>
+                  <div className="flex justify-between text-slate-600"><span>TVA</span><span>{fmt(inv?.tvaTotal)}</span></div>
+                  <div className="flex justify-between text-base font-black text-accent-red border-t border-slate-200 pt-1.5">
+                    <span>Total TTC</span><span>{fmt(inv?.total)}</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Signature zone OR confirmation */}
           {showSuccess ? (
             <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-6 flex items-start gap-4" data-testid="sign-quote-success">
               <CheckCircle2 className="w-7 h-7 text-emerald-600 shrink-0 mt-0.5" />
               <div>
-                <h3 className="text-sm font-black text-emerald-900 uppercase tracking-widest">Devis signé</h3>
+                <h3 className="text-sm font-black text-emerald-900 uppercase tracking-widest">{docLabel} signé</h3>
                 <p className="text-sm text-slate-700 mt-1">
                   {signedConfirmation
                     ? `Merci, votre signature a bien été enregistrée le ${new Date(signedConfirmation.signedAt).toLocaleString('fr-FR')}.`

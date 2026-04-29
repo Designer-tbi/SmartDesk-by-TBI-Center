@@ -7,6 +7,7 @@ import { apiFetch, setApiSession, clearApiSession } from './lib/api';
 import { I18nProvider, useTranslation } from './lib/i18n';
 import { AuthProvider } from './lib/AuthContext';
 import { OnboardingWizard } from './components/OnboardingWizard';
+import SignQuotePage from './pages/SignQuotePage';
 
 // Lazy load modules for better initial load time
 const Dashboard = lazy(() => import('./modules/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -86,6 +87,14 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
 
 const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
   const { setLanguage } = useTranslation();
+  const location = useLocation();
+
+  // Public routes that should render WITHOUT authentication.
+  // These must short-circuit before any /api/auth/me check or login screen.
+  const isPublicRoute =
+    location.pathname.startsWith('/sign-quote/') ||
+    location.pathname.startsWith('/sign-contract/') ||
+    location.pathname.startsWith('/sign/');
 
   const logout = useCallback(async () => {
     try {
@@ -107,6 +116,13 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
   }, [setUser]);
 
   useEffect(() => {
+    // Skip the auth bootstrap on public routes — recipients of a signature
+    // link should never trigger an /api/auth/me round-trip nor see the
+    // login screen.
+    if (isPublicRoute) {
+      setIsLoading(false);
+      return;
+    }
     // The session cookie is sent automatically — just ask the backend who
     // the user is. If none, /api/auth/me returns 401 and we stay logged out.
     apiFetch('/api/auth/me')
@@ -127,7 +143,20 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
         clearApiSession();
         setIsLoading(false);
       });
-  }, [setUser, setIsLoading, setLanguage]);
+  }, [setUser, setIsLoading, setLanguage, isPublicRoute]);
+
+  // Render public routes first — no auth, no chrome (sidebar/header).
+  if (isPublicRoute) {
+    return (
+      <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Chargement...</div>}>
+        <Routes>
+          <Route path="/sign-quote/:id" element={<SignQuotePage />} />
+          <Route path="/sign-contract/:id" element={<SignQuotePage />} />
+          <Route path="/sign/:id" element={<SignQuotePage />} />
+        </Routes>
+      </Suspense>
+    );
+  }
 
   if (isLoading) {
     return <div className="min-h-screen flex items-center justify-center">Chargement...</div>;
@@ -149,45 +178,43 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
   }
 
   return (
-    <Router>
-      <AuthProvider user={user} setUser={setUser}>
-        {/* First-login onboarding (skipped if the company has already
-            completed it). Mounted at the top level so the rest of the app
-            stays interactable underneath the modal backdrop, but the
-            wizard sits on top with z-60. */}
-        {user && user.onboardingCompleted === false && (
-          <OnboardingWizard
-            onCompleted={() => {
-              setUser((prev: any) => prev ? { ...prev, onboardingCompleted: true, hasFiscalizationKey: true } : prev);
-            }}
-          />
-        )}
-        <PageWrapper onLogout={logout} user={user}>
-          <Suspense fallback={<div className="flex items-center justify-center h-64">Chargement du module...</div>}>
-            <Routes>
-              <Route path="/" element={<Dashboard user={user} />} />
-              <Route path="/crm" element={<CRM user={user} />} />
-              <Route path="/sales" element={<Sales user={user} />} />
-              <Route path="/inventory" element={<Inventory user={user} />} />
-              <Route path="/projects" element={<Projects user={user} />} />
-              <Route path="/hr" element={<HR user={user} />} />
-              <Route path="/accounting" element={<Accounting user={user} />} />
-              <Route path="/agenda" element={<Agenda user={user} />} />
-              <Route path="/planning" element={<Planning user={user} />} />
-              {/* Declaration sub-modules are Congo-specific. Users from other
-                  countries still receive a 404-style fallback so direct
-                  URL access doesn't accidentally load the module. */}
-              {((user?.country || '').toUpperCase() === 'CG' || (user?.country || '').toUpperCase() === 'CONGO') && (
-                <Route path="/declarations/*" element={<Declarations />} />
-              )}
-              <Route path="/users" element={<Users user={user} />} />
-              <Route path="/settings" element={<Settings user={user} setUser={setUser} />} />
-              {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
-            </Routes>
-          </Suspense>
-        </PageWrapper>
-      </AuthProvider>
-    </Router>
+    <AuthProvider user={user} setUser={setUser}>
+      {/* First-login onboarding (skipped if the company has already
+          completed it). Mounted at the top level so the rest of the app
+          stays interactable underneath the modal backdrop, but the
+          wizard sits on top with z-60. */}
+      {user && user.onboardingCompleted === false && (
+        <OnboardingWizard
+          onCompleted={() => {
+            setUser((prev: any) => prev ? { ...prev, onboardingCompleted: true, hasFiscalizationKey: true } : prev);
+          }}
+        />
+      )}
+      <PageWrapper onLogout={logout} user={user}>
+        <Suspense fallback={<div className="flex items-center justify-center h-64">Chargement du module...</div>}>
+          <Routes>
+            <Route path="/" element={<Dashboard user={user} />} />
+            <Route path="/crm" element={<CRM user={user} />} />
+            <Route path="/sales" element={<Sales user={user} />} />
+            <Route path="/inventory" element={<Inventory user={user} />} />
+            <Route path="/projects" element={<Projects user={user} />} />
+            <Route path="/hr" element={<HR user={user} />} />
+            <Route path="/accounting" element={<Accounting user={user} />} />
+            <Route path="/agenda" element={<Agenda user={user} />} />
+            <Route path="/planning" element={<Planning user={user} />} />
+            {/* Declaration sub-modules are Congo-specific. Users from other
+                countries still receive a 404-style fallback so direct
+                URL access doesn't accidentally load the module. */}
+            {((user?.country || '').toUpperCase() === 'CG' || (user?.country || '').toUpperCase() === 'CONGO') && (
+              <Route path="/declarations/*" element={<Declarations />} />
+            )}
+            <Route path="/users" element={<Users user={user} />} />
+            <Route path="/settings" element={<Settings user={user} setUser={setUser} />} />
+            {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
+          </Routes>
+        </Suspense>
+      </PageWrapper>
+    </AuthProvider>
   );
 };
 
@@ -200,7 +227,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <I18nProvider>
-        <AppContent user={user} setUser={setUser} isLoading={isLoading} setIsLoading={setIsLoading} />
+        <Router>
+          <AppContent user={user} setUser={setUser} isLoading={isLoading} setIsLoading={setIsLoading} />
+        </Router>
       </I18nProvider>
     </ErrorBoundary>
   );
