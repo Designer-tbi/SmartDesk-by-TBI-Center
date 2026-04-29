@@ -609,6 +609,39 @@ invoicesRouter.get('/:id/pdf', async (req, res, next) => {
     doc.text(`Total TTC: ${Number(invoice.total || 0).toLocaleString()} ${company.currency || ''}`, 140, finalY + 20);
     doc.setFont(undefined, 'normal');
 
+    // Manuscript signature block — only for signed quotes. The signature
+    // artefact is stored in `signatureLink` as JSON (`{signerName, signatureDataUrl}`)
+    // by the public signing endpoint or the in-app "Sign manually" flow.
+    if (invoice.type === 'Quote' && invoice.status === 'Signed' && invoice.signatureLink) {
+      try {
+        let sig: { signerName?: string; signatureDataUrl?: string } | null = null;
+        const raw = String(invoice.signatureLink);
+        if (raw.startsWith('{')) {
+          try { sig = JSON.parse(raw); } catch { sig = null; }
+        } else if (raw.startsWith('data:image/')) {
+          sig = { signatureDataUrl: raw };
+        }
+        if (sig?.signatureDataUrl) {
+          const sigY = finalY + 32;
+          doc.setFont(undefined, 'bold');
+          doc.text('Signature électronique', 14, sigY);
+          doc.setFont(undefined, 'normal');
+          // Detect format from data URL prefix to pass to addImage.
+          const fmt = /image\/png/i.test(raw) ? 'PNG' : /image\/jpeg/i.test(raw) ? 'JPEG' : 'PNG';
+          doc.addImage(sig.signatureDataUrl, fmt, 14, sigY + 3, 50, 22);
+          doc.setFontSize(8);
+          if (sig.signerName) doc.text(`Signé par : ${sig.signerName}`, 70, sigY + 10);
+          if (invoice.signedAt) {
+            doc.text(`Date : ${new Date(invoice.signedAt).toLocaleString('fr-FR')}`, 70, sigY + 16);
+          }
+          doc.text('Signature à valeur juridique (eIDAS / OHADA)', 70, sigY + 22);
+          doc.setFontSize(10);
+        }
+      } catch (err) {
+        console.error('PDF signature embed failed:', err);
+      }
+    }
+
     // DGID/SFEC QR block
     if (invoice.certificationNumber) {
       try {

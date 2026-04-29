@@ -471,7 +471,43 @@ utilisateurs France et RDC.
 - P2 : rate-limit sur `/api/auth/login` (brute force).
 - P2 : retirer les indices de mot de passe des erreurs 401 en production.
 
+## Actions sur devis signés (2026-04-29 — iter 15)
+
+L'utilisateur peut désormais **prévisualiser, télécharger et supprimer**
+un devis signé directement depuis la liste Sales.
+
+### Frontend — `/app/src/modules/Sales.tsx`
+- `handleDownloadPdf(invoice)` : nouveau handler qui appelle
+  `GET /api/invoices/:id/pdf`, convertit la réponse en blob et déclenche
+  le téléchargement (filename `Devis_<id>.pdf` ou `Facture_<id>.pdf`).
+- Bouton **Download** ajouté entre « Envoyer » et « Modifier » dans
+  chaque ligne du tableau (`data-testid="download-pdf-<id>"`), spinner
+  pendant la génération.
+- Modale d'aperçu : nouveau bloc « Signature électronique » affiché si
+  `type === 'Quote' && status === 'Signed'`. Image manuscrite +
+  `Signé par` + `Date` + mention eIDAS/OHADA.
+- Helper `parseSignature(raw)` : décode soit le JSON
+  `{signerName, signatureDataUrl}` (nouveau format public/in-app), soit
+  la data-URL nue (rétro-compat).
+
+### Backend — `/app/server/routes/invoices.ts`
+- Endpoint `GET /api/invoices/:id/pdf` enrichi : pour les devis signés,
+  embed la signature manuscrite via `doc.addImage` (50 × 22 mm), avec
+  nom du signataire, date et mention juridique. Détection PNG/JPEG
+  d'après la data-URL.
+
+### Validé (curl + Playwright)
+- Création + signature publique d'un devis → `status='Signed'`.
+- `GET /api/invoices/:id/pdf` (auth démo) → 200, PDF valide 6.8 KB
+  contenant « DEVIS » et le nom du signataire.
+- Liste Sales : bouton télécharger trouvé via `data-testid` et
+  bouton supprimer non désactivé (devis signé non certifié).
+- Aperçu modale : bloc signature présent
+
 ## Précision signature + descriptions multi-lignes (2026-04-29 — iter 14)
+  (`[data-testid="quote-signature-image"]` + `quote-signer-name`
+  affiche « Marie Kabongo » + horodatage).
+
 
 ### Canvas de signature
 - `/app/src/pages/SignQuotePage.tsx` :

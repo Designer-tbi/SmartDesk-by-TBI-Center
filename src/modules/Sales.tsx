@@ -401,6 +401,44 @@ export const Sales = ({ user }: { user: any }) => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const handleDownloadPdf = async (invoice: Invoice) => {
+    setDownloadingId(invoice.id);
+    try {
+      const r = await apiFetch(`/api/invoices/${invoice.id}/pdf`);
+      if (!r.ok) {
+        setError(t('sales.errorDownloadPdf') || 'Échec du téléchargement.');
+        return;
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${invoice.type === 'Quote' ? 'Devis' : 'Facture'}_${invoice.id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('PDF download failed:', e);
+      setError(t('sales.errorDownloadPdf') || 'Échec du téléchargement.');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  // Parse the signature artefact stored in `signatureLink` once a quote is
+  // signed (stored as JSON `{signerName, signatureDataUrl}` by the public
+  // signing endpoint, or by the in-app `Sign manually` flow).
+  const parseSignature = (raw?: string | null): { signerName?: string; signatureDataUrl?: string } | null => {
+    if (!raw) return null;
+    if (raw.startsWith('{')) {
+      try { return JSON.parse(raw); } catch { return null; }
+    }
+    if (raw.startsWith('data:image/')) return { signatureDataUrl: raw };
+    return null;
+  };
+
   const applyTemplate = (template: QuoteTemplate) => {
     const totals = calculateTotals(template.items);
     setNewInvoice({
@@ -632,6 +670,19 @@ export const Sales = ({ user }: { user: any }) => {
                           </button>
                           <button onClick={() => handleSendEmail(invoice)} disabled={isSending === invoice.id} className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.sendEmail')}>
                             {isSending === invoice.id ? <div className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" /> : <Mail className="w-4 h-4" />}
+                          </button>
+                          <button
+                            onClick={() => handleDownloadPdf(invoice)}
+                            disabled={downloadingId === invoice.id}
+                            className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md"
+                            title={t('sales.downloadPdf') || 'Télécharger le PDF'}
+                            data-testid={`download-pdf-${invoice.id}`}
+                          >
+                            {downloadingId === invoice.id ? (
+                              <div className="w-4 h-4 border-2 border-slate-300 border-t-accent-red rounded-full animate-spin" />
+                            ) : (
+                              <Download className="w-4 h-4" />
+                            )}
                           </button>
                           <button
                             onClick={() => openEdit(invoice)}
@@ -1563,6 +1614,55 @@ export const Sales = ({ user }: { user: any }) => {
                     )}
                   </div>
                 )}
+
+                {/* Signature manuscrite — affichée pour les devis signés */}
+                {viewInvoice.type === 'Quote' && viewInvoice.status === 'Signed' && (() => {
+                  const sig = parseSignature(viewInvoice.signatureLink);
+                  return (
+                    <div className="pt-8 border-t border-slate-200" data-testid="quote-signature-block">
+                      <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                          <FileSignature className="w-3.5 h-3.5 text-emerald-600" />
+                          Signature électronique
+                        </h3>
+                        <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest">
+                          ✓ Devis signé
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-5 p-4 bg-emerald-50/60 border border-emerald-100 rounded-xl">
+                        <div className="shrink-0 bg-white p-3 rounded-lg border border-emerald-200">
+                          {sig?.signatureDataUrl ? (
+                            <img
+                              src={sig.signatureDataUrl}
+                              alt="Signature manuscrite"
+                              className="h-20 w-auto max-w-[260px] object-contain"
+                              data-testid="quote-signature-image"
+                            />
+                          ) : (
+                            <div className="text-xs text-slate-400 italic">Signature non disponible</div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0 text-xs text-slate-700 space-y-1">
+                          {sig?.signerName && (
+                            <div>
+                              <span className="font-bold text-slate-900">Signé par :</span>{' '}
+                              <span data-testid="quote-signer-name">{sig.signerName}</span>
+                            </div>
+                          )}
+                          {viewInvoice.signedAt && (
+                            <div>
+                              <span className="font-bold text-slate-900">Date :</span>{' '}
+                              {new Date(viewInvoice.signedAt).toLocaleString('fr-FR')}
+                            </div>
+                          )}
+                          <div className="text-[10px] text-emerald-700 font-semibold pt-1">
+                            ✓ Signature à valeur juridique (eIDAS / OHADA)
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {viewInvoice.notes && (
                   <div className="pt-8 border-t border-slate-200">
