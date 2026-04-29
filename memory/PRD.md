@@ -352,6 +352,52 @@ stockées.
 - Aperçu UI : QR officiel SFEC affiché (img tag), bouton Modifier
   désactivé, bouton PDF présent, label « API SFEC (DGID Congo) ».
 
+## 4 types de contacts SFEC (2026-04-29 — iteration 10)
+
+Extension du formulaire CRM pour couvrir les 4 types de bénéficiaires
+définis par la spec SFEC : `individual` / `business` / `government` /
+`foreign`.
+
+### DB
+- `contacts.foreignCountry TEXT` (pays d'origine pour les sociétés
+  étrangères).
+- `contacts.contactType` accepte désormais 4 valeurs.
+- Migration idempotente (`schema_version=2026-04-29-contact-types`).
+
+### Backend
+- `/app/server/routes/contacts.ts` : refactor avec normalisation stricte
+  des 4 types valides, persistance de `foreignCountry` (POST + PUT +
+  GET).
+- `/app/server/services/fiscalization.ts` : `recipientType` mappé
+  correctement (particulier→individual, professionnel→business,
+  gouvernement→government, etranger→foreign). `is_recipient_taxable`
+  étendu aux entités gouvernementales. NIU/email/address/phone passés
+  pour tous les types non-individuels.
+- `/app/server/routes/invoices.ts` : SELECT ajouté `foreignCountry`
+  dans les fetch buyer (création + re-certification).
+
+### Frontend
+- `/app/src/types.ts` : `Contact.contactType` étendu, `foreignCountry`
+  ajouté.
+- `/app/src/modules/CRM.tsx` :
+  - Toggle 2 → 4 boutons (UserCircle / Building2 / Landmark / Plane).
+  - Champ « Country of origin » conditionnel (etranger only).
+  - Labels adaptés par type (Department/Division pour gouvernement,
+    Ministry / Foreign company / etc.).
+  - NIU obligatoire pour business + gouvernement (CEMAC), libellé
+    « Foreign tax ID » pour étranger.
+  - Liste : badges colorisés (4 couleurs) + icône avion pour les
+    contacts étrangers, indication du pays.
+- `/app/src/lib/i18n.tsx` : 7 nouvelles clés FR + EN.
+
+### Validé
+- POST `/api/contacts` accepte `etranger` + `foreignCountry=France`.
+- POST `/api/contacts` accepte `gouvernement`.
+- Auto-certification SFEC d'une facture vers un contact étranger :
+  source=sfec, certNumber valide, qrImage présent.
+- Idem pour gouvernement.
+- Toggle UI affiche bien les 4 types et adapte les labels en direct.
+
 ## Backlog / Prochaines actions
 - P1 : migrer la DB Neon vers un compte propriétaire (DATABASE_URL vient de
   `.env.example` — partagée avec la preview).

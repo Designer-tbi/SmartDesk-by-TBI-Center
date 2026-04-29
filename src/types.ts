@@ -11,7 +11,8 @@ export interface Contact {
   lastContact: string;
   niu?: string;
   address?: string;
-  contactType?: 'particulier' | 'professionnel';
+  contactType?: 'particulier' | 'professionnel' | 'gouvernement' | 'etranger';
+  foreignCountry?: string;
 }
 
 export interface Product {

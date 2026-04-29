@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { apiFetch } from '../lib/api';
 import { motion, AnimatePresence } from 'motion/react';
-import { Plus, Filter, MoreVertical, Mail, Phone, ExternalLink, X, User, Building2, Globe, Tag, Briefcase, Check, Pencil, Trash2, Eye, Calendar, Loader2, AlertCircle, Search, Users, UserPlus, TrendingUp, Hash, MapPin, UserCircle } from 'lucide-react';
+import { Plus, Filter, MoreVertical, Mail, Phone, ExternalLink, X, User, Building2, Globe, Tag, Briefcase, Check, Pencil, Trash2, Eye, Calendar, Loader2, AlertCircle, Search, Users, UserPlus, TrendingUp, Hash, MapPin, UserCircle, Landmark, Plane } from 'lucide-react';
 import { Contact, Company } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
 
@@ -381,15 +381,19 @@ export const CRM = ({ user }: { user?: any }) => {
                     <td className="px-6 py-6">
                       <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-2xl bg-luxury-gray flex items-center justify-center text-slate-600 font-black text-lg group-hover:bg-accent-red group-hover:text-white transition-all shadow-inner">
-                          {contact.contactType === 'particulier' ? <UserCircle className="w-6 h-6" /> : (contact.name?.charAt(0) || '?')}
+                          {contact.contactType === 'particulier' ? <UserCircle className="w-6 h-6" /> :
+                           contact.contactType === 'gouvernement' ? <Landmark className="w-6 h-6" /> :
+                           contact.contactType === 'etranger' ? <Plane className="w-6 h-6" /> :
+                           (contact.name?.charAt(0) || '?')}
                         </div>
                         <div>
                           <div className="flex items-center gap-2 flex-wrap">
                             <div className="text-sm font-black text-slate-900 group-hover:text-accent-red transition-colors">{contact.name}</div>
                             <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${
-                              contact.contactType === 'particulier'
-                                ? 'bg-blue-50 text-blue-600 border border-blue-100'
-                                : 'bg-violet-50 text-violet-600 border border-violet-100'
+                              contact.contactType === 'particulier' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                              contact.contactType === 'gouvernement' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
+                              contact.contactType === 'etranger' ? 'bg-cyan-50 text-cyan-700 border border-cyan-100' :
+                              'bg-violet-50 text-violet-600 border border-violet-100'
                             }`}>
                               {t(`crm.type.${contact.contactType || 'professionnel'}`)}
                             </span>
@@ -404,6 +408,9 @@ export const CRM = ({ user }: { user?: any }) => {
                               <>
                                 <Building2 className="w-3 h-3" />
                                 {contact.company}
+                                {contact.contactType === 'etranger' && (contact as any).foreignCountry && (
+                                  <span className="text-cyan-600 normal-case ml-1">· {(contact as any).foreignCountry}</span>
+                                )}
                               </>
                             )}
                           </div>
@@ -500,30 +507,39 @@ export const CRM = ({ user }: { user?: any }) => {
               <form id="new-contact-form" onSubmit={handleAddOrUpdateContact} className="space-y-6">
                 <div className="flex justify-center mb-6">
                   <div className="w-20 h-20 rounded-full bg-soft-red border-2 border-red-100 flex items-center justify-center text-red-300">
-                    {newContact.contactType === 'particulier' ? <UserCircle className="w-8 h-8" /> : <Building2 className="w-8 h-8" />}
+                    {newContact.contactType === 'particulier' ? <UserCircle className="w-8 h-8" /> :
+                     newContact.contactType === 'gouvernement' ? <Landmark className="w-8 h-8" /> :
+                     newContact.contactType === 'etranger' ? <Plane className="w-8 h-8" /> :
+                     <Building2 className="w-8 h-8" />}
                   </div>
                 </div>
 
-                {/* Particulier vs Professionnel toggle */}
+                {/* Recipient type — aligned with SFEC spec
+                    (individual / business / government / foreign) */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
                     {t('crm.contactType')}
                   </label>
-                  <div className="grid grid-cols-2 gap-3" data-testid="crm-contact-type-toggle">
-                    {(['particulier', 'professionnel'] as const).map((kind) => (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3" data-testid="crm-contact-type-toggle">
+                    {([
+                      { kind: 'particulier', Icon: UserCircle },
+                      { kind: 'professionnel', Icon: Building2 },
+                      { kind: 'gouvernement', Icon: Landmark },
+                      { kind: 'etranger', Icon: Plane },
+                    ] as const).map(({ kind, Icon }) => (
                       <button
                         key={kind}
                         type="button"
                         onClick={() => setNewContact({ ...newContact, contactType: kind })}
                         data-testid={`crm-contact-type-${kind}`}
-                        className={`flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold border transition-all ${
+                        className={`flex flex-col items-center justify-center gap-1.5 py-3 rounded-2xl text-xs font-bold border transition-all ${
                           newContact.contactType === kind
                             ? 'bg-soft-red border-red-200 text-accent-red ring-2 ring-accent-red/10'
                             : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                         }`}
                       >
-                        {kind === 'particulier' ? <UserCircle className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
-                        {t(`crm.type.${kind}`)}
+                        <Icon className="w-4 h-4" />
+                        <span>{t(`crm.type.${kind}`)}</span>
                       </button>
                     ))}
                   </div>
@@ -546,9 +562,12 @@ export const CRM = ({ user }: { user?: any }) => {
                   </div>
 
                   {/* Job title — only for professionnel */}
-                  {newContact.contactType === 'professionnel' && (
+                  {/* Job title / department — for any non-individual entity */}
+                  {newContact.contactType !== 'particulier' && (
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.jobTitle')}</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        {newContact.contactType === 'gouvernement' ? t('crm.jobTitleGov') : t('crm.jobTitle')}
+                      </label>
                       <div className="relative">
                         <Briefcase className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input 
@@ -593,12 +612,24 @@ export const CRM = ({ user }: { user?: any }) => {
                     </div>
                   </div>
 
-                  {/* Company name — required only for professionnel */}
-                  {newContact.contactType === 'professionnel' && (
+                  {/* Entity name — required for all non-individual recipient types */}
+                  {newContact.contactType !== 'particulier' && (
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.company')} *</label>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        {newContact.contactType === 'gouvernement'
+                          ? t('crm.companyGov')
+                          : newContact.contactType === 'etranger'
+                            ? t('crm.companyForeign')
+                            : t('crm.company')} *
+                      </label>
                       <div className="relative">
-                        <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        {newContact.contactType === 'gouvernement' ? (
+                          <Landmark className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        ) : newContact.contactType === 'etranger' ? (
+                          <Plane className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        ) : (
+                          <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        )}
                         <input 
                           required
                           type="text" 
@@ -606,6 +637,25 @@ export const CRM = ({ user }: { user?: any }) => {
                           className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                           value={newContact.company || ''}
                           onChange={(e) => setNewContact({...newContact, company: e.target.value})}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Country of incorporation — only for foreign entities */}
+                  {newContact.contactType === 'etranger' && (
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('crm.foreignCountry')} *</label>
+                      <div className="relative">
+                        <Globe className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input 
+                          required
+                          type="text" 
+                          placeholder="ex. France, Cameroun, USA…"
+                          className="w-full pl-10 pr-4 py-3 bg-luxury-gray border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                          value={newContact.foreignCountry || ''}
+                          onChange={(e) => setNewContact({...newContact, foreignCountry: e.target.value})}
+                          data-testid="crm-foreign-country"
                         />
                       </div>
                     </div>
@@ -627,11 +677,13 @@ export const CRM = ({ user }: { user?: any }) => {
                     </div>
                   </div>
 
-                  {/* Tax ID — always visible, label adapts to region */}
+                  {/* Tax ID — always visible, label adapts to region.
+                      Foreign entities show their own foreign tax ID, gov.
+                      entities use the local NIU just like businesses. */}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
-                      {locale.taxIdLabel}
-                      {newContact.contactType === 'professionnel' && locale.isCemac ? ' *' : ''}
+                      {newContact.contactType === 'etranger' ? t('crm.taxIdForeign') : locale.taxIdLabel}
+                      {(newContact.contactType === 'professionnel' || newContact.contactType === 'gouvernement') && locale.isCemac ? ' *' : ''}
                     </label>
                     <div className="relative">
                       <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />

@@ -80,7 +80,10 @@ function buildSfecPayload(input: FiscalizationInput) {
   const { invoice, company, buyer } = input;
 
   const recipientType =
-    buyer.contactType === 'professionnel' ? 'business' : 'individual';
+    buyer.contactType === 'professionnel' ? 'business' :
+    buyer.contactType === 'gouvernement' ? 'government' :
+    buyer.contactType === 'etranger' ? 'foreign' :
+    'individual';
 
   const items = (invoice.items || []).map((it) => {
     const quantity = Number(it.quantity || 0);
@@ -111,9 +114,11 @@ function buildSfecPayload(input: FiscalizationInput) {
   return {
     invoice_id: invoice.id,
     recipient_type: recipientType,
-    is_recipient_taxable: recipientType === 'business',
+    is_recipient_taxable: recipientType === 'business' || recipientType === 'government',
     recipient_name: buyer.name || 'Client comptoir',
-    ...(recipientType === 'business' && {
+    // SFEC requires NIU + email + address + phone for non-individual
+    // recipients. Pass through whatever we have; SFEC will 422 if missing.
+    ...(recipientType !== 'individual' && {
       recipient_niu: buyer.niu || '',
       recipient_email: buyer.email || '',
       recipient_address: buyer.address || '',

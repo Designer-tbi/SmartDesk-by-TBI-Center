@@ -470,7 +470,7 @@ export async function initializeDatabase() {
       const flag = await db.query(
         `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
       );
-      if (flag.rows[0]?.value === '2026-04-17-invoice-certif') {
+      if (flag.rows[0]?.value === '2026-04-29-contact-types') {
         console.log('Database schema already up-to-date, skipping init.');
         return;
       }
@@ -504,6 +504,7 @@ export async function initializeDatabase() {
         await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certifiedAt" TIMESTAMPTZ`);
         await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationStatus" TEXT`);
         await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationPayload" JSONB`);
+        await db.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "foreignCountry" TEXT`);
         await db.query(
           `UPDATE companies SET "fiscalizationApiKey" = $1
            WHERE type = 'demo' AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
@@ -511,7 +512,7 @@ export async function initializeDatabase() {
         );
         await db.query(`
           INSERT INTO _app_meta (key, value, "updatedAt")
-          VALUES ('schema_version', '2026-04-17-invoice-certif', NOW())
+          VALUES ('schema_version', '2026-04-29-contact-types', NOW())
           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
         `);
         return;
@@ -624,6 +625,9 @@ export async function initializeDatabase() {
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certifiedAt" TIMESTAMPTZ`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationStatus" TEXT`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationPayload" JSONB`);
+    // Extended SFEC recipient types: business/individual/government/foreign.
+    // Foreign contacts also store their country of origin.
+    await db.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "foreignCountry" TEXT`);
     // Auto-propagate the default DGID key to every existing demo company that
     // doesn't have one yet. New demo companies get it on creation (see
     // /api/auth/send-demo-email).
@@ -652,7 +656,7 @@ export async function initializeDatabase() {
     try {
       await db.query(`
         INSERT INTO _app_meta (key, value, "updatedAt")
-        VALUES ('schema_version', '2026-04-17-invoice-certif', NOW())
+        VALUES ('schema_version', '2026-04-29-contact-types', NOW())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
       `);
     } catch (err) {

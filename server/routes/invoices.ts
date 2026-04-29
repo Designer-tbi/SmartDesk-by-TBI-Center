@@ -134,7 +134,7 @@ invoicesRouter.post('/', async (req, res, next) => {
           let buyer: any = { name: null, niu: null, address: null, email: null, phone: null, contactType: 'individual' };
           if (contactId) {
             const cRes = await req.db.query(
-              'SELECT name, niu, address, email, phone, "contactType" FROM contacts WHERE id = $1 AND "companyId" = $2',
+              'SELECT name, niu, address, email, phone, "contactType", "foreignCountry" FROM contacts WHERE id = $1 AND "companyId" = $2',
               [contactId, req.user.companyId],
             );
             buyer = cRes.rows[0] || buyer;
@@ -234,7 +234,7 @@ invoicesRouter.post('/:id/certify', async (req, res, next) => {
     let buyer: any = { name: null, niu: null, address: null, email: null, phone: null, contactType: 'individual' };
     if (invoice.contactId) {
       const cRes = await req.db.query(
-        'SELECT name, niu, address, email, phone, "contactType" FROM contacts WHERE id = $1 AND "companyId" = $2',
+        'SELECT name, niu, address, email, phone, "contactType", "foreignCountry" FROM contacts WHERE id = $1 AND "companyId" = $2',
         [invoice.contactId, req.user.companyId],
       );
       buyer = cRes.rows[0] || buyer;

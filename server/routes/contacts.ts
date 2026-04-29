@@ -6,9 +6,15 @@ export const contactsRouter = Router();
 
 contactsRouter.use(...requireTenant);
 
+const VALID_TYPES = ['particulier', 'professionnel', 'gouvernement', 'etranger'] as const;
+type ContactType = (typeof VALID_TYPES)[number];
+function normaliseType(input: any): ContactType {
+  return (VALID_TYPES as readonly string[]).includes(input) ? input : 'professionnel';
+}
+
 const SELECT_COLS = `
   id, "companyId", name, email, phone, company, role, notes, status, "lastContact",
-  niu, address,
+  niu, address, "foreignCountry",
   COALESCE("contactType", 'professionnel') AS "contactType"
 `;
 
@@ -28,16 +34,16 @@ contactsRouter.post('/', async (req, res, next) => {
   try {
     const {
       id, name, email, phone, company, role, notes, status, lastContact,
-      niu, address, contactType,
+      niu, address, contactType, foreignCountry,
     } = req.body;
-    const type = contactType === 'particulier' ? 'particulier' : 'professionnel';
+    const type = normaliseType(contactType);
     await req.db.query(
       `INSERT INTO contacts
        (id, "companyId", name, email, phone, company, role, notes, status,
-        "lastContact", niu, address, "contactType")
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+        "lastContact", niu, address, "contactType", "foreignCountry")
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
       [id, req.user!.companyId, name, email, phone, company, role, notes,
-       status, lastContact, niu, address, type],
+       status, lastContact, niu, address, type, foreignCountry || null],
     );
 
     await logActivity(
@@ -47,7 +53,7 @@ contactsRouter.post('/', async (req, res, next) => {
 
     res.status(201).json({
       id, name, email, phone, company, role, notes, status, lastContact,
-      niu, address, contactType: type,
+      niu, address, contactType: type, foreignCountry: foreignCountry || null,
     });
   } catch (error) {
     next(error);
@@ -59,17 +65,17 @@ contactsRouter.put('/:id', async (req, res, next) => {
     const { id } = req.params;
     const {
       name, email, phone, company, role, notes, status, lastContact,
-      niu, address, contactType,
+      niu, address, contactType, foreignCountry,
     } = req.body;
-    const type = contactType === 'particulier' ? 'particulier' : 'professionnel';
+    const type = normaliseType(contactType);
     await req.db.query(
       `UPDATE contacts SET
          name = $1, email = $2, phone = $3, company = $4, role = $5,
          notes = $6, status = $7, "lastContact" = $8, niu = $9,
-         address = $10, "contactType" = $11, "updatedAt" = NOW()
-       WHERE id = $12 AND "companyId" = $13`,
+         address = $10, "contactType" = $11, "foreignCountry" = $12, "updatedAt" = NOW()
+       WHERE id = $13 AND "companyId" = $14`,
       [name, email, phone, company, role, notes, status, lastContact,
-       niu, address, type, id, req.user!.companyId],
+       niu, address, type, foreignCountry || null, id, req.user!.companyId],
     );
 
     await logActivity(
@@ -79,7 +85,7 @@ contactsRouter.put('/:id', async (req, res, next) => {
 
     res.json({
       id, name, email, phone, company, role, notes, status, lastContact,
-      niu, address, contactType: type,
+      niu, address, contactType: type, foreignCountry: foreignCountry || null,
     });
   } catch (error) {
     next(error);
