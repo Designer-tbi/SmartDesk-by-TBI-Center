@@ -774,7 +774,7 @@ export async function seedDatabase(dbInstance: Pool) {
       const seedFlag = await dbInstance.query(
         `SELECT value FROM _app_meta WHERE key = 'seed_version'`,
       );
-      if (seedFlag.rows[0]?.value === '2026-04-17-cg-default') {
+      if (seedFlag.rows[0]?.value === '2026-04-29-recreate-demo-1') {
         return;
       }
     } catch {
@@ -794,7 +794,7 @@ export async function seedDatabase(dbInstance: Pool) {
       // Mark seed as done so future cold starts can skip it instantly.
       await seedClient.query(`
         INSERT INTO _app_meta (key, value, "updatedAt")
-        VALUES ('seed_version', '2026-04-17-cg-default', NOW())
+        VALUES ('seed_version', '2026-04-29-recreate-demo-1', NOW())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
       `).catch(() => {});
     } finally {
@@ -890,6 +890,13 @@ async function runSeed(dbInstance: any) {
         // so the CRM shows the correct locale-specific labels.
         await dbInstance.query(
           `UPDATE companies SET country = 'CG' WHERE id = $1 AND (country IS NULL OR country = 'FR')`,
+          [dc.id],
+        );
+        // Re-activate any soft-deleted demo (e.g. after the 15-day expiry
+        // window). Demo companies are meant to be perpetually usable for
+        // the test accounts.
+        await dbInstance.query(
+          `UPDATE companies SET status = 'active', "demoExpiresAt" = NULL, "firstLoginAt" = NULL WHERE id = $1 AND status != 'active'`,
           [dc.id],
         );
       }
