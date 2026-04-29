@@ -127,14 +127,16 @@ export const CRM = ({ user }: { user?: any }) => {
 
   const resetForm = () => {
     setNewContact({
-      name: '', 
-      email: '', 
-      phone: '', 
-      company: selectedCompany?.name || '', 
+      name: '',
+      email: '',
+      phone: '',
+      // Don't pre-fill the contact's "company" with the logged-in company's
+      // name — that's misleading for individuals and pollutes pro contacts.
+      company: '',
       companyId: selectedCompany?.id || '',
-      role: '', 
-      notes: '', 
-      status: 'Lead', 
+      role: '',
+      notes: '',
+      status: 'Lead',
       lastContact: new Date().toISOString().split('T')[0],
       niu: '',
       address: '',
@@ -155,7 +157,8 @@ export const CRM = ({ user }: { user?: any }) => {
       const contactToSave = {
         ...newContact,
         companyId: selectedCompany.id,
-        company: newContact.company || selectedCompany.name
+        // Persist exactly what the user typed — empty stays empty.
+        company: newContact.company || null,
       };
 
       if (editingContactId) {
