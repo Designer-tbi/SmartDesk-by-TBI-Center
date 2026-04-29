@@ -31,6 +31,7 @@ import { adminRouter } from './server/routes/admin.js';
 import { companyRouter } from './server/routes/company.js';
 import { eventsRouter } from './server/routes/events.js';
 import { schedulesRouter } from './server/routes/schedules.js';
+import { publicSignatureRouter } from './server/routes/publicSignature.js';
 
 const app = express();
 
@@ -70,6 +71,9 @@ app.use('/api/admin', adminRouter);
 app.use('/api/company', companyRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/schedules', schedulesRouter);
+// Public (no-auth) signature flow — recipients of quotes click a link and
+// land on /sign-quote/:id which calls these endpoints.
+app.use('/api/public', publicSignatureRouter);
 
 // Debug route — CRITICAL for diagnosing Vercel 500s. Visit /api/debug on the
 // live deployment to see exactly what's failing.

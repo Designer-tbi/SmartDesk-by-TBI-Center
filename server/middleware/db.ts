@@ -77,11 +77,15 @@ export const dbMiddleware = async (req: Request, res: Response, next: NextFuncti
     await client.query('SET search_path TO public');
 
     // Establish tenant isolation context for Row-Level Security policies.
+    // Public signature endpoints (`/api/public/*`) require RLS bypass since
+    // the recipient is unauthenticated; the routes themselves are tightly
+    // scoped (read-only on quotes, signed-state mutation only).
+    const isPublicEndpoint = req.path.startsWith('/api/public/') || req.originalUrl.startsWith('/api/public/');
     const ctx = peekTenantFromRequest(req);
     await setTenantContext(client, {
       companyId: ctx.companyId,
       companyType: ctx.companyType,
-      isSuperAdmin: ctx.isSuperAdmin,
+      isSuperAdmin: isPublicEndpoint || ctx.isSuperAdmin,
     });
 
     res.on('finish', release);

@@ -677,7 +677,18 @@ invoicesRouter.post('/:id/send-email', async (req, res, next) => {
     const isQuote = invoice.type === 'Quote';
     const subject = isQuote ? `Devis ${invoice.id} - ${company.name}` : `Facture ${invoice.id} - ${company.name}`;
     
-    const signatureBaseUrl = "https://smart-desk.pro";
+    // Use the public-facing base URL of the running deployment so the
+    // signature link works in dev / preview / production. The `Origin` /
+    // `Referer` of the request that triggered the email is a reliable
+    // hint; fallback to env var, then a sensible default.
+    const reqOrigin =
+      (req.headers.origin as string | undefined) ||
+      (req.headers.referer ? new URL(req.headers.referer as string).origin : undefined);
+    const signatureBaseUrl =
+      reqOrigin ||
+      process.env.PUBLIC_BASE_URL ||
+      process.env.REACT_APP_BACKEND_URL ||
+      'https://smart-desk.pro';
     const signatureLink = invoice.signatureLink || (isQuote ? `${signatureBaseUrl}/sign-quote/${invoice.id}` : null);
 
     const itemsHtml = items.map(item => `
