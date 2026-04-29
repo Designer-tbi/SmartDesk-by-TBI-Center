@@ -691,11 +691,19 @@ invoicesRouter.post('/:id/send-email', async (req, res, next) => {
       'https://smart-desk.pro';
     const signatureLink = invoice.signatureLink || (isQuote ? `${signatureBaseUrl}/sign-quote/${invoice.id}` : null);
 
+    // Preserve user-entered whitespace + newlines (matches the product
+    // creation form). HTML emails collapse whitespace by default, so we
+    // escape the description and convert \n to <br/>.
+    const escapeHtml = (s: string) => String(s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    const formatDescription = (d: string) => escapeHtml(d).replace(/\r?\n/g, '<br/>');
+
     const itemsHtml = items.map(item => `
       <tr>
-        <td style="padding: 8px; border-bottom: 1px solid #eee;">
-          <strong>${item.name}</strong>
-          ${item.description ? `<br/><span style="font-size: 0.85em; color: #666;">${item.description}</span>` : ''}
+        <td style="padding: 8px; border-bottom: 1px solid #eee; white-space: pre-wrap;">
+          <strong>${escapeHtml(item.name)}</strong>
+          ${item.description ? `<br/><span style="font-size: 0.85em; color: #666; white-space: pre-wrap;">${formatDescription(item.description)}</span>` : ''}
         </td>
         <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
         <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.price.toLocaleString()} ${company.currency}</td>

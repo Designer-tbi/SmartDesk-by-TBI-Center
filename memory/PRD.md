@@ -471,6 +471,40 @@ utilisateurs France et RDC.
 - P2 : rate-limit sur `/api/auth/login` (brute force).
 - P2 : retirer les indices de mot de passe des erreurs 401 en production.
 
+## Précision signature + descriptions multi-lignes (2026-04-29 — iter 14)
+
+### Canvas de signature
+- `/app/src/pages/SignQuotePage.tsx` :
+  - Helper `eventToCanvasPoint` : conversion correcte coord souris → coord
+    canvas (ratio `canvas.width / rect.width`). Fix l'offset perçu sur les
+    canvas étirés en CSS.
+  - `useEffect` qui (re)dimensionne la résolution interne du canvas à la
+    taille affichée × `devicePixelRatio` (lignes nettes sur retina,
+    pas de pixellisation).
+  - `setPointerCapture` pour conserver le tracé même quand le pointeur
+    sort/rentre du canvas pendant le mouvement.
+  - Tracé continu via `lineTo()` entre points successifs (fini les
+    segments disjoints), `lineCap='round'`, `lineJoin='round'`,
+    largeur 2.2 × DPR.
+  - Petit cercle au pointerDown pour qu'un tap unique laisse une trace.
+
+### Descriptions de produits / lignes de devis
+Aligne l'affichage sur le formulaire de création (qui est un `<textarea>`
+préservant espaces et `\n`). Tous les rendus utilisent désormais
+`whitespace-pre-wrap break-words`.
+- `/app/src/pages/SignQuotePage.tsx` (page de signature publique).
+- `/app/src/modules/Sales.tsx` (modale d'aperçu de devis/facture).
+- `/app/server/routes/invoices.ts` (e-mail HTML envoyé au client) :
+  échappement HTML + remplacement `\n` → `<br/>` et `white-space:
+  pre-wrap` sur les `<td>` concernées.
+
+### Validé
+- Devis avec description multi-lignes (incluant lignes vides + listes à
+  puces avec espaces de tête) : rendu fidèle au contenu saisi côté
+  signature publique.
+- Tracé Playwright (sinusoïde 200 points) : ligne continue, alignée
+  pixel-près au curseur.
+
 ## Page de signature publique (2026-04-29 — iter 13)
 
 Le lien public `/sign-quote/:id` redirigeait vers la page d'accueil

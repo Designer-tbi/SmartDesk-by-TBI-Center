@@ -35,6 +35,21 @@ export default function SignQuotePage() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const drawing = useRef(false);
   const isEmpty = useRef(true);
+  const lastPoint = useRef<{ x: number; y: number } | null>(null);
+
+  // Map the pointer event into the canvas's internal coordinate space.
+  // Without this, a stretched canvas (CSS width vs. internal width) draws
+  // the stroke offset from the cursor, which feels imprecise.
+  const eventToCanvasPoint = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -59,30 +74,79 @@ export default function SignQuotePage() {
   /* ---- Canvas helpers ---- */
   const getCtx = () => canvasRef.current?.getContext('2d') || null;
 
+  // Resize the canvas to its displayed size × devicePixelRatio so the stroke
+  // is crisp on retina displays AND the cursor stays aligned with the line.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const targetW = Math.round(rect.width * dpr);
+      const targetH = Math.round(rect.height * dpr);
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        // Capture existing strokes (if any) before resize to avoid wiping
+        // user input on viewport resize.
+        const snapshot = canvas.width && canvas.height ? canvas.toDataURL() : null;
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        if (ctx && snapshot && !isEmpty.current) {
+          const img = new Image();
+          img.onload = () => ctx.drawImage(img, 0, 0, targetW, targetH);
+          img.src = snapshot;
+        }
+      }
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, [loading, signedConfirmation]);
+
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const ctx = getCtx();
     const canvas = canvasRef.current;
     if (!ctx || !canvas) return;
-    const rect = canvas.getBoundingClientRect();
+    canvas.setPointerCapture(e.pointerId);
     drawing.current = true;
-    ctx.lineWidth = 2.5;
+    const pt = eventToCanvasPoint(e);
+    lastPoint.current = pt;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.lineWidth = 2.2 * dpr;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#0f172a';
+    // Draw a tiny dot for single-tap so a click without movement still
+    // registers as visible ink.
     ctx.beginPath();
-    ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+    ctx.arc(pt.x, pt.y, ctx.lineWidth / 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#0f172a';
+    ctx.fill();
+    isEmpty.current = false;
   };
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawing.current) return;
     const ctx = getCtx();
     const canvas = canvasRef.current;
     if (!ctx || !canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+    const pt = eventToCanvasPoint(e);
+    const last = lastPoint.current ?? pt;
+    // Continuous line between successive points — no gaps. lineCap='round'
+    // and lineJoin='round' (set on pointerDown) keep corners smooth.
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(pt.x, pt.y);
     ctx.stroke();
+    lastPoint.current = pt;
     isEmpty.current = false;
   };
-  const stopDrawing = () => { drawing.current = false; };
+  const stopDrawing = (e?: React.PointerEvent<HTMLCanvasElement>) => {
+    drawing.current = false;
+    lastPoint.current = null;
+    if (e && canvasRef.current) {
+      try { canvasRef.current.releasePointerCapture(e.pointerId); } catch { /* noop */ }
+    }
+  };
 
   const clearCanvas = () => {
     const canvas = canvasRef.current;
@@ -233,9 +297,13 @@ export default function SignQuotePage() {
                   <tbody>
                     {(inv?.items || []).map((it: any, i: number) => (
                       <tr key={i} className="border-t border-slate-100">
-                        <td className="px-4 py-2.5">
+                        <td className="px-4 py-2.5 align-top">
                           <div className="font-medium text-slate-900">{it.name}</div>
-                          {it.description && <div className="text-xs text-slate-500">{it.description}</div>}
+                          {it.description && (
+                            <div className="text-xs text-slate-500 whitespace-pre-wrap break-words mt-0.5">
+                              {it.description}
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-2.5 text-right text-slate-700">{it.quantity}</td>
                         <td className="px-4 py-2.5 text-right text-slate-700">{fmt(it.price)}</td>
@@ -307,13 +375,12 @@ export default function SignQuotePage() {
                 </div>
                 <canvas
                   ref={canvasRef}
-                  width={780}
-                  height={180}
                   onPointerDown={handlePointerDown}
                   onPointerMove={handlePointerMove}
                   onPointerUp={stopDrawing}
                   onPointerLeave={stopDrawing}
-                  className="w-full bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl touch-none cursor-crosshair"
+                  onPointerCancel={stopDrawing}
+                  className="w-full h-44 bg-slate-50 border-2 border-dashed border-slate-300 rounded-2xl touch-none cursor-crosshair"
                   data-testid="sign-quote-canvas"
                 />
                 <p className="text-[10px] text-slate-400">

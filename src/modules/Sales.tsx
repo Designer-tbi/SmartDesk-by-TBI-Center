@@ -1413,7 +1413,11 @@ export const Sales = ({ user }: { user: any }) => {
                       <tr key={idx}>
                         <td className="py-4 text-sm font-medium text-slate-900">
                           <div>{item.name || 'Article'}</div>
-                          {item.description && <div className="text-xs text-slate-500 font-normal">{item.description}</div>}
+                          {item.description && (
+                            <div className="text-xs text-slate-500 font-normal whitespace-pre-wrap break-words">
+                              {item.description}
+                            </div>
+                          )}
                         </td>
                         <td className="py-4 text-sm text-slate-600 text-center">{item.quantity}</td>
                         <td className="py-4 text-sm text-slate-600 text-right">{item.price.toLocaleString()} {currencySymbol}</td>
