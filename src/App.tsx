@@ -174,7 +174,12 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
               <Route path="/accounting" element={<Accounting user={user} />} />
               <Route path="/agenda" element={<Agenda user={user} />} />
               <Route path="/planning" element={<Planning user={user} />} />
-              <Route path="/declarations/*" element={<Declarations />} />
+              {/* Declaration sub-modules are Congo-specific. Users from other
+                  countries still receive a 404-style fallback so direct
+                  URL access doesn't accidentally load the module. */}
+              {((user?.country || '').toUpperCase() === 'CG' || (user?.country || '').toUpperCase() === 'CONGO') && (
+                <Route path="/declarations/*" element={<Declarations />} />
+              )}
               <Route path="/users" element={<Users user={user} />} />
               <Route path="/settings" element={<Settings user={user} setUser={setUser} />} />
               {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}

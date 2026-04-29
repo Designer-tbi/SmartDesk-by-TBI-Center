@@ -65,6 +65,13 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
     });
   };
 
+  // The "Mes déclarations" sub-modules (DGID / CNSS / INS / Greffe) are
+  // Congo-specific tax institutions. We only surface them when the
+  // company's country is Congo-Brazzaville. France & RDC users get a
+  // simpler navigation without this section.
+  const country = (user?.country || '').toUpperCase();
+  const showDeclarations = country === 'CG' || country === 'CONGO';
+
   const navSections = [
     {
       key: 'main',
@@ -93,18 +100,20 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
         { icon: Calculator, label: t('nav.accounting'), path: '/accounting' },
       ]
     },
-    {
-      key: 'declarations',
-      title: t('nav.section.declarations'),
-      items: [
-        { icon: LayoutDashboard, label: t('nav.declarations.dashboard'), path: '/declarations' },
-        { icon: Calendar, label: t('nav.declarations.calendar'), path: '/declarations/calendar' },
-        { icon: Landmark, label: t('nav.declarations.dgid'), path: '/declarations/dgid' },
-        { icon: HeartHandshake, label: t('nav.declarations.cnss'), path: '/declarations/cnss' },
-        { icon: BarChart3, label: t('nav.declarations.ins'), path: '/declarations/ins' },
-        { icon: FileBadge, label: t('nav.declarations.greffe'), path: '/declarations/greffe' },
-      ]
-    },
+    ...(showDeclarations
+      ? [{
+          key: 'declarations',
+          title: t('nav.section.declarations'),
+          items: [
+            { icon: LayoutDashboard, label: t('nav.declarations.dashboard'), path: '/declarations' },
+            { icon: Calendar, label: t('nav.declarations.calendar'), path: '/declarations/calendar' },
+            { icon: Landmark, label: t('nav.declarations.dgid'), path: '/declarations/dgid' },
+            { icon: HeartHandshake, label: t('nav.declarations.cnss'), path: '/declarations/cnss' },
+            { icon: BarChart3, label: t('nav.declarations.ins'), path: '/declarations/ins' },
+            { icon: FileBadge, label: t('nav.declarations.greffe'), path: '/declarations/greffe' },
+          ]
+        }]
+      : []),
     {
       key: 'config',
       title: t('nav.section.config'),

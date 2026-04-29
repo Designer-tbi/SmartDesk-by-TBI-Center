@@ -439,6 +439,28 @@ définis par la spec SFEC : `individual` / `business` / `government` /
 - `/api/auth/login` post-onboarding : `onboardingCompleted=true`,
   `hasFiscalizationKey=true`, `city=Brazzaville`, `country=CG`.
 
+## Sidebar conditionnelle par pays (2026-04-29 — iter 12)
+
+La section « Mes déclarations » et toutes ses sous-rubriques (Tableau
+de bord, Calendrier, DGID, CNSS, INS, Greffe) sont des modules
+spécifiques au Congo-Brazzaville. Ils sont désormais masqués pour les
+utilisateurs France et RDC.
+
+### Frontend
+- `/app/src/components/layout/Sidebar.tsx` : la section
+  `declarations` n'est ajoutée à `navSections` que lorsque
+  `user.country === 'CG'` (ou la valeur historique `CONGO`).
+- `/app/src/App.tsx` : la route `/declarations/*` n'est montée
+  que pour les pays Congo. Les utilisateurs FR/RDC qui tenteraient
+  d'y accéder par URL directe tombent sur le fallback 404 du Router.
+
+### Validé
+- Login démo en `country=CG` : section « Mes déclarations » visible
+  avec les 6 sous-rubriques.
+- Bascule en `country=FR` via Settings → la section disparaît
+  immédiatement de la sidebar (DGID/CNSS/INS/Greffe absents).
+- Restauration en `country=CG` : section réapparaît.
+
 ## Backlog / Prochaines actions
 - P1 : migrer la DB Neon vers un compte propriétaire (DATABASE_URL vient de
   `.env.example` — partagée avec la preview).
