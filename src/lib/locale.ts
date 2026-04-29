@@ -33,6 +33,12 @@ const COUNTRY_TABLE: Record<string, Partial<Locale>> = {
   AFRIQUE: { continent: 'AF', taxIdLabel: 'NIF', taxIdPlaceholder: 'P2012345678', phonePlaceholder: '+2XX XX XX XX XX', isOhada: true, isCemac: false },
   USA: { continent: 'NA', taxIdLabel: 'EIN / SSN', taxIdPlaceholder: '00-0000000', phonePlaceholder: '+1 (XXX) XXX-XXXX', isOhada: false, isCemac: false },
   CONTINENT: { continent: 'XX', taxIdLabel: 'ID fiscal', taxIdPlaceholder: '123456789', phonePlaceholder: '+XXX XX XX XX XX', isOhada: false, isCemac: false },
+  // France (used as the "Europe / FR" specific bucket in the onboarding wizard).
+  FRANCE: { continent: 'EU', taxIdLabel: 'TVA', taxIdPlaceholder: 'FR00 000000000', phonePlaceholder: '+33 6 XX XX XX XX', isOhada: false, isCemac: false },
+  FR: { continent: 'EU', taxIdLabel: 'TVA', taxIdPlaceholder: 'FR00 000000000', phonePlaceholder: '+33 6 XX XX XX XX', isOhada: false, isCemac: false },
+  // RDC — République Démocratique du Congo (Kinshasa). OHADA member but uses CDF.
+  CD: { continent: 'AF', taxIdLabel: 'ID NAT', taxIdPlaceholder: '01-A1-N12345B', phonePlaceholder: '+243 XX XXX XXXX', isOhada: true, isCemac: false },
+  RDC: { continent: 'AF', taxIdLabel: 'ID NAT', taxIdPlaceholder: '01-A1-N12345B', phonePlaceholder: '+243 XX XXX XXXX', isOhada: true, isCemac: false },
   // --- CEMAC / Congo zone (OHADA + NIU) ---
   CG: { continent: 'AF', taxIdLabel: 'NIU', taxIdPlaceholder: 'P2012345678', phonePlaceholder: '+242 06 XX XX XXX', isOhada: true, isCemac: true },
   CONGO: { continent: 'AF', taxIdLabel: 'NIU', taxIdPlaceholder: 'P2012345678', phonePlaceholder: '+242 06 XX XX XXX', isOhada: true, isCemac: true },

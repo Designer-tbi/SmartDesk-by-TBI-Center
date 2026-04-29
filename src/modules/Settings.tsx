@@ -440,6 +440,10 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                         value={company.country || 'EUROPE'}
                         onChange={(e) => setCompany({ ...company, country: e.target.value })}
                       >
+                        <option value="FR">🇫🇷 France</option>
+                        <option value="CG">🇨🇬 République du Congo</option>
+                        <option value="CD">🇨🇩 République Démocratique du Congo (RDC)</option>
+                        <option disabled>──────────</option>
                         <option value="CONTINENT">{t('settings.continentGeneral')}</option>
                         <option value="AFRIQUE">{t('settings.africa')}</option>
                         <option value="CONGO">{t('settings.congo')}</option>

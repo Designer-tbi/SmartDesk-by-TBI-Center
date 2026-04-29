@@ -13,7 +13,51 @@ companyRouter.get('/', async (req, res, next) => {
     if (!company) {
       return res.status(404).json({ error: 'Company not found' });
     }
-    res.json(company);
+    // Never echo the raw fiscalization API key — return only a flag.
+    const { fiscalizationApiKey, ...safe } = company;
+    res.json({ ...safe, hasFiscalizationKey: !!fiscalizationApiKey });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * First-login onboarding wizard. Persists the company's preferred country,
+ * city, currency, accounting standard, language and DGID/SFEC API key, and
+ * marks `onboardingCompleted = true` so the wizard no longer shows up.
+ *
+ * The API key is stored verbatim — it isolates each company even when
+ * multiple admins share the platform.
+ */
+companyRouter.post('/onboarding', async (req, res, next) => {
+  try {
+    const { country, city, currency, accountingStandard, language, fiscalizationApiKey } = req.body || {};
+    if (!fiscalizationApiKey || String(fiscalizationApiKey).trim().length < 16) {
+      return res.status(400).json({ error: 'Clé API SFEC requise (32+ caractères).' });
+    }
+    await req.db.query(
+      `UPDATE public.companies SET
+         country = COALESCE($1, country),
+         city = COALESCE($2, city),
+         currency = COALESCE($3, currency),
+         "accountingStandard" = COALESCE($4, "accountingStandard"),
+         language = COALESCE($5, language),
+         "fiscalizationApiKey" = $6,
+         "onboardingCompleted" = TRUE
+       WHERE id = $7`,
+      [
+        country || null,
+        city || null,
+        currency || null,
+        accountingStandard || null,
+        language || null,
+        String(fiscalizationApiKey).trim(),
+        req.user!.companyId,
+      ],
+    );
+    const r = await req.db.query('SELECT * FROM public.companies WHERE id = $1', [req.user!.companyId]);
+    const { fiscalizationApiKey: _drop, ...safe } = r.rows[0] || {};
+    res.json({ ...safe, hasFiscalizationKey: true, onboardingCompleted: true });
   } catch (error) {
     next(error);
   }
@@ -21,10 +65,10 @@ companyRouter.get('/', async (req, res, next) => {
 
 companyRouter.put('/', async (req, res, next) => {
   try {
-    const { name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address, country, state, logo, accountingStandard, language, currency } = req.body;
+    const { name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address, country, state, city, logo, accountingStandard, language, currency } = req.body;
     console.log('Updating company for user:', req.user!.id, 'companyId:', req.user!.companyId);
-    const result = await req.db.query('UPDATE public.companies SET name = $1, "taxId" = $2, rccm = $3, "idNat" = $4, niu = $5, siren = $6, siret = $7, email = $8, phone = $9, website = $10, address = $11, country = $12, state = $13, logo = $14, "accountingStandard" = $15, language = $16, currency = $17 WHERE id = $18',
-      [name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address, country || 'AFRIQUE', state, logo || null, accountingStandard || 'OHADA', language || 'fr', currency || 'XAF', req.user!.companyId]);
+    const result = await req.db.query('UPDATE public.companies SET name = $1, "taxId" = $2, rccm = $3, "idNat" = $4, niu = $5, siren = $6, siret = $7, email = $8, phone = $9, website = $10, address = $11, country = $12, state = $13, logo = $14, "accountingStandard" = $15, language = $16, currency = $17, city = $18 WHERE id = $19',
+      [name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address, country || 'AFRIQUE', state, logo || null, accountingStandard || 'OHADA', language || 'fr', currency || 'XAF', city || null, req.user!.companyId]);
     
     console.log('Update result rows affected:', result.rowCount);
 

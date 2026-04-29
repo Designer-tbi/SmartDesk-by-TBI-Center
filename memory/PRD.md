@@ -398,6 +398,47 @@ définis par la spec SFEC : `individual` / `business` / `government` /
 - Idem pour gouvernement.
 - Toggle UI affiche bien les 4 types et adapte les labels en direct.
 
+## Onboarding wizard 1ère connexion + RDC + clé SFEC isolée (2026-04-29 — iter 11)
+
+### Backend
+- DB : nouvelles colonnes `companies.onboardingCompleted BOOLEAN DEFAULT TRUE`,
+  `companies.city TEXT`. Schema_version `2026-04-29-onboarding`.
+- `regionalDefaultsFromCountry` : ajout de la RDC (`CD/RDC` → CDF + OHADA + fr).
+- `/api/auth/send-demo-email` : nouveaux comptes démo créés avec
+  `onboardingCompleted=false` et **sans clé SFEC** (forçant le wizard
+  au premier login).
+- `/api/auth/login` et `/api/auth/me` exposent désormais
+  `onboardingCompleted`, `hasFiscalizationKey`, `city` (SELECT élargis
+  pour récupérer ces champs).
+- Nouveau `POST /api/company/onboarding` : valide la clé (≥16 chars),
+  persiste country/city/currency/standard/language/key et marque
+  `onboardingCompleted=true`.
+- `GET /api/company` ne renvoie plus la clé brute, juste un flag
+  `hasFiscalizationKey` (sécurité).
+- `PUT /api/company` : ajout du champ `city`.
+
+### Frontend
+- `/app/src/lib/locale.ts` : entrées spécifiques `FR`, `FRANCE`, `CD`,
+  `RDC` (placeholders TVA / ID NAT, téléphones +33 / +243).
+- `/app/src/components/OnboardingWizard.tsx` : modal 2 étapes — pays
+  (3 cartes France / Congo / RDC) + bouton « Auto-détecter (IP) » +
+  ville (datalist autocomplete) + clé API SFEC masquée + récap +
+  bouton « Activer mon espace ».
+- `/app/src/App.tsx` : monte le wizard (z-60) lorsque
+  `user.onboardingCompleted === false`.
+- `/app/src/modules/Settings.tsx` : ajout des 3 options pays
+  spécifiques (🇫🇷 France / 🇨🇬 Congo / 🇨🇩 RDC) en haut du sélecteur,
+  séparées des buckets régionaux historiques.
+
+### Validé
+- Connexion d'une démo `onboardingCompleted=false` → modal s'affiche.
+- Sélection « République du Congo » → ville auto-suggérée Brazzaville.
+- Saisie clé SFEC + clic « Activer » → persistance OK + modal disparaît.
+- Création de facture après onboarding → `source: sfec`, certification
+  réussie avec la clé fournie par l'utilisateur (testé via curl).
+- `/api/auth/login` post-onboarding : `onboardingCompleted=true`,
+  `hasFiscalizationKey=true`, `city=Brazzaville`, `country=CG`.
+
 ## Backlog / Prochaines actions
 - P1 : migrer la DB Neon vers un compte propriétaire (DATABASE_URL vient de
   `.env.example` — partagée avec la preview).

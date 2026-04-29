@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { apiFetch, setApiSession, clearApiSession } from './lib/api';
 import { I18nProvider, useTranslation } from './lib/i18n';
 import { AuthProvider } from './lib/AuthContext';
+import { OnboardingWizard } from './components/OnboardingWizard';
 
 // Lazy load modules for better initial load time
 const Dashboard = lazy(() => import('./modules/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -150,6 +151,17 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
   return (
     <Router>
       <AuthProvider user={user} setUser={setUser}>
+        {/* First-login onboarding (skipped if the company has already
+            completed it). Mounted at the top level so the rest of the app
+            stays interactable underneath the modal backdrop, but the
+            wizard sits on top with z-60. */}
+        {user && user.onboardingCompleted === false && (
+          <OnboardingWizard
+            onCompleted={() => {
+              setUser((prev: any) => prev ? { ...prev, onboardingCompleted: true, hasFiscalizationKey: true } : prev);
+            }}
+          />
+        )}
         <PageWrapper onLogout={logout} user={user}>
           <Suspense fallback={<div className="flex items-center justify-center h-64">Chargement du module...</div>}>
             <Routes>

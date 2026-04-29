@@ -16,6 +16,8 @@ function regionalDefaultsFromCountry(code: string | null | undefined) {
   // OHADA / CEMAC member states use XAF or XOF + OHADA standard.
   const OHADA_XAF = new Set(['CG', 'CM', 'GA', 'CF', 'TD', 'GQ', 'CONGO']);
   const OHADA_XOF = new Set(['CI', 'SN', 'BF', 'ML', 'BJ', 'TG', 'NE', 'GW']);
+  // RDC (CD) is OHADA but uses Congolese Franc (CDF).
+  const OHADA_CDF = new Set(['CD', 'RDC']);
   const EU_EURO = new Set(['FR', 'BE', 'DE', 'ES', 'IT', 'NL', 'LU', 'PT', 'AT', 'IE', 'FI', 'GR', 'EUROPE']);
   const EU_NON_EURO = new Set(['GB', 'UK', 'CH', 'SE', 'NO', 'DK', 'PL', 'CZ']);
   const FR_SPEAKING = new Set([
@@ -27,6 +29,7 @@ function regionalDefaultsFromCountry(code: string | null | undefined) {
 
   if (OHADA_XAF.has(iso)) return { currency: 'XAF', accountingStandard: 'OHADA', language: 'fr' };
   if (OHADA_XOF.has(iso)) return { currency: 'XOF', accountingStandard: 'OHADA', language: 'fr' };
+  if (OHADA_CDF.has(iso)) return { currency: 'CDF', accountingStandard: 'OHADA', language: 'fr' };
   if (EU_EURO.has(iso))   return { currency: 'EUR', accountingStandard: 'FRANCE', language: FR_SPEAKING.has(iso) ? 'fr' : 'en' };
   if (EU_NON_EURO.has(iso)) return { currency: iso === 'GB' || iso === 'UK' ? 'GBP' : 'EUR', accountingStandard: 'FRANCE', language: FR_SPEAKING.has(iso) ? 'fr' : 'en' };
   if (iso === 'US' || iso === 'USA') return { currency: 'USD', accountingStandard: 'US_GAAP', language: 'en' };
@@ -61,6 +64,9 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
       // Expose the company type so the UI can conditionally enable
       // demo-only features (DGID certification, expiry countdown…).
       (req.user as any).companyType = company.type || null;
+      (req.user as any).onboardingCompleted = company.onboardingCompleted !== false;
+      (req.user as any).hasFiscalizationKey = !!company.fiscalizationApiKey;
+      (req.user as any).city = company.city || null;
     }
     // Return persisted user preferences so the SPA can rehydrate its UI
     // state (language, sidebar, ...) without touching localStorage.
@@ -155,7 +161,7 @@ authRouter.post('/login', async (req, res, next) => {
     // Check if company is active (if not super admin)
     if (user.companyId && user.role !== 'super_admin') {
       const companyRes = await req.db.query(
-        'SELECT status, type, country, state, language, currency, "firstLoginAt", "demoExpiresAt" FROM companies WHERE id = $1',
+        'SELECT status, type, country, state, language, currency, "firstLoginAt", "demoExpiresAt", "fiscalizationApiKey", "onboardingCompleted", city FROM companies WHERE id = $1',
         [user.companyId],
       );
       company = companyRes.rows[0];
@@ -196,7 +202,7 @@ authRouter.post('/login', async (req, res, next) => {
       }
     } else if (user.companyId && user.role === 'super_admin') {
       // Still fetch company info for super admin to get country/state
-      const companyRes = await req.db.query('SELECT status, type, country, state, language, currency FROM companies WHERE id = $1', [user.companyId]);
+      const companyRes = await req.db.query('SELECT status, type, country, state, language, currency, "fiscalizationApiKey", "onboardingCompleted", city FROM companies WHERE id = $1', [user.companyId]);
       company = companyRes.rows[0];
     }
 
@@ -270,9 +276,12 @@ authRouter.post('/login', async (req, res, next) => {
         name: user.name,
         country: company?.country || 'FR',
         state: company?.state || null,
+        city: company?.city || null,
         language: prefs.language || company?.language || 'fr',
         currency: company?.currency || 'XAF',
         companyType: company?.type || null,
+        onboardingCompleted: company?.onboardingCompleted !== false,
+        hasFiscalizationKey: !!company?.fiscalizationApiKey,
         isDemo,
         preferences: prefs,
       }
@@ -411,14 +420,15 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
     try {
       await db.query('BEGIN');
       
-      // Create company with regional accounting defaults derived from country
+      // Create company with regional accounting defaults derived from country.
+      // The SFEC API key is intentionally NOT seeded here — the user will
+      // configure it during the first-login onboarding wizard.
       const finalCompanyName = companyName ? `${companyName} (${country || 'Démo'})` : `Démo - ${prenom} ${nom}`;
       const defaults = regionalDefaultsFromCountry(country);
-      const dgidKey = process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c';
       await db.query(`
-        INSERT INTO companies (id, name, type, status, country, state, language, currency, "accountingStandard", "fiscalizationApiKey", "createdAt")
-        VALUES ($1, $2, 'demo', 'active', $3, $4, $5, $6, $7, $8, CURRENT_TIMESTAMP)
-      `, [companyId, finalCompanyName, country || 'CG', state || null, defaults.language, defaults.currency, defaults.accountingStandard, dgidKey]);
+        INSERT INTO companies (id, name, type, status, country, state, language, currency, "accountingStandard", "onboardingCompleted", "createdAt")
+        VALUES ($1, $2, 'demo', 'active', $3, $4, $5, $6, $7, FALSE, CURRENT_TIMESTAMP)
+      `, [companyId, finalCompanyName, country || 'CG', state || null, defaults.language, defaults.currency, defaults.accountingStandard]);
       
       // Bind the RLS session to this new tenant so subsequent INSERTs into
       // the isolated tables (roles, ...) pass the WITH CHECK policy.
