@@ -290,6 +290,68 @@ reçoit automatiquement cette clé à sa création.
 - Aperçu affiche QR + N° de cert + badge « Document fiscalement
   authentifié » correctement (screenshot validé).
 
+## SFEC API officielle + verrou + PDF + Auth Context (2026-04-29 — iteration 9)
+
+### Intégration SFEC réelle (sandbox.akieni.tech)
+Suite à l'analyse du *Guide d'intégration SFEC v1.2.1* :
+- Endpoint : `POST {DGID_API_URL}/invoices/report/api`.
+- Auth : header `X-API-Key`.
+- `DGID_API_URL=https://sandbox-pgsfec.akieni.tech/api` ajouté dans `.env`.
+- `regionalDefaultsFromCountry` non concerné — la clé est par
+  entreprise.
+- Payload reconstruit selon spec : `invoice_id`, `recipient_type` (mappé
+  depuis `contactType` particulier→individual / professionnel→business),
+  `is_recipient_taxable`, items normalisés (`type`, `designation`,
+  `unit_price`, `quantity`, `subtotal`, `discount_*`, `net_amount`,
+  `tax_rate`, `tax_amount`, `total_amount`), totaux globaux.
+- Acceptation de HTTP 200/201 ; champs response tolérants
+  (`certification_number` ou `sfec_certification_number`,
+  `signature` ou `certification_signature`, etc.).
+- 4xx (données invalides) : remontés à l'utilisateur (pas de retry).
+- 5xx / timeout / pas d'URL : fallback signature locale HMAC-SHA256.
+
+Le QR officiel renvoyé par SFEC (`qr_code: data:image/png;base64,…`)
+est désormais persisté dans `certificationPayload.qrImage` et affiché
+tel quel par le frontend. La signature longue/courte sont également
+stockées.
+
+### Verrouillage des factures certifiées
+- Backend `PUT /api/invoices/:id` : si `certificationNumber` est défini,
+  seul `status` peut évoluer (vers `Paid`, `Overdue`, `Sent`). Toute
+  autre modification → 409 `Cette facture a été certifiée DGID...`.
+- Backend `DELETE /api/invoices/:id` : 409 si certifiée.
+- Frontend `Sales.tsx` : boutons « Modifier » et « Supprimer » désactivés
+  visuellement (opacity 30 %) avec tooltip explicatif sur les factures
+  certifiées, dans la liste ET dans la modale d'aperçu.
+
+### Téléchargement PDF avec QR
+- Nouvelle route `GET /api/invoices/:id/pdf` : génère le PDF complet
+  via jsPDF + jspdf-autotable, embarque le QR officiel SFEC (ou le QR
+  local de fallback) avec N°, horodatage, source.
+- Bouton « PDF » ajouté dans la modale d'aperçu, déclenche un
+  téléchargement Blob côté client.
+- Package `qrcode` (Node) installé pour générer les data-URLs côté
+  serveur quand l'API SFEC ne retourne pas de QR.
+
+### Auth Context global
+- `/app/src/lib/AuthContext.tsx` : `AuthProvider` + hook `useAuth()`
+  exposant `{ user, setUser, company, refreshUser, refreshCompany }`.
+- `/app/src/App.tsx` : `<AuthProvider>` wrap autour des routes.
+- `/app/src/modules/Sales.tsx` : refacto pour consommer `useAuth()`
+  comme source unique de `companyInfo`. Évite les fetchs `/api/company`
+  redondants et garantit la cohérence avec Settings.
+
+### Validé
+- `POST /api/invoices` retourne `source: 'sfec'`, `qrImage` (5-6 KB
+  base64) + `signature` 64 caractères → confirmation que l'API SFEC
+  sandbox répond bien.
+- PUT édition complète sur facture certifiée → 409.
+- PUT statut `Paid` sur facture certifiée → 200.
+- DELETE facture certifiée → 409.
+- `GET /api/invoices/:id/pdf` → 210 KB téléchargés.
+- Aperçu UI : QR officiel SFEC affiché (img tag), bouton Modifier
+  désactivé, bouton PDF présent, label « API SFEC (DGID Congo) ».
+
 ## Backlog / Prochaines actions
 - P1 : migrer la DB Neon vers un compte propriétaire (DATABASE_URL vient de
   `.env.example` — partagée avec la preview).

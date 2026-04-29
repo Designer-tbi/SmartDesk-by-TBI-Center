@@ -12,9 +12,14 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useTranslation } from '../lib/i18n';
 
 import { ConfirmModal } from '../components/ConfirmModal';
+import { useAuth } from '../lib/AuthContext';
 
 export const Sales = ({ user }: { user: any }) => {
   const { t } = useTranslation();
+  // Pull `company` from the global AuthContext instead of refetching it
+  // locally — this single source of truth was the root cause of stale
+  // headers across the app.
+  const { company: ctxCompany, refreshCompany } = useAuth();
   const isUS = user?.country === 'USA';
   const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency === 'XAF' ? 'XAF' : (isUS ? '$' : '€');
 
@@ -28,7 +33,9 @@ export const Sales = ({ user }: { user: any }) => {
   const [filter, setFilter] = useState<'Tous' | 'Invoice' | 'Quote'>('Tous');
   const [quoteSubTab, setQuoteSubTab] = useState<'list' | 'templates' | 'signed'>('list');
   const [templates, setTemplates] = useState<QuoteTemplate[]>([]);
-  const [companyInfo, setCompanyInfo] = useState<any>(null);
+  // Mirror the AuthContext company so we keep a single `companyInfo` symbol
+  // — minimises diff with the existing JSX consumers.
+  const companyInfo = ctxCompany;
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
@@ -52,18 +59,19 @@ export const Sales = ({ user }: { user: any }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [invRes, conRes, prodRes, tmplRes, compRes] = await Promise.all([
+      const [invRes, conRes, prodRes, tmplRes] = await Promise.all([
         apiFetch('/api/invoices'),
         apiFetch('/api/contacts'),
         apiFetch('/api/products'),
         apiFetch('/api/invoices/quote-templates'),
-        apiFetch('/api/company')
       ]);
       if (invRes.ok) setInvoices(await invRes.json());
       if (conRes.ok) setContacts(await conRes.json());
       if (prodRes.ok) setProducts(await prodRes.json());
       if (tmplRes.ok) setTemplates(await tmplRes.json());
-      if (compRes.ok) setCompanyInfo(await compRes.json());
+      // Make sure we have fresh company data (NIU, address, accounting
+      // standard…) when the user navigates here from Settings.
+      refreshCompany();
     } catch (error) {
       console.error('Failed to fetch sales data:', error);
     } finally {
@@ -625,10 +633,20 @@ export const Sales = ({ user }: { user: any }) => {
                           <button onClick={() => handleSendEmail(invoice)} disabled={isSending === invoice.id} className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.sendEmail')}>
                             {isSending === invoice.id ? <div className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" /> : <Mail className="w-4 h-4" />}
                           </button>
-                          <button onClick={() => openEdit(invoice)} className="p-2 text-slate-400 hover:text-amber-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.edit')}>
+                          <button
+                            onClick={() => openEdit(invoice)}
+                            disabled={!!invoice.certificationNumber}
+                            className="p-2 text-slate-400 hover:text-amber-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={invoice.certificationNumber ? 'Facture certifiée — édition verrouillée' : t('sales.edit')}
+                          >
                             <Pencil className="w-4 h-4" />
                           </button>
-                          <button onClick={() => setDeleteConfirmId(invoice.id)} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.delete')}>
+                          <button
+                            onClick={() => setDeleteConfirmId(invoice.id)}
+                            disabled={!!invoice.certificationNumber}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                            title={invoice.certificationNumber ? 'Facture certifiée — suppression verrouillée' : t('sales.delete')}
+                          >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
@@ -1299,10 +1317,38 @@ export const Sales = ({ user }: { user: any }) => {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    try {
+                      const url = `${(import.meta as any).env.VITE_API_URL || ''}/api/invoices/${viewInvoice.id}/pdf`;
+                      const r = await fetch(url, { credentials: 'include' });
+                      if (!r.ok) throw new Error('PDF download failed');
+                      const blob = await r.blob();
+                      const a = document.createElement('a');
+                      a.href = URL.createObjectURL(blob);
+                      a.download = `${viewInvoice.id}.pdf`;
+                      document.body.appendChild(a);
+                      a.click();
+                      a.remove();
+                    } catch (e) {
+                      setError('Échec du téléchargement PDF');
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm"
+                  data-testid="invoice-pdf-download-btn"
+                >
+                  <Download className="w-4 h-4" /> PDF
+                </button>
                 <button onClick={() => handleSendEmail(viewInvoice)} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
                   <Mail className="w-4 h-4" /> Envoyer
                 </button>
-                <button onClick={() => { setViewInvoice(null); openEdit(viewInvoice); }} className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-sm">
+                <button
+                  onClick={() => { setViewInvoice(null); openEdit(viewInvoice); }}
+                  disabled={!!viewInvoice.certificationNumber}
+                  className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
+                  title={viewInvoice.certificationNumber ? 'Facture certifiée — édition verrouillée' : undefined}
+                  data-testid="invoice-modal-edit-btn"
+                >
                   <Pencil className="w-4 h-4" /> Modifier
                 </button>
                 <button onClick={() => setViewInvoice(null)} className="p-2 hover:bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 transition-all ml-2">
@@ -1461,12 +1507,24 @@ export const Sales = ({ user }: { user: any }) => {
                     {viewInvoice.certificationNumber ? (
                       <div className="flex items-start gap-5 p-4 bg-emerald-50 border border-emerald-100 rounded-xl">
                         <div className="shrink-0 bg-white p-2 rounded-lg border border-emerald-200">
-                          <QRCodeSVG
-                            value={viewInvoice.certificationPayload?.qrPayload || viewInvoice.certificationNumber}
-                            size={96}
-                            level="M"
-                            data-testid="invoice-dgid-qrcode"
-                          />
+                          {(viewInvoice.certificationPayload as any)?.qrImage ? (
+                            // Official SFEC QR delivered by the DGID API.
+                            // eslint-disable-next-line jsx-a11y/alt-text
+                            <img
+                              src={(viewInvoice.certificationPayload as any).qrImage}
+                              width={96}
+                              height={96}
+                              alt="QR SFEC"
+                              data-testid="invoice-dgid-qrcode-img"
+                            />
+                          ) : (
+                            <QRCodeSVG
+                              value={viewInvoice.certificationPayload?.qrPayload || viewInvoice.certificationNumber}
+                              size={96}
+                              level="M"
+                              data-testid="invoice-dgid-qrcode"
+                            />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0 text-xs text-slate-700 space-y-1">
                           <div>
@@ -1481,9 +1539,11 @@ export const Sales = ({ user }: { user: any }) => {
                           )}
                           <div>
                             <span className="font-bold text-slate-900">Source :</span>{' '}
-                            {viewInvoice.certificationPayload?.source === 'dgid'
-                              ? 'API DGID (Congo)'
-                              : 'Signature locale (mode démo)'}
+                            {viewInvoice.certificationPayload?.source === 'sfec'
+                              ? 'API SFEC (DGID Congo)'
+                              : viewInvoice.certificationPayload?.source === 'dgid'
+                                ? 'API DGID (Congo)'
+                                : 'Signature locale (mode démo)'}
                           </div>
                           <div className="text-[10px] text-emerald-700 font-semibold pt-1">
                             ✓ Document fiscalement authentifié — ne plus modifier après certification.

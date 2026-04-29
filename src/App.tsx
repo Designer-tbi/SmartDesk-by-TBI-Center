@@ -5,6 +5,7 @@ import { Header } from './components/layout/Header';
 import { AnimatePresence, motion } from 'motion/react';
 import { apiFetch, setApiSession, clearApiSession } from './lib/api';
 import { I18nProvider, useTranslation } from './lib/i18n';
+import { AuthProvider } from './lib/AuthContext';
 
 // Lazy load modules for better initial load time
 const Dashboard = lazy(() => import('./modules/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -148,25 +149,27 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
 
   return (
     <Router>
-      <PageWrapper onLogout={logout} user={user}>
-        <Suspense fallback={<div className="flex items-center justify-center h-64">Chargement du module...</div>}>
-          <Routes>
-            <Route path="/" element={<Dashboard user={user} />} />
-            <Route path="/crm" element={<CRM user={user} />} />
-            <Route path="/sales" element={<Sales user={user} />} />
-            <Route path="/inventory" element={<Inventory user={user} />} />
-            <Route path="/projects" element={<Projects user={user} />} />
-            <Route path="/hr" element={<HR user={user} />} />
-            <Route path="/accounting" element={<Accounting user={user} />} />
-            <Route path="/agenda" element={<Agenda user={user} />} />
-            <Route path="/planning" element={<Planning user={user} />} />
-            <Route path="/declarations/*" element={<Declarations />} />
-            <Route path="/users" element={<Users user={user} />} />
-            <Route path="/settings" element={<Settings user={user} setUser={setUser} />} />
-            {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
-          </Routes>
-        </Suspense>
-      </PageWrapper>
+      <AuthProvider user={user} setUser={setUser}>
+        <PageWrapper onLogout={logout} user={user}>
+          <Suspense fallback={<div className="flex items-center justify-center h-64">Chargement du module...</div>}>
+            <Routes>
+              <Route path="/" element={<Dashboard user={user} />} />
+              <Route path="/crm" element={<CRM user={user} />} />
+              <Route path="/sales" element={<Sales user={user} />} />
+              <Route path="/inventory" element={<Inventory user={user} />} />
+              <Route path="/projects" element={<Projects user={user} />} />
+              <Route path="/hr" element={<HR user={user} />} />
+              <Route path="/accounting" element={<Accounting user={user} />} />
+              <Route path="/agenda" element={<Agenda user={user} />} />
+              <Route path="/planning" element={<Planning user={user} />} />
+              <Route path="/declarations/*" element={<Declarations />} />
+              <Route path="/users" element={<Users user={user} />} />
+              <Route path="/settings" element={<Settings user={user} setUser={setUser} />} />
+              {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
+            </Routes>
+          </Suspense>
+        </PageWrapper>
+      </AuthProvider>
     </Router>
   );
 };

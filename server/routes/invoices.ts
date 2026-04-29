@@ -3,6 +3,7 @@ import { requireAuth, requireCompany } from '../middleware/auth.js';
 import nodemailer from 'nodemailer';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import QRCode from 'qrcode';
 import { certifyInvoice } from '../services/fiscalization.js';
 
 export const invoicesRouter = Router();
@@ -119,21 +120,21 @@ invoicesRouter.post('/', async (req, res, next) => {
       await req.db.query('COMMIT');
       console.log('POST /api/invoices - Success');
 
-      // Auto-certify via DGID for demo companies only. The per-company API
+      // Auto-certify via SFEC for demo companies only. The per-company API
       // key is stored in `companies.fiscalizationApiKey` (seeded on demo
       // creation). Failures are non-fatal — the invoice still saves.
       let certified: any = null;
       try {
         const companyRes = await req.db.query(
-          'SELECT id, name, niu, "taxId", type, "fiscalizationApiKey" FROM companies WHERE id = $1',
+          'SELECT id, name, niu, "taxId", currency, type, "fiscalizationApiKey" FROM companies WHERE id = $1',
           [req.user.companyId],
         );
         const company = companyRes.rows[0];
         if (company?.type === 'demo' && inv.type === 'Invoice' && company.fiscalizationApiKey) {
-          let buyer: any = { name: null, niu: null, address: null };
+          let buyer: any = { name: null, niu: null, address: null, email: null, phone: null, contactType: 'individual' };
           if (contactId) {
             const cRes = await req.db.query(
-              'SELECT name, niu, address FROM contacts WHERE id = $1 AND "companyId" = $2',
+              'SELECT name, niu, address, email, phone, "contactType" FROM contacts WHERE id = $1 AND "companyId" = $2',
               [contactId, req.user.companyId],
             );
             buyer = cRes.rows[0] || buyer;
@@ -143,6 +144,13 @@ invoicesRouter.post('/', async (req, res, next) => {
             company,
             buyer,
           });
+          const payload = {
+            source: result.source,
+            qrPayload: result.qrPayload,
+            qrImage: result.qrImage,
+            signature: result.signature,
+            shortSignature: result.shortSignature,
+          };
           await req.db.query(
             `UPDATE invoices SET
                "certificationNumber" = $1,
@@ -154,7 +162,7 @@ invoicesRouter.post('/', async (req, res, next) => {
               result.certificationNumber,
               result.certifiedAt,
               result.status,
-              JSON.stringify({ source: result.source, qrPayload: result.qrPayload }),
+              JSON.stringify(payload),
               inv.id,
               req.user.companyId,
             ],
@@ -163,11 +171,18 @@ invoicesRouter.post('/', async (req, res, next) => {
             certificationNumber: result.certificationNumber,
             certifiedAt: result.certifiedAt,
             certificationStatus: result.status,
-            certificationPayload: { source: result.source, qrPayload: result.qrPayload },
+            certificationPayload: payload,
           };
         }
-      } catch (certErr) {
-        console.error('POST /api/invoices - Certification failed (non-fatal):', certErr);
+      } catch (certErr: any) {
+        // 4xx SFEC errors are surfaced to the client as a non-blocking
+        // warning — the invoice itself was saved.
+        console.error('POST /api/invoices - Certification failed (non-fatal):', certErr?.message || certErr);
+        certified = {
+          certificationStatus: 'failed',
+          certificationError: certErr?.message || 'Échec de la certification SFEC',
+          certificationErrorCode: certErr?.errorCode,
+        };
       }
 
       res.status(201).json({ ...inv, ...(certified || {}) });
@@ -193,16 +208,16 @@ invoicesRouter.post('/:id/certify', async (req, res, next) => {
       return res.status(400).json({ error: 'Missing company context' });
     }
     const companyRes = await req.db.query(
-      'SELECT id, name, niu, "taxId", type, "fiscalizationApiKey" FROM companies WHERE id = $1',
+      'SELECT id, name, niu, "taxId", currency, type, "fiscalizationApiKey" FROM companies WHERE id = $1',
       [req.user.companyId],
     );
     const company = companyRes.rows[0];
     if (!company) return res.status(404).json({ error: 'Company not found' });
     if (company.type !== 'demo') {
-      return res.status(403).json({ error: 'Certification DGID réservée aux sociétés démo pour l\'instant.' });
+      return res.status(403).json({ error: 'Certification SFEC réservée aux sociétés démo pour l\'instant.' });
     }
     if (!company.fiscalizationApiKey) {
-      return res.status(400).json({ error: "Clé API DGID absente pour cette entreprise." });
+      return res.status(400).json({ error: "Clé API SFEC absente pour cette entreprise." });
     }
 
     const invRes = await req.db.query(
@@ -216,21 +231,38 @@ invoicesRouter.post('/:id/certify', async (req, res, next) => {
       'SELECT * FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2',
       [id, req.user.companyId],
     );
-    let buyer: any = { name: null, niu: null, address: null };
+    let buyer: any = { name: null, niu: null, address: null, email: null, phone: null, contactType: 'individual' };
     if (invoice.contactId) {
       const cRes = await req.db.query(
-        'SELECT name, niu, address FROM contacts WHERE id = $1 AND "companyId" = $2',
+        'SELECT name, niu, address, email, phone, "contactType" FROM contacts WHERE id = $1 AND "companyId" = $2',
         [invoice.contactId, req.user.companyId],
       );
       buyer = cRes.rows[0] || buyer;
     }
 
-    const result = await certifyInvoice({
-      invoice: { ...invoice, items: itemsRes.rows },
-      company,
-      buyer,
-    });
+    let result;
+    try {
+      result = await certifyInvoice({
+        invoice: { ...invoice, items: itemsRes.rows },
+        company,
+        buyer,
+      });
+    } catch (certErr: any) {
+      // SFEC 4xx — return the structured error to the user.
+      return res.status(certErr?.httpStatus || 422).json({
+        error: certErr?.message || 'Échec de la certification SFEC',
+        code: certErr?.errorCode,
+        field: certErr?.field,
+      });
+    }
 
+    const payload = {
+      source: result.source,
+      qrPayload: result.qrPayload,
+      qrImage: result.qrImage,
+      signature: result.signature,
+      shortSignature: result.shortSignature,
+    };
     await req.db.query(
       `UPDATE invoices SET
          "certificationNumber" = $1,
@@ -242,7 +274,7 @@ invoicesRouter.post('/:id/certify', async (req, res, next) => {
         result.certificationNumber,
         result.certifiedAt,
         result.status,
-        JSON.stringify({ source: result.source, qrPayload: result.qrPayload }),
+        JSON.stringify(payload),
         id,
         req.user.companyId,
       ],
@@ -252,7 +284,7 @@ invoicesRouter.post('/:id/certify', async (req, res, next) => {
       certificationNumber: result.certificationNumber,
       certifiedAt: result.certifiedAt,
       certificationStatus: result.status,
-      certificationPayload: { source: result.source, qrPayload: result.qrPayload },
+      certificationPayload: payload,
     });
   } catch (error) {
     console.error('POST /api/invoices/:id/certify error', error);
@@ -275,10 +307,40 @@ invoicesRouter.put('/:id', async (req, res, next) => {
     await req.db.query('BEGIN');
     
     try {
-      // Fetch previous invoice to check status change
-      const prevInvoiceRes = await req.db.query('SELECT status FROM invoices WHERE id = $1 AND "companyId" = $2', [id, req.user.companyId]);
+      // Fetch previous invoice to check status change + certification lock.
+      // Certified invoices are frozen: editing them would break the DGID
+      // signature. Only a small set of status transitions is allowed.
+      const prevInvoiceRes = await req.db.query(
+        'SELECT status, "certificationNumber", "certificationStatus" FROM invoices WHERE id = $1 AND "companyId" = $2',
+        [id, req.user.companyId],
+      );
       const prevInvoice = prevInvoiceRes.rows[0];
-      
+      const isLocked = !!prevInvoice?.certificationNumber;
+      if (isLocked) {
+        const allowedNextStatus = new Set(['Paid', 'Overdue', 'Sent', prevInvoice.status]);
+        if (!allowedNextStatus.has(inv.status)) {
+          await req.db.query('ROLLBACK');
+          return res.status(409).json({
+            error: 'Cette facture a été certifiée DGID et ne peut plus être modifiée. Seul le statut de paiement peut évoluer.',
+          });
+        }
+        // Only update the payment-related status, never the content.
+        await req.db.query(
+          'UPDATE invoices SET status = $1 WHERE id = $2 AND "companyId" = $3',
+          [inv.status, id, req.user.companyId],
+        );
+        await req.db.query('COMMIT');
+        const refreshed = await req.db.query(
+          'SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2',
+          [id, req.user.companyId],
+        );
+        const itemsRes = await req.db.query(
+          'SELECT * FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2',
+          [id, req.user.companyId],
+        );
+        return res.json({ ...refreshed.rows[0], items: itemsRes.rows });
+      }
+
       const contactId = inv.contactId && inv.contactId !== '' ? inv.contactId : null;
 
       await req.db.query(
@@ -365,6 +427,39 @@ invoicesRouter.put('/:id', async (req, res, next) => {
             doc.text(`Signé le: ${inv.signedAt}`, 14, finalY + 10);
             doc.text('Signature numérique validée', 14, finalY + 15);
           }
+
+          // DGID certification block (QR + number + timestamp) — only when
+          // the invoice has been certified. Placed bottom-left so it doesn't
+          // clash with the total TTC on the right.
+          if (inv.certificationNumber) {
+            try {
+              const qrPayload = inv.certificationPayload?.qrPayload || inv.certificationNumber;
+              const qrDataUrl = await QRCode.toDataURL(String(qrPayload), {
+                margin: 1,
+                width: 140,
+                errorCorrectionLevel: 'M',
+              });
+              const qrY = finalY + 25;
+              doc.setTextColor(0, 0, 0);
+              doc.setFont(undefined, 'bold');
+              doc.text('Certification DGID', 14, qrY);
+              doc.setFont(undefined, 'normal');
+              doc.addImage(qrDataUrl, 'PNG', 14, qrY + 3, 28, 28);
+              doc.setFontSize(8);
+              doc.text(`N°: ${inv.certificationNumber}`, 46, qrY + 10);
+              if (inv.certifiedAt) {
+                doc.text(`Certifiée le: ${new Date(inv.certifiedAt).toLocaleString('fr-FR')}`, 46, qrY + 16);
+              }
+              const source =
+                inv.certificationPayload?.source === 'dgid'
+                  ? 'API DGID (Congo)'
+                  : 'Signature locale (mode démo)';
+              doc.text(`Source: ${source}`, 46, qrY + 22);
+              doc.setFontSize(10);
+            } catch (err) {
+              console.error('Failed to embed DGID QR in PDF:', err);
+            }
+          }
           
           const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
           
@@ -426,7 +521,19 @@ invoicesRouter.put('/:id', async (req, res, next) => {
 invoicesRouter.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
+    // Block deletion of certified invoices — same fiscal-consistency rule
+    // as the PUT handler above.
+    const check = await req.db.query(
+      'SELECT "certificationNumber" FROM invoices WHERE id = $1 AND "companyId" = $2',
+      [id, req.user!.companyId],
+    );
+    if (check.rows[0]?.certificationNumber) {
+      return res.status(409).json({
+        error: 'Cette facture a été certifiée DGID et ne peut plus être supprimée.',
+      });
+    }
+
     await req.db.query('BEGIN');
     await req.db.query('DELETE FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     await req.db.query('DELETE FROM invoices WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
@@ -438,6 +545,117 @@ invoicesRouter.delete('/:id', async (req, res, next) => {
     next(error);
   }
 });
+
+/**
+ * Inline PDF download of a single invoice. Embeds the DGID QR + certification
+ * block when the invoice has been certified.
+ */
+invoicesRouter.get('/:id/pdf', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const invRes = await req.db.query('SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    const invoice = invRes.rows[0];
+    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
+    const itemsRes = await req.db.query('SELECT * FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    const items = itemsRes.rows;
+    const companyRes = await req.db.query('SELECT * FROM companies WHERE id = $1', [req.user!.companyId]);
+    const company = companyRes.rows[0];
+    let contact: any = null;
+    if (invoice.contactId) {
+      const cRes = await req.db.query('SELECT * FROM contacts WHERE id = $1 AND "companyId" = $2', [invoice.contactId, req.user!.companyId]);
+      contact = cRes.rows[0] || null;
+    }
+
+    const doc = new jsPDF();
+    doc.setFontSize(20);
+    doc.text(invoice.type === 'Quote' ? 'DEVIS' : 'FACTURE', 14, 22);
+    doc.setFontSize(10);
+    doc.text(`N°: ${invoice.id}`, 14, 30);
+    doc.text(`Date: ${invoice.date || '-'}`, 14, 35);
+    if (invoice.dueDate) doc.text(`Échéance: ${invoice.dueDate}`, 14, 40);
+
+    doc.text('Émetteur:', 14, 55);
+    doc.setFont(undefined, 'bold');
+    doc.text(company.name || '', 14, 60);
+    doc.setFont(undefined, 'normal');
+    if (company.address) doc.text(company.address, 14, 65);
+    if (company.email) doc.text(company.email, 14, 70);
+    if (company.phone) doc.text(company.phone, 14, 75);
+    if (company.niu) doc.text(`NIU: ${company.niu}`, 14, 80);
+
+    if (contact) {
+      doc.text('Adressé à:', 120, 55);
+      doc.setFont(undefined, 'bold');
+      doc.text(contact.name || '', 120, 60);
+      doc.setFont(undefined, 'normal');
+      if (contact.email) doc.text(contact.email, 120, 65);
+      if (contact.phone) doc.text(contact.phone, 120, 70);
+      if (contact.niu) doc.text(`NIU: ${contact.niu}`, 120, 75);
+    }
+
+    const tableData = items.map((item: any) => [
+      (item.name || '') + (item.description ? `\n${item.description}` : ''),
+      String(item.quantity ?? 0),
+      `${Number(item.price || 0).toLocaleString()} ${company.currency || ''}`,
+      `${item.tvaRate ?? 0}%`,
+      `${Number((item.quantity || 0) * (item.price || 0)).toLocaleString()} ${company.currency || ''}`,
+    ]);
+
+    autoTable(doc, {
+      startY: 90,
+      head: [['Description', 'Qté', 'Prix Unitaire', 'TVA', 'Total HT']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: { fillColor: [198, 40, 40] },
+    });
+
+    const finalY = (doc as any).lastAutoTable?.finalY || 90;
+    doc.text(`Total HT: ${Number(invoice.totalHT || 0).toLocaleString()} ${company.currency || ''}`, 140, finalY + 10);
+    doc.text(`TVA: ${Number(invoice.tvaTotal || 0).toLocaleString()} ${company.currency || ''}`, 140, finalY + 15);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Total TTC: ${Number(invoice.total || 0).toLocaleString()} ${company.currency || ''}`, 140, finalY + 20);
+    doc.setFont(undefined, 'normal');
+
+    // DGID/SFEC QR block
+    if (invoice.certificationNumber) {
+      try {
+        // Prefer the official QR image returned by SFEC; otherwise generate
+        // one locally from the qrPayload string.
+        const officialQr = invoice.certificationPayload?.qrImage as string | undefined;
+        const qrPayload = invoice.certificationPayload?.qrPayload || invoice.certificationNumber;
+        const qrDataUrl = officialQr
+          ? officialQr
+          : await QRCode.toDataURL(String(qrPayload), { margin: 1, width: 140, errorCorrectionLevel: 'M' });
+        const qrY = finalY + 30;
+        doc.setFont(undefined, 'bold');
+        doc.text('Certification SFEC / DGID', 14, qrY);
+        doc.setFont(undefined, 'normal');
+        doc.addImage(qrDataUrl, 'PNG', 14, qrY + 3, 28, 28);
+        doc.setFontSize(8);
+        doc.text(`N°: ${invoice.certificationNumber}`, 46, qrY + 10);
+        if (invoice.certifiedAt) {
+          doc.text(`Certifiée le: ${new Date(invoice.certifiedAt).toLocaleString('fr-FR')}`, 46, qrY + 16);
+        }
+        const src = invoice.certificationPayload?.source;
+        const source = src === 'sfec' ? 'API SFEC (DGID Congo)' : src === 'dgid' ? 'API DGID (Congo)' : 'Signature locale (mode démo)';
+        doc.text(`Source: ${source}`, 46, qrY + 22);
+        doc.setFontSize(10);
+      } catch (err) {
+        console.error('PDF QR embed failed:', err);
+      }
+    }
+
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${invoice.id}.pdf"`);
+    res.end(pdfBuffer);
+  } catch (error) {
+    console.error('GET /api/invoices/:id/pdf error', error);
+    next(error);
+  }
+});
+
+
 
 invoicesRouter.post('/:id/send-email', async (req, res, next) => {
   try {

@@ -52,11 +52,17 @@ export interface Invoice {
   notes?: string;
   signatureLink?: string;
   signedAt?: string;
-  // DGID fiscalization (demo-only for now)
+  // SFEC / DGID fiscalization (demo-only for now)
   certificationNumber?: string;
   certifiedAt?: string;
   certificationStatus?: 'certified' | 'failed' | 'pending';
-  certificationPayload?: { source?: 'dgid' | 'local'; qrPayload?: string };
+  certificationPayload?: {
+    source?: 'sfec' | 'dgid' | 'local';
+    qrPayload?: string;
+    qrImage?: string;            // data:image/png;base64,... (SFEC official QR)
+    signature?: string;
+    shortSignature?: string;
+  };
 }
 
 export interface QuoteTemplate {
