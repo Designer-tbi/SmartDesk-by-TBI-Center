@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, Download, FileText, CheckCircle, Clock, AlertCircle, Eye, Pencil, Trash2, Mail, X, 
   FileEdit, User, Calendar, Tag, Building2, PlusCircle, Link as LinkIcon, FileSignature, Eraser,
-  Copy, Layout, Send, Check, ShieldCheck
+  Copy, Layout, Send, Check, ShieldCheck, Repeat
 } from 'lucide-react';
 import { Invoice, Contact, Product, QuoteTemplate } from '../types';
 import { QRCodeSVG } from 'qrcode.react';
@@ -115,6 +115,8 @@ export const Sales = ({ user }: { user: any }) => {
       case 'Draft': return t('sales.draft');
       case 'Accepted': return t('sales.accepted');
       case 'Rejected': return t('sales.rejected');
+      case 'Signed': return 'Signé';
+      case 'Converted': return 'Converti';
       default: return status;
     }
   };
@@ -136,20 +138,51 @@ export const Sales = ({ user }: { user: any }) => {
     setIsModalOpen(false);
   };
 
-  const calculateTotals = (items: any[], discount: number = 0) => {
-    const totalHT = items.reduce((sum, item) => sum + ((item.quantity || 0) * (item.price || 0)), 0);
-    const discountFactor = totalHT > 0 ? Math.max(0, (totalHT - discount) / totalHT) : 1;
-    
-    const tvaTotal = items.reduce((sum, item) => {
-      const itemHT = (item.quantity || 0) * (item.price || 0);
-      const discountedItemHT = itemHT * discountFactor;
-      return sum + (discountedItemHT * (item.tvaRate || 0));
-    }, 0);
+  // OHADA-compliant invoice totals + Congo CAC. Mirrors the backend
+  // `computeInvoiceTotals` so client-side previews match what the server
+  // ultimately persists.
+  //
+  //   Brut HT − Rabais − Remise − Ristourne = Net commercial
+  //   Net commercial − Escompte             = Net financier
+  //   TVA  = TVA brute × (Net financier / Brut HT)
+  //   CAC  = TVA × 5%   (Congo only)
+  //   TTC  = Net financier + TVA + CAC
+  const isCongo = (() => {
+    const c = String(user?.country || '').toUpperCase();
+    return c === 'CG' || c === 'CONGO';
+  })();
+  const reduceAmount = (base: number, value: number, type?: 'amount' | 'percent') =>
+    Math.max(0, type === 'percent' ? base * ((Number(value) || 0) / 100) : (Number(value) || 0));
 
+  const calculateTotals = (items: any[], inv: Partial<Invoice> = {}) => {
+    const brutHT = items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.price) || 0), 0);
+    const rabaisAmount = reduceAmount(brutHT, Number(inv.rabais) || 0, inv.rabaisType);
+    const afterRabais = Math.max(0, brutHT - rabaisAmount);
+    // Backward-compat: legacy `discount` maps onto `remise` (amount).
+    const remiseValue = inv.remise !== undefined ? Number(inv.remise) || 0 : Number(inv.discount) || 0;
+    const remiseType = inv.remiseType || 'amount';
+    const remiseAmount = reduceAmount(afterRabais, remiseValue, remiseType);
+    const afterRemise = Math.max(0, afterRabais - remiseAmount);
+    const ristourneAmount = reduceAmount(afterRemise, Number(inv.ristourne) || 0, inv.ristourneType);
+    const netCommercial = Math.max(0, afterRemise - ristourneAmount);
+    const escompteAmount = reduceAmount(netCommercial, Number(inv.escompte) || 0, inv.escompteType);
+    const netFinancier = Math.max(0, netCommercial - escompteAmount);
+    const tvaPerLineRaw = items.reduce((s, it) =>
+      s + (Number(it.quantity) || 0) * (Number(it.price) || 0) * (Number(it.tvaRate) || 0), 0);
+    const tvaTotal = brutHT > 0 ? Number((tvaPerLineRaw * (netFinancier / brutHT)).toFixed(2)) : 0;
+    const centimesAdditionnels = isCongo ? Number((tvaTotal * 0.05).toFixed(2)) : 0;
+    const total = Number((netFinancier + tvaTotal + centimesAdditionnels).toFixed(2));
     return {
-      totalHT,
+      totalHT: brutHT,
+      rabaisAmount,
+      remiseAmount,
+      ristourneAmount,
+      escompteAmount,
+      netCommercial,
+      netFinancier,
       tvaTotal,
-      total: (totalHT - discount) + tvaTotal
+      centimesAdditionnels,
+      total,
     };
   };
 
@@ -180,7 +213,7 @@ export const Sales = ({ user }: { user: any }) => {
       updatedItems[index].tvaAmount = (item.price || 0) * (item.quantity || 0) * (item.tvaRate || 0);
     }
     
-    const totals = calculateTotals(updatedItems, newInvoice.discount || 0);
+    const totals = calculateTotals(updatedItems, newInvoice);
     setNewInvoice({
       ...newInvoice,
       items: updatedItems,
@@ -190,7 +223,7 @@ export const Sales = ({ user }: { user: any }) => {
 
   const handleRemoveItem = (index: number) => {
     const updatedItems = (newInvoice.items || []).filter((_, i) => i !== index);
-    const totals = calculateTotals(updatedItems, newInvoice.discount || 0);
+    const totals = calculateTotals(updatedItems, newInvoice);
     setNewInvoice({
       ...newInvoice,
       items: updatedItems,
@@ -199,12 +232,26 @@ export const Sales = ({ user }: { user: any }) => {
   };
 
   const handleUpdateDiscount = (discount: number) => {
-    const totals = calculateTotals(newInvoice.items || [], discount);
-    setNewInvoice({
-      ...newInvoice,
-      discount,
-      ...totals
-    });
+    // Legacy "Remise" handler kept for the existing UI block. Stores the
+    // value in both `discount` (legacy) and `remise` so the new computation
+    // picks it up.
+    const next = { ...newInvoice, discount, remise: discount, remiseType: 'amount' as const };
+    const totals = calculateTotals(newInvoice.items || [], next);
+    setNewInvoice({ ...next, ...totals });
+  };
+
+  // Generic OHADA reduction handler — used by the rabais / ristourne / escompte
+  // and the new `remise` (with %) inputs.
+  const handleUpdateReduction = (
+    field: 'remise' | 'rabais' | 'ristourne' | 'escompte',
+    value: number,
+    type?: 'amount' | 'percent',
+  ) => {
+    const next: any = { ...newInvoice, [field]: value };
+    if (type) next[`${field}Type`] = type;
+    if (field === 'remise') next.discount = value; // keep legacy field in sync
+    const totals = calculateTotals(newInvoice.items || [], next);
+    setNewInvoice({ ...next, ...totals });
   };
 
   const handleUpdateDeposit = (deposit: number) => {
@@ -401,6 +448,29 @@ export const Sales = ({ user }: { user: any }) => {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
+  const [convertingId, setConvertingId] = useState<string | null>(null);
+  const handleConvertToInvoice = async (quote: Invoice) => {
+    if (!confirm(`Convertir le devis ${quote.id} en facture ?\nLe devis sera marqué « Converti » et une nouvelle facture (statut Brouillon) sera créée.`)) return;
+    setConvertingId(quote.id);
+    try {
+      const r = await apiFetch(`/api/invoices/${quote.id}/convert-to-invoice`, { method: 'POST' });
+      const data = await r.json().catch(() => null);
+      if (!r.ok) {
+        setError(data?.error || 'Échec de la conversion.');
+        return;
+      }
+      // Refresh the list so the new invoice + the locked quote are visible.
+      await fetchInvoices();
+      // Open the freshly created invoice in the preview modal.
+      if (data && data.id) setViewInvoice(data);
+    } catch (e) {
+      console.error('Convert quote failed:', e);
+      setError('Échec de la conversion.');
+    } finally {
+      setConvertingId(null);
+    }
+  };
+
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const handleDownloadPdf = async (invoice: Invoice) => {
     setDownloadingId(invoice.id);
@@ -440,7 +510,7 @@ export const Sales = ({ user }: { user: any }) => {
   };
 
   const applyTemplate = (template: QuoteTemplate) => {
-    const totals = calculateTotals(template.items);
+    const totals = calculateTotals(template.items, newInvoice);
     setNewInvoice({
       ...newInvoice,
       type: 'Quote',
@@ -639,18 +709,24 @@ export const Sales = ({ user }: { user: any }) => {
                         <div className="text-xs text-slate-500">{new Date(invoice.dueDate).toLocaleDateString()}</div>
                       </td>
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">
-                        {invoice.total.toLocaleString()} {currencySymbol}
+                        {(invoice.total || 0).toLocaleString()} {currencySymbol}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <span className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 w-fit ${
                             invoice.status === 'Paid' || invoice.status === 'Accepted' ? 'bg-emerald-50 text-emerald-600' : 
                             invoice.status === 'Signed' ? 'bg-soft-red text-accent-red' :
+                            invoice.status === 'Converted' ? 'bg-indigo-50 text-indigo-600' :
                             invoice.status === 'Sent' ? 'bg-soft-red text-accent-red' : 'bg-slate-100 text-slate-500'
                           }`}>
                             {getStatusIcon(invoice.status)}
-                            {getStatusText(invoice.status)}
+                            {invoice.status === 'Converted' ? 'Converti' : getStatusText(invoice.status)}
                           </span>
+                          {invoice.convertedFromQuoteId && (
+                            <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider" title={`Issu du devis ${invoice.convertedFromQuoteId}`}>
+                              ← {invoice.convertedFromQuoteId}
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-6 py-4 text-right">
@@ -663,6 +739,21 @@ export const Sales = ({ user }: { user: any }) => {
                           {invoice.type === 'Quote' && invoice.status === 'Sent' && (
                             <button onClick={() => setSigningQuote(invoice)} className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.signManually')}>
                               <FileSignature className="w-4 h-4" />
+                            </button>
+                          )}
+                          {invoice.type === 'Quote' && (invoice.status === 'Accepted' || invoice.status === 'Signed') && !invoice.convertedToInvoiceId && (
+                            <button
+                              onClick={() => handleConvertToInvoice(invoice)}
+                              disabled={convertingId === invoice.id}
+                              className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-xl transition-all shadow-sm hover:shadow-md"
+                              title="Convertir en facture"
+                              data-testid={`convert-to-invoice-${invoice.id}`}
+                            >
+                              {convertingId === invoice.id ? (
+                                <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+                              ) : (
+                                <Repeat className="w-4 h-4" />
+                              )}
                             </button>
                           )}
                           <button onClick={() => setViewInvoice(invoice)} className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm hover:shadow-md" title={t('sales.preview')}>
@@ -774,7 +865,7 @@ export const Sales = ({ user }: { user: any }) => {
                     <tr key={quote.id} className="hover:bg-slate-50 transition-colors" data-testid={`reception-row-${quote.id}`}>
                       <td className="px-6 py-4">
                         <div className="text-sm font-bold text-slate-900">{quote.id}</div>
-                        <div className="text-[10px] text-slate-400">{quote.total.toLocaleString()} {currencySymbol}</div>
+                        <div className="text-[10px] text-slate-400">{(quote.total || 0).toLocaleString()} {currencySymbol}</div>
                       </td>
                       <td className="px-6 py-4 text-sm font-bold text-slate-900">{getContactName(quote.contactId)}</td>
                       <td className="px-6 py-4 text-sm text-slate-500 font-medium">
@@ -1164,22 +1255,66 @@ export const Sales = ({ user }: { user: any }) => {
                     )}
                   </div>
                   <div className="flex flex-col items-end pt-4 space-y-2 border-t border-slate-200">
-                    <div className="flex items-center justify-between w-64 text-sm text-slate-500">
+                    <div className="flex items-center justify-between w-72 text-sm text-slate-500">
                       <span>{t('sales.totalHT')}</span>
-                      <span>{newInvoice.totalHT?.toLocaleString()} {currencySymbol}</span>
+                      <span data-testid="form-brut-ht">{(newInvoice.totalHT || 0).toLocaleString()} {currencySymbol}</span>
                     </div>
-                    <div className="flex items-center justify-between w-64 text-sm text-slate-500">
-                      <span>Remise</span>
-                      <div className="w-24 relative">
-                        <input 
-                          type="number" 
-                          className="w-full pl-2 pr-6 py-1 bg-white border border-slate-200 rounded text-right text-sm focus:outline-none focus:border-accent-red"
-                          value={newInvoice.discount === 0 ? 0 : newInvoice.discount || ''}
-                          onChange={(e) => handleUpdateDiscount(parseFloat(e.target.value) || 0)}
-                        />
-                        <span className="absolute right-2 top-1 text-slate-400">{currencySymbol}</span>
-                      </div>
+
+                    {/* OHADA reductions: Rabais → Remise → Ristourne → Escompte.
+                        Each can be expressed as an amount or a percentage via
+                        the embedded segmented switch. */}
+                    {(['rabais','remise','ristourne','escompte'] as const).map((field) => {
+                      const value = (newInvoice as any)[field] ?? 0;
+                      const type = (newInvoice as any)[`${field}Type`] || (field === 'escompte' ? 'percent' : 'amount');
+                      const labels: Record<string,string> = {
+                        rabais: 'Rabais', remise: 'Remise', ristourne: 'Ristourne', escompte: 'Escompte',
+                      };
+                      return (
+                        <div key={field} className="flex items-center justify-between w-72 text-sm text-slate-500">
+                          <span>{labels[field]}</span>
+                          <div className="flex items-center gap-1">
+                            <div className="w-24 relative">
+                              <input
+                                type="number"
+                                step="0.01"
+                                className="w-full pl-2 pr-2 py-1 bg-white border border-slate-200 rounded text-right text-sm focus:outline-none focus:border-accent-red"
+                                value={value === 0 ? 0 : value || ''}
+                                onChange={(e) => handleUpdateReduction(field, parseFloat(e.target.value) || 0)}
+                                data-testid={`form-${field}-input`}
+                              />
+                            </div>
+                            <div className="flex bg-slate-100 rounded p-0.5">
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateReduction(field, value, 'amount')}
+                                className={`px-2 py-0.5 text-[10px] font-bold rounded ${type === 'amount' ? 'bg-white text-accent-red shadow-sm' : 'text-slate-400'}`}
+                                data-testid={`form-${field}-amount-btn`}
+                              >
+                                {currencySymbol}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateReduction(field, value, 'percent')}
+                                className={`px-2 py-0.5 text-[10px] font-bold rounded ${type === 'percent' ? 'bg-white text-accent-red shadow-sm' : 'text-slate-400'}`}
+                                data-testid={`form-${field}-percent-btn`}
+                              >
+                                %
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    <div className="flex items-center justify-between w-72 text-sm font-bold text-slate-700 border-t border-slate-100 pt-1">
+                      <span>Net commercial</span>
+                      <span data-testid="form-net-commercial">{(newInvoice.netCommercial || 0).toLocaleString()} {currencySymbol}</span>
                     </div>
+                    <div className="flex items-center justify-between w-72 text-sm font-bold text-slate-700">
+                      <span>Net financier</span>
+                      <span data-testid="form-net-financier">{(newInvoice.netFinancier || 0).toLocaleString()} {currencySymbol}</span>
+                    </div>
+
                     {Object.values((newInvoice.items || []).reduce((acc, item) => {
                       const rate = item.tvaRate || 0;
                       if (rate === 0) return acc;
@@ -1187,26 +1322,34 @@ export const Sales = ({ user }: { user: any }) => {
                       const key = `${name}-${rate}`;
                       if (!acc[key]) acc[key] = { name, rate, amount: 0 };
                       const itemHT = (item.quantity || 0) * (item.price || 0);
-                      const discountFactor = (newInvoice.totalHT || 0) > 0 ? Math.max(0, ((newInvoice.totalHT || 0) - (newInvoice.discount || 0)) / (newInvoice.totalHT || 0)) : 1;
-                      acc[key].amount += (itemHT * discountFactor) * rate;
+                      const ratio = (newInvoice.totalHT || 0) > 0 ? Math.max(0, (newInvoice.netFinancier || 0) / (newInvoice.totalHT || 0)) : 1;
+                      acc[key].amount += (itemHT * ratio) * rate;
                       return acc;
                     }, {} as Record<string, { name: string, rate: number, amount: number }>)).map((tax, idx) => (
-                      <div key={idx} className="flex items-center justify-between w-64 text-sm text-slate-500">
+                      <div key={idx} className="flex items-center justify-between w-72 text-sm text-slate-500">
                         <span>{tax.name} ({(tax.rate * 100).toFixed(0)}%)</span>
-                        <span>{tax.amount.toLocaleString()} {currencySymbol}</span>
+                        <span>{Math.round(tax.amount).toLocaleString()} {currencySymbol}</span>
                       </div>
                     ))}
                     {(newInvoice.tvaTotal || 0) === 0 && (
-                      <div className="flex items-center justify-between w-64 text-sm text-slate-500">
+                      <div className="flex items-center justify-between w-72 text-sm text-slate-500">
                         <span>{t('sales.tva')}</span>
                         <span>0 {currencySymbol}</span>
                       </div>
                     )}
-                    <div className="flex items-center justify-between w-64 text-lg font-bold text-slate-900 border-t border-slate-200 pt-2">
+
+                    {isCongo && (newInvoice.centimesAdditionnels || 0) > 0 && (
+                      <div className="flex items-center justify-between w-72 text-sm text-amber-700">
+                        <span title="Centimes additionnels = TVA × 5% (Congo)">Centimes additionnels (5% TVA)</span>
+                        <span data-testid="form-cac">{Math.round(newInvoice.centimesAdditionnels || 0).toLocaleString()} {currencySymbol}</span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between w-72 text-lg font-bold text-slate-900 border-t border-slate-200 pt-2">
                       <span>{t('sales.totalTTC')}</span>
-                      <span>{newInvoice.total?.toLocaleString()} {currencySymbol}</span>
+                      <span data-testid="form-total-ttc">{Math.round(newInvoice.total || 0).toLocaleString()} {currencySymbol}</span>
                     </div>
-                    <div className="flex items-center justify-between w-64 text-sm text-slate-500 pt-2">
+                    <div className="flex items-center justify-between w-72 text-sm text-slate-500 pt-2">
                       <span>Acompte</span>
                       <div className="w-24 relative">
                         <input 
@@ -1515,15 +1658,40 @@ export const Sales = ({ user }: { user: any }) => {
                 </table>
 
                 <div className="flex justify-end mb-12">
-                  <div className="w-64 space-y-3">
+                  <div className="w-72 space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span className="text-slate-500 font-medium">Sous-total HT</span>
-                      <span className="font-bold text-slate-900">{viewInvoice.totalHT.toLocaleString()} {currencySymbol}</span>
+                      <span className="text-slate-500 font-medium">Brut HT</span>
+                      <span className="font-bold text-slate-900">{(viewInvoice.totalHT || 0).toLocaleString()} {currencySymbol}</span>
                     </div>
-                    {(viewInvoice.discount || 0) > 0 && (
+                    {(['rabais','remise','ristourne','escompte'] as const).map((field) => {
+                      const value = (viewInvoice as any)[field] ?? 0;
+                      const type = (viewInvoice as any)[`${field}Type`] || 'amount';
+                      // Legacy: if `discount` exists but `remise` doesn't, fall back.
+                      const hasLegacyDiscount = field === 'remise' && !value && (viewInvoice.discount || 0) > 0;
+                      if (!value && !hasLegacyDiscount) return null;
+                      const labels: Record<string,string> = { rabais: 'Rabais', remise: 'Remise', ristourne: 'Ristourne', escompte: 'Escompte' };
+                      const display = hasLegacyDiscount
+                        ? `${(viewInvoice.discount || 0).toLocaleString()} ${currencySymbol}`
+                        : (type === 'percent'
+                            ? `${value}% (${(((field === 'rabais' ? (viewInvoice.totalHT || 0) : (viewInvoice.netCommercial || viewInvoice.totalHT || 0)) * value / 100)).toLocaleString()} ${currencySymbol})`
+                            : `${Number(value).toLocaleString()} ${currencySymbol}`);
+                      return (
+                        <div key={field} className="flex justify-between text-sm">
+                          <span className="text-slate-500 font-medium">{labels[field]}</span>
+                          <span className="font-bold text-slate-900">- {display}</span>
+                        </div>
+                      );
+                    })}
+                    {((viewInvoice.netCommercial || 0) > 0) && (viewInvoice.netCommercial !== viewInvoice.totalHT) && (
+                      <div className="flex justify-between text-sm pt-1 border-t border-slate-100">
+                        <span className="text-slate-700 font-bold">Net commercial</span>
+                        <span className="font-bold text-slate-900">{(viewInvoice.netCommercial || 0).toLocaleString()} {currencySymbol}</span>
+                      </div>
+                    )}
+                    {((viewInvoice.netFinancier || 0) > 0) && (viewInvoice.netFinancier !== viewInvoice.netCommercial) && (
                       <div className="flex justify-between text-sm">
-                        <span className="text-slate-500 font-medium">Remise</span>
-                        <span className="font-bold text-slate-900">-{viewInvoice.discount?.toLocaleString()} {currencySymbol}</span>
+                        <span className="text-slate-700 font-bold">Net financier</span>
+                        <span className="font-bold text-slate-900">{(viewInvoice.netFinancier || 0).toLocaleString()} {currencySymbol}</span>
                       </div>
                     )}
                     {Object.values(viewInvoice.items.reduce((acc, item) => {
@@ -1533,13 +1701,15 @@ export const Sales = ({ user }: { user: any }) => {
                       const key = `${name}-${rate}`;
                       if (!acc[key]) acc[key] = { name, rate, amount: 0 };
                       const itemHT = (item.quantity || 0) * (item.price || 0);
-                      const discountFactor = viewInvoice.totalHT > 0 ? Math.max(0, (viewInvoice.totalHT - (viewInvoice.discount || 0)) / viewInvoice.totalHT) : 1;
-                      acc[key].amount += (itemHT * discountFactor) * rate;
+                      const ratio = (viewInvoice.totalHT || 0) > 0
+                        ? Math.max(0, (viewInvoice.netFinancier || (viewInvoice.totalHT - (viewInvoice.discount || 0))) / viewInvoice.totalHT)
+                        : 1;
+                      acc[key].amount += (itemHT * ratio) * rate;
                       return acc;
                     }, {} as Record<string, { name: string, rate: number, amount: number }>)).map((tax, idx) => (
                       <div key={idx} className="flex justify-between text-sm">
                         <span className="text-slate-500 font-medium">{tax.name} ({(tax.rate * 100).toFixed(0)}%)</span>
-                        <span className="font-bold text-slate-900">{tax.amount.toLocaleString()} {currencySymbol}</span>
+                        <span className="font-bold text-slate-900">{Math.round(tax.amount).toLocaleString()} {currencySymbol}</span>
                       </div>
                     ))}
                     {viewInvoice.tvaTotal === 0 && (
@@ -1548,9 +1718,15 @@ export const Sales = ({ user }: { user: any }) => {
                         <span className="font-bold text-slate-900">0 {currencySymbol}</span>
                       </div>
                     )}
+                    {(viewInvoice.centimesAdditionnels || 0) > 0 && (
+                      <div className="flex justify-between text-sm" data-testid="preview-cac">
+                        <span className="text-amber-700 font-medium" title="Centimes additionnels (CG)">Centimes additionnels (5% TVA)</span>
+                        <span className="font-bold text-slate-900">{Math.round(viewInvoice.centimesAdditionnels || 0).toLocaleString()} {currencySymbol}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-lg pt-3 border-t-2 border-slate-900">
                       <span className="font-black text-slate-900">Total TTC</span>
-                      <span className="font-black text-accent-red">{viewInvoice.total.toLocaleString()} {currencySymbol}</span>
+                      <span className="font-black text-accent-red">{Math.round(viewInvoice.total || 0).toLocaleString()} {currencySymbol}</span>
                     </div>
                     {(viewInvoice.deposit || 0) > 0 && (
                       <>

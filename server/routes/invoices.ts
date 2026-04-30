@@ -6,6 +6,7 @@ import autoTable from 'jspdf-autotable';
 import QRCode from 'qrcode';
 import { certifyInvoice } from '../services/fiscalization.js';
 import { getMailerForCompany } from '../services/mailer.js';
+import { computeInvoiceTotals } from '../services/invoiceTotals.js';
 
 export const invoicesRouter = Router();
 
@@ -98,14 +99,65 @@ invoicesRouter.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'Missing company context' });
     }
 
+    // Re-compute the totals server-side using the authoritative OHADA
+    // formula. This protects against any drift in the client (e.g. an
+    // older browser cache submitting stale numbers) and centralises the
+    // CAC logic for Congo companies.
+    const companyForTotals = (await req.db.query(
+      'SELECT country FROM companies WHERE id = $1',
+      [req.user.companyId],
+    )).rows[0];
+    const isCG = String(companyForTotals?.country || '').toUpperCase() === 'CG'
+      || String(companyForTotals?.country || '').toUpperCase() === 'CONGO';
+    const totals = computeInvoiceTotals(
+      inv.items || [],
+      {
+        remise: inv.remise ?? inv.discount ?? 0,
+        remiseType: inv.remiseType || 'amount',
+        rabais: inv.rabais ?? 0,
+        rabaisType: inv.rabaisType || 'amount',
+        ristourne: inv.ristourne ?? 0,
+        ristourneType: inv.ristourneType || 'amount',
+        escompte: inv.escompte ?? 0,
+        escompteType: inv.escompteType || 'percent',
+      },
+      { applyCentimesAdditionnels: isCG },
+    );
+
     await req.db.query('BEGIN');
     
     try {
       const contactId = inv.contactId && inv.contactId !== '' ? inv.contactId : null;
       
       await req.db.query(
-        'INSERT INTO invoices (id, "companyId", type, "contactId", date, "dueDate", "totalHT", "tvaTotal", total, status, notes, "signatureLink", "signedAt") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)',
-        [inv.id, req.user.companyId, inv.type, contactId, inv.date, inv.dueDate, inv.totalHT, inv.tvaTotal, inv.total, inv.status, inv.notes || null, inv.signatureLink || null, inv.signedAt || null]
+        `INSERT INTO invoices (
+           id, "companyId", type, "contactId", date, "dueDate",
+           "totalHT", "tvaTotal", total, status, notes,
+           "signatureLink", "signedAt",
+           "remise", "remiseType", "rabais", "rabaisType",
+           "ristourne", "ristourneType", "escompte", "escompteType",
+           "centimesAdditionnels", "netCommercial", "netFinancier",
+           "convertedFromQuoteId"
+         ) VALUES (
+           $1, $2, $3, $4, $5, $6,
+           $7, $8, $9, $10, $11,
+           $12, $13,
+           $14, $15, $16, $17,
+           $18, $19, $20, $21,
+           $22, $23, $24,
+           $25
+         )`,
+        [
+          inv.id, req.user.companyId, inv.type, contactId, inv.date, inv.dueDate,
+          totals.brutHT, totals.tvaTotal, totals.total, inv.status, inv.notes || null,
+          inv.signatureLink || null, inv.signedAt || null,
+          inv.remise ?? inv.discount ?? 0, inv.remiseType || 'amount',
+          inv.rabais ?? 0, inv.rabaisType || 'amount',
+          inv.ristourne ?? 0, inv.ristourneType || 'amount',
+          inv.escompte ?? 0, inv.escompteType || 'percent',
+          totals.centimesAdditionnels, totals.netCommercial, totals.netFinancier,
+          inv.convertedFromQuoteId || null,
+        ],
       );
       
       if (Array.isArray(inv.items)) {
@@ -186,7 +238,11 @@ invoicesRouter.post('/', async (req, res, next) => {
         };
       }
 
-      res.status(201).json({ ...inv, ...(certified || {}) });
+      res.status(201).json({
+        ...inv,
+        ...totals,
+        ...(certified || {}),
+      });
     } catch (dbError) {
       await req.db.query('ROLLBACK');
       console.error('POST /api/invoices - Database Error:', dbError);
@@ -344,9 +400,50 @@ invoicesRouter.put('/:id', async (req, res, next) => {
 
       const contactId = inv.contactId && inv.contactId !== '' ? inv.contactId : null;
 
+      // Recompute totals server-side (same as POST).
+      const companyForTotals = (await req.db.query(
+        'SELECT country FROM companies WHERE id = $1',
+        [req.user.companyId],
+      )).rows[0];
+      const isCG = String(companyForTotals?.country || '').toUpperCase() === 'CG'
+        || String(companyForTotals?.country || '').toUpperCase() === 'CONGO';
+      const totals = computeInvoiceTotals(
+        inv.items || [],
+        {
+          remise: inv.remise ?? inv.discount ?? 0,
+          remiseType: inv.remiseType || 'amount',
+          rabais: inv.rabais ?? 0,
+          rabaisType: inv.rabaisType || 'amount',
+          ristourne: inv.ristourne ?? 0,
+          ristourneType: inv.ristourneType || 'amount',
+          escompte: inv.escompte ?? 0,
+          escompteType: inv.escompteType || 'percent',
+        },
+        { applyCentimesAdditionnels: isCG },
+      );
+
       await req.db.query(
-        'UPDATE invoices SET type = $1, "contactId" = $2, date = $3, "dueDate" = $4, "totalHT" = $5, "tvaTotal" = $6, total = $7, status = $8, notes = $9, "signatureLink" = $10, "signedAt" = $11 WHERE id = $12 AND "companyId" = $13',
-        [inv.type, contactId, inv.date, inv.dueDate, inv.totalHT, inv.tvaTotal, inv.total, inv.status, inv.notes || null, inv.signatureLink || null, inv.signedAt || null, id, req.user.companyId]
+        `UPDATE invoices SET
+           type = $1, "contactId" = $2, date = $3, "dueDate" = $4,
+           "totalHT" = $5, "tvaTotal" = $6, total = $7, status = $8,
+           notes = $9, "signatureLink" = $10, "signedAt" = $11,
+           "remise" = $12, "remiseType" = $13,
+           "rabais" = $14, "rabaisType" = $15,
+           "ristourne" = $16, "ristourneType" = $17,
+           "escompte" = $18, "escompteType" = $19,
+           "centimesAdditionnels" = $20, "netCommercial" = $21, "netFinancier" = $22
+         WHERE id = $23 AND "companyId" = $24`,
+        [
+          inv.type, contactId, inv.date, inv.dueDate,
+          totals.brutHT, totals.tvaTotal, totals.total, inv.status,
+          inv.notes || null, inv.signatureLink || null, inv.signedAt || null,
+          inv.remise ?? inv.discount ?? 0, inv.remiseType || 'amount',
+          inv.rabais ?? 0, inv.rabaisType || 'amount',
+          inv.ristourne ?? 0, inv.ristourneType || 'amount',
+          inv.escompte ?? 0, inv.escompteType || 'percent',
+          totals.centimesAdditionnels, totals.netCommercial, totals.netFinancier,
+          id, req.user.companyId,
+        ],
       );
       
       await req.db.query('DELETE FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2', [id, req.user.companyId]);
@@ -511,6 +608,134 @@ invoicesRouter.put('/:id', async (req, res, next) => {
   }
 });
 
+/**
+ * Convert an Accepted/Signed quote into an Invoice.
+ *
+ *   - Source quote.status must be 'Accepted', 'Signed' or 'Validé'.
+ *   - The invoice is created with status='Draft' and the same lines /
+ *     reductions, then linked back via convertedFromQuoteId. The quote
+ *     itself is marked status='Converted' + convertedToInvoiceId so it
+ *     stays auditable but is locked from re-conversion.
+ *   - The Congo CAC is recomputed because the Net Financier may match
+ *     between the two but the totals helper guarantees consistency.
+ */
+invoicesRouter.post('/:id/convert-to-invoice', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const quoteRes = await req.db.query(
+      `SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2`,
+      [id, req.user!.companyId],
+    );
+    const quote = quoteRes.rows[0];
+    if (!quote) return res.status(404).json({ error: 'Devis introuvable' });
+    if (quote.type !== 'Quote') {
+      return res.status(400).json({ error: 'Seuls les devis peuvent être convertis.' });
+    }
+    if (quote.convertedToInvoiceId) {
+      return res.status(409).json({
+        error: 'Ce devis a déjà été converti en facture.',
+        invoiceId: quote.convertedToInvoiceId,
+      });
+    }
+    const acceptedStatuses = new Set(['Accepted', 'Signed', 'Validé', 'Validated']);
+    if (!acceptedStatuses.has(quote.status)) {
+      return res.status(400).json({
+        error: 'Seuls les devis acceptés ou signés peuvent être convertis en facture.',
+      });
+    }
+
+    const itemsRes = await req.db.query(
+      `SELECT * FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2`,
+      [id, req.user!.companyId],
+    );
+    const items = itemsRes.rows;
+
+    const companyForTotals = (await req.db.query(
+      'SELECT country FROM companies WHERE id = $1',
+      [req.user!.companyId],
+    )).rows[0];
+    const isCG = String(companyForTotals?.country || '').toUpperCase() === 'CG'
+      || String(companyForTotals?.country || '').toUpperCase() === 'CONGO';
+    const totals = computeInvoiceTotals(items, {
+      remise: quote.remise,
+      remiseType: quote.remiseType,
+      rabais: quote.rabais,
+      rabaisType: quote.rabaisType,
+      ristourne: quote.ristourne,
+      ristourneType: quote.ristourneType,
+      escompte: quote.escompte,
+      escompteType: quote.escompteType,
+    }, { applyCentimesAdditionnels: isCG });
+
+    const newInvoiceId = `INV-${Date.now()}`;
+    const today = new Date().toISOString().slice(0, 10);
+    const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    await req.db.query('BEGIN');
+    try {
+      await req.db.query(
+        `INSERT INTO invoices (
+           id, "companyId", type, "contactId", date, "dueDate",
+           "totalHT", "tvaTotal", total, status, notes,
+           "remise", "remiseType", "rabais", "rabaisType",
+           "ristourne", "ristourneType", "escompte", "escompteType",
+           "centimesAdditionnels", "netCommercial", "netFinancier",
+           "convertedFromQuoteId"
+         ) VALUES (
+           $1, $2, 'Invoice', $3, $4, $5,
+           $6, $7, $8, 'Draft', $9,
+           $10, $11, $12, $13,
+           $14, $15, $16, $17,
+           $18, $19, $20,
+           $21
+         )`,
+        [
+          newInvoiceId, req.user!.companyId, quote.contactId, today, dueDate,
+          totals.brutHT, totals.tvaTotal, totals.total,
+          `Issu du devis ${id}` + (quote.notes ? `\n\n${quote.notes}` : ''),
+          quote.remise || 0, quote.remiseType || 'amount',
+          quote.rabais || 0, quote.rabaisType || 'amount',
+          quote.ristourne || 0, quote.ristourneType || 'amount',
+          quote.escompte || 0, quote.escompteType || 'percent',
+          totals.centimesAdditionnels, totals.netCommercial, totals.netFinancier,
+          id,
+        ],
+      );
+
+      for (const item of items) {
+        await req.db.query(
+          `INSERT INTO invoice_items ("companyId", "invoiceId", "productId", name, description, quantity, price, "tvaRate", "tvaAmount")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [req.user!.companyId, newInvoiceId, item.productId || null, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount],
+        );
+      }
+
+      // Lock the source quote.
+      await req.db.query(
+        `UPDATE invoices SET status = 'Converted', "convertedToInvoiceId" = $1, "convertedAt" = NOW()
+         WHERE id = $2 AND "companyId" = $3`,
+        [newInvoiceId, id, req.user!.companyId],
+      );
+      await req.db.query('COMMIT');
+
+      const newInvRes = await req.db.query(
+        `SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2`,
+        [newInvoiceId, req.user!.companyId],
+      );
+      const newItemsRes = await req.db.query(
+        `SELECT * FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2`,
+        [newInvoiceId, req.user!.companyId],
+      );
+      res.status(201).json({ ...newInvRes.rows[0], items: newItemsRes.rows });
+    } catch (err) {
+      await req.db.query('ROLLBACK');
+      throw err;
+    }
+  } catch (error) {
+    next(error);
+  }
+});
+
 invoicesRouter.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -603,10 +828,39 @@ invoicesRouter.get('/:id/pdf', async (req, res, next) => {
     });
 
     const finalY = (doc as any).lastAutoTable?.finalY || 90;
-    doc.text(`Total HT: ${Number(invoice.totalHT || 0).toLocaleString()} ${company.currency || ''}`, 140, finalY + 10);
-    doc.text(`TVA: ${Number(invoice.tvaTotal || 0).toLocaleString()} ${company.currency || ''}`, 140, finalY + 15);
+    let yCursor = finalY + 10;
+    const cur = company.currency || '';
+    const fmtAmount = (n: number) => `${Math.round(Number(n || 0)).toLocaleString()} ${cur}`;
+    doc.text(`Brut HT: ${fmtAmount(invoice.totalHT)}`, 140, yCursor); yCursor += 5;
+
+    // OHADA reductions — only print rows that are non-zero so the block
+    // stays compact for plain invoices.
+    const reductions: Array<[string, number, string]> = [
+      ['Rabais', invoice.rabais, invoice.rabaisType],
+      ['Remise', invoice.remise || invoice.discount, invoice.remiseType],
+      ['Ristourne', invoice.ristourne, invoice.ristourneType],
+      ['Escompte', invoice.escompte, invoice.escompteType],
+    ];
+    for (const [label, value, type] of reductions) {
+      const v = Number(value) || 0;
+      if (v > 0) {
+        const display = type === 'percent' ? `${v}%` : fmtAmount(v);
+        doc.text(`${label}: -${display}`, 140, yCursor); yCursor += 5;
+      }
+    }
+    if (invoice.netCommercial && invoice.netCommercial !== invoice.totalHT) {
+      doc.text(`Net commercial: ${fmtAmount(invoice.netCommercial)}`, 140, yCursor); yCursor += 5;
+    }
+    if (invoice.netFinancier && invoice.netFinancier !== invoice.netCommercial) {
+      doc.text(`Net financier: ${fmtAmount(invoice.netFinancier)}`, 140, yCursor); yCursor += 5;
+    }
+    doc.text(`TVA: ${fmtAmount(invoice.tvaTotal)}`, 140, yCursor); yCursor += 5;
+    if (Number(invoice.centimesAdditionnels) > 0) {
+      doc.text(`Centimes additionnels (5% TVA): ${fmtAmount(invoice.centimesAdditionnels)}`, 140, yCursor);
+      yCursor += 5;
+    }
     doc.setFont(undefined, 'bold');
-    doc.text(`Total TTC: ${Number(invoice.total || 0).toLocaleString()} ${company.currency || ''}`, 140, finalY + 20);
+    doc.text(`Total TTC: ${fmtAmount(invoice.total)}`, 140, yCursor);
     doc.setFont(undefined, 'normal');
 
     // Manuscript signature block — only for signed quotes. The signature

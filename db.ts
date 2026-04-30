@@ -512,6 +512,23 @@ export async function initializeDatabase() {
         await db.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS "employeeId" TEXT`);
         await db.query(`ALTER TABLE schedules ALTER COLUMN "userId" DROP NOT NULL`);
         await db.query(`CREATE INDEX IF NOT EXISTS idx_schedules_employee ON schedules("employeeId")`);
+        // OHADA reductions + Congo "centimes additionnels" (CAC = TVA × 5%)
+        // + quote→invoice conversion tracking. All columns nullable so this
+        // migration is safe to re-run on every cold start.
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "remise" REAL DEFAULT 0`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "remiseType" TEXT DEFAULT 'amount'`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "rabais" REAL DEFAULT 0`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "rabaisType" TEXT DEFAULT 'amount'`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "ristourne" REAL DEFAULT 0`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "ristourneType" TEXT DEFAULT 'amount'`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "escompte" REAL DEFAULT 0`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "escompteType" TEXT DEFAULT 'percent'`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "centimesAdditionnels" REAL DEFAULT 0`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "netCommercial" REAL DEFAULT 0`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "netFinancier" REAL DEFAULT 0`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "convertedFromQuoteId" TEXT`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "convertedToInvoiceId" TEXT`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "convertedAt" TIMESTAMPTZ`);
         await db.query(
           `UPDATE companies SET "fiscalizationApiKey" = $1
            WHERE type = 'demo' AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,

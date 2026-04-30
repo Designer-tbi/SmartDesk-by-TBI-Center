@@ -47,12 +47,29 @@ export interface Invoice {
   totalHT: number;
   discount?: number;
   deposit?: number;
+  // OHADA reductions (montant ou %)
+  remise?: number;
+  remiseType?: 'amount' | 'percent';
+  rabais?: number;
+  rabaisType?: 'amount' | 'percent';
+  ristourne?: number;
+  ristourneType?: 'amount' | 'percent';
+  escompte?: number;
+  escompteType?: 'amount' | 'percent';
+  // Computed
+  netCommercial?: number;
+  netFinancier?: number;
+  centimesAdditionnels?: number;
   tvaTotal: number;
   total: number;
-  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue' | 'Accepted' | 'Rejected' | 'Signed';
+  status: 'Draft' | 'Sent' | 'Paid' | 'Overdue' | 'Accepted' | 'Rejected' | 'Signed' | 'Converted';
   notes?: string;
   signatureLink?: string;
   signedAt?: string;
+  // Quote → Invoice conversion link
+  convertedFromQuoteId?: string;
+  convertedToInvoiceId?: string;
+  convertedAt?: string;
   // SFEC / DGID fiscalization (demo-only for now)
   certificationNumber?: string;
   certifiedAt?: string;

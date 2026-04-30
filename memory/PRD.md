@@ -471,6 +471,80 @@ utilisateurs France et RDC.
 - P2 : rate-limit sur `/api/auth/login` (brute force).
 - P2 : retirer les indices de mot de passe des erreurs 401 en production.
 
+## Réductions OHADA + CAC + conversion devis→facture (2026-04-30 — iter 18)
+
+### Schéma DB
+- `invoices` : ajout des colonnes `remise`, `remiseType`,
+  `rabais`, `rabaisType`, `ristourne`, `ristourneType`, `escompte`,
+  `escompteType`, `centimesAdditionnels`, `netCommercial`,
+  `netFinancier`, `convertedFromQuoteId`, `convertedToInvoiceId`,
+  `convertedAt`. Toutes nullables/avec défauts → migration ré-exécutable
+  sans risque. Ajoutée à `db.ts` pour les cold starts Vercel.
+
+### Backend
+- Nouveau service `/app/server/services/invoiceTotals.ts` :
+  helper `computeInvoiceTotals(items, reductions, opts)` qui implémente
+  l'ordre comptable OHADA :
+  ```
+  Brut HT − Rabais − Remise − Ristourne   = Net commercial
+  Net commercial − Escompte               = Net financier
+  TVA = TVA brute × (Net financier / Brut HT)
+  CAC = TVA × 5%   (Congo uniquement, opt-in via `applyCentimesAdditionnels`)
+  Total TTC = Net financier + TVA + CAC
+  ```
+  Chaque réduction supporte `'amount' | 'percent'`.
+- `POST /api/invoices` et `PUT /api/invoices/:id` (`invoices.ts`)
+  recalculent les totaux **côté serveur** à partir du pays de la
+  société (`country='CG'` → CAC activé). Le client peut se tromper
+  ou utiliser un cache obsolète, le DB persiste toujours la valeur
+  authoritative.
+- Nouveau endpoint `POST /api/invoices/:id/convert-to-invoice` :
+  - Vérifie : `type='Quote'`, pas déjà converti (409), statut dans
+    `{'Accepted','Signed','Validé','Validated'}` (400 sinon).
+  - Recopie les lignes `invoice_items` + les 4 réductions + recalcule
+    les totaux.
+  - Crée une nouvelle facture `Invoice` `Draft`, échéance +30j,
+    note auto « Issu du devis <id> ».
+  - Marque le devis source `status='Converted'`,
+    `convertedToInvoiceId=<new>`, `convertedAt=NOW()`.
+- `GET /api/invoices/:id/pdf` : PDF enrichi — Brut HT + chaque
+  réduction non nulle (montant ou %) + Net commercial + Net
+  financier + TVA + Centimes additionnels + Total TTC.
+
+### Frontend — `/app/src/modules/Sales.tsx`
+- `calculateTotals(items, inv)` réécrit pour appliquer la même
+  formule OHADA + CAC (déduit `country='CG'` du `user`).
+- Form modal : 4 lignes Rabais/Remise/Ristourne/Escompte avec
+  switch segmenté `XAF` / `%` à droite de chaque champ. Affichage
+  séparé Net commercial + Net financier + Centimes additionnels
+  (orange, badge Congo).
+- Aperçu modale : mêmes lignes, masquées si valeur = 0.
+- Bouton **« Convertir en facture »** (icône `Repeat`) visible
+  uniquement si `type='Quote' && status in ('Accepted','Signed') &&
+  !convertedToInvoiceId`. Confirmation native + appel POST →
+  refetch + ouvre la nouvelle facture en aperçu.
+- Statut **« Converti »** rendu en violet/indigo avec petite
+  référence `← <quoteId>` sur la facture issue.
+- Helpers `getStatusText` étendus pour `Signed` et `Converted`.
+- Type `Invoice` (`/app/src/types.ts`) étendu avec tous les
+  nouveaux champs + statut `'Converted'`.
+
+### Validé (curl + Playwright)
+- Création devis avec rabais + remise + ristourne + escompte mixés
+  amount/percent → totaux corrects côté serveur (Brut 1 200 000 →
+  Net financier 1 051 050 → TVA 189 189 → CAC 9 459 → TTC
+  1 249 698).
+- `POST /:id/convert-to-invoice` → 201, devis `status='Converted'`
+  + `convertedToInvoiceId` rempli. 2ᵉ appel → 409.
+- Conversion d'un devis avec status `Sent` → 400 « Seuls les devis
+  acceptés ou signés ».
+- PDF contient les libellés « Brut HT », « Remise », « Centimes
+  additionnels ».
+- UI Sales : statut « Converti » + référence ←quoteId visibles ;
+  aperçu modale affiche bien Brut HT, Remise -50 000, Net
+  commercial 950 000, TVA 171 000, **Centimes additionnels (5%
+  TVA) 8 550 XAF**, Total TTC 1 129 550 XAF.
+
 ## Planning : employés RH dans le sélecteur (2026-04-29 — iter 17)
 
 L'utilisateur ne voyait pas les employés créés dans le module RH lors
