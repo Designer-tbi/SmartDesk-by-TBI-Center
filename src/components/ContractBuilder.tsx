@@ -5,8 +5,9 @@ import {
   getTemplateById,
   ContractTemplateDef,
   ContractVariable,
+  AutofillKey,
 } from '../lib/contractTemplates';
-import { FileText, Sparkles, Eye, Pencil } from 'lucide-react';
+import { FileText, Sparkles, Eye, Pencil, Edit3, RotateCcw } from 'lucide-react';
 
 export type ContractBuilderValue = {
   templateId?: string;
@@ -14,33 +15,13 @@ export type ContractBuilderValue = {
   content: string;
 };
 
-type AutofillContext = {
-  companyName?: string;
-  companyAddress?: string;
-  companyRepresentative?: string;
-  employeeName?: string;
-  employeeAddress?: string;
-  employeeRole?: string;
-  employeeSalary?: number;
-  contractStartDate?: string;
-  city?: string;
-};
+export type AutofillContext = Partial<Record<AutofillKey, string | number | undefined>>;
 
 function resolveAutofill(v: ContractVariable, ctx: AutofillContext): string {
   if (!v.autofill) return '';
-  switch (v.autofill) {
-    case 'companyName': return ctx.companyName || '';
-    case 'companyAddress': return ctx.companyAddress || '';
-    case 'companyRepresentative': return ctx.companyRepresentative || '';
-    case 'employeeName': return ctx.employeeName || '';
-    case 'employeeAddress': return ctx.employeeAddress || '';
-    case 'employeeRole': return ctx.employeeRole || '';
-    case 'employeeSalary': return ctx.employeeSalary ? String(ctx.employeeSalary) : '';
-    case 'contractStartDate': return ctx.contractStartDate || '';
-    case 'city': return ctx.city || '';
-    case 'today': return new Date().toISOString().split('T')[0];
-    default: return '';
-  }
+  if (v.autofill === 'today') return new Date().toISOString().split('T')[0];
+  const raw = ctx[v.autofill];
+  return raw === undefined || raw === null ? '' : String(raw);
 }
 
 type Props = {
@@ -99,6 +80,11 @@ export const ContractBuilder = ({
   const [templateId, setTemplateId] = useState<string | undefined>(initialTemplateId);
   const [values, setValues] = useState<Record<string, string>>({});
   const [extras, setExtras] = useState<Record<string, string>>({});
+  // Per-article body overrides — when the user clicks "Modifier l'article".
+  // Stored as the raw markdown including {{placeholders}}, which are resolved
+  // at render time so autofill keeps working after an edit.
+  const [editedBodies, setEditedBodies] = useState<Record<string, string>>({});
+  const [editingArticles, setEditingArticles] = useState<Record<string, boolean>>({});
   const [showPreview, setShowPreview] = useState(defaultToPreview);
 
   const template = useMemo<ContractTemplateDef | undefined>(
@@ -131,15 +117,24 @@ export const ContractBuilder = ({
       onChange({ templateId, type: 'CDI', content: '' });
       return;
     }
-    const content = renderContract(template, values, extras);
+    const content = renderContract(template, values, extras, editedBodies);
     onChange({ templateId: template.id, type: template.contractType, content });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [template, values, extras]);
+  }, [template, values, extras, editedBodies]);
 
   const setValue = (key: string, val: string) =>
     setValues((p) => ({ ...p, [key]: val }));
   const setExtra = (id: string, val: string) =>
     setExtras((p) => ({ ...p, [id]: val }));
+  const setBody = (id: string, val: string) =>
+    setEditedBodies((p) => ({ ...p, [id]: val }));
+  const resetBody = (id: string) =>
+    setEditedBodies((p) => {
+      const { [id]: _removed, ...rest } = p;
+      return rest;
+    });
+  const toggleEditing = (id: string) =>
+    setEditingArticles((p) => ({ ...p, [id]: !p[id] }));
 
   return (
     <div className="space-y-6" data-testid="contract-builder-root">
@@ -222,14 +217,62 @@ export const ContractBuilder = ({
           {template.articles.map((art) => {
             const vars = art.variables || [];
             const hasVars = vars.length > 0;
+            const isEditing = !!editingArticles[art.id];
+            const hasOverride = editedBodies[art.id] !== undefined;
+            const currentBody = editedBodies[art.id] ?? art.body;
             return (
               <section
                 key={art.id}
                 className="space-y-3 p-4 bg-white rounded-xl border border-slate-100 shadow-sm"
               >
-                <h4 className="text-sm font-black text-slate-900">
-                  {art.title}
-                </h4>
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-black text-slate-900">{art.title}</h4>
+                  <div className="flex items-center gap-1">
+                    {hasOverride && (
+                      <button
+                        type="button"
+                        onClick={() => resetBody(art.id)}
+                        className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-400 hover:text-accent-red uppercase tracking-widest"
+                        title="Restaurer le texte original"
+                        data-testid={`contract-reset-${art.id}`}
+                      >
+                        <RotateCcw className="w-3 h-3" /> Original
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => toggleEditing(art.id)}
+                      className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-lg transition-all ${
+                        isEditing
+                          ? 'bg-accent-red text-white'
+                          : 'text-slate-500 hover:text-accent-red hover:bg-soft-red/40'
+                      }`}
+                      data-testid={`contract-edit-${art.id}`}
+                    >
+                      <Edit3 className="w-3 h-3" />
+                      {isEditing ? 'Terminer' : 'Modifier l’article'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Article body — read-only by default, editable on toggle.
+                    Placeholders {{key}} stay in the body so changes to the
+                    variables below still update the final document. */}
+                {isEditing ? (
+                  <textarea
+                    className="w-full px-3 py-2 bg-slate-50 border border-accent-red/40 rounded-lg text-sm font-mono leading-relaxed focus:ring-2 focus:ring-accent-red/20 outline-none min-h-[140px] resize-y"
+                    value={currentBody}
+                    onChange={(e) => setBody(art.id, e.target.value)}
+                    data-testid={`contract-body-${art.id}`}
+                  />
+                ) : (
+                  <p className="text-xs text-slate-500 italic px-1 leading-relaxed">
+                    {hasOverride
+                      ? '✎ Article personnalisé. Cliquez « Modifier l’article » pour ajuster.'
+                      : 'Article standard. Cliquez « Modifier l’article » pour le réécrire.'}
+                  </p>
+                )}
+
                 {hasVars && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {vars.map((v) => (

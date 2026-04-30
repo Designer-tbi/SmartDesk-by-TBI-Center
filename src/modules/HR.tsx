@@ -1207,15 +1207,40 @@ export const HR = ({ user }: { user: any }) => {
               {/* Structured template + dynamic form */}
               <ContractBuilder
                 autofillContext={{
+                  // Company — full identification (NIU, RCCM, ID NAT)
                   companyName: companyInfo?.name,
                   companyAddress: companyInfo?.address,
+                  companyCity: companyInfo?.city || (companyInfo?.country === 'CONGO' ? 'Brazzaville' : ''),
+                  companyCountry: companyInfo?.country,
+                  companyNiu: companyInfo?.niu,
+                  companyRccm: companyInfo?.rccm,
+                  companyIdNat: companyInfo?.idNat,
+                  companyTaxId: companyInfo?.taxId,
+                  companyPhone: companyInfo?.phone,
+                  companyEmail: companyInfo?.email,
+                  companyCurrency: companyInfo?.currency || 'XAF',
                   companyRepresentative: user?.name,
-                  employeeName: employees.find(e => e.id === newContract.employeeId)?.name,
-                  employeeAddress: employees.find(e => e.id === newContract.employeeId)?.address,
-                  employeeRole: employees.find(e => e.id === newContract.employeeId)?.role,
-                  employeeSalary: newContract.salary,
+                  // Employee — all available fields. Pull the freshly
+                  // selected row from `employees` so a different choice in
+                  // the dropdown re-fills every variable.
+                  ...(() => {
+                    const emp = employees.find(e => e.id === newContract.employeeId);
+                    return {
+                      employeeName: emp?.name,
+                      employeeAddress: emp?.address,
+                      employeeRole: emp?.role,
+                      employeeEmail: emp?.email,
+                      employeePhone: emp?.phone,
+                      employeeCni: emp?.cni,
+                      employeeNiu: emp?.niu,
+                      employeeMatricule: emp?.matricule,
+                      employeeDepartment: emp?.department,
+                      employeeJoinDate: emp?.joinDate,
+                      employeeSalary: newContract.salary || emp?.salary,
+                    };
+                  })(),
                   contractStartDate: newContract.startDate,
-                  city: companyInfo?.country === 'CONGO' ? 'Brazzaville' : '',
+                  city: companyInfo?.city || (companyInfo?.country === 'CONGO' ? 'Brazzaville' : ''),
                 }}
                 onChange={(v: ContractBuilderValue) => {
                   setNewContract(prev => ({

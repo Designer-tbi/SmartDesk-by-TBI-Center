@@ -471,6 +471,66 @@ utilisateurs France et RDC.
 - P2 : rate-limit sur `/api/auth/login` (brute force).
 - P2 : retirer les indices de mot de passe des erreurs 401 en production.
 
+## Templates de contrats RH OHADA / Congo (2026-04-30 — iter 20)
+
+L'utilisateur souhaitait des modèles complets et conformes OHADA (Code du
+travail congolais) pour CDI / CDD / Indépendant, avec articles
+modifiables, auto-remplissage entreprise + employé.
+
+### Templates (`/app/src/lib/contractTemplates.ts`)
+- **CDI Congo** : 14 articles — Engagement, Prise de fonction, Période
+  d'essai (art. 24), Lieu de travail, Durée du travail (art. 99 +
+  majorations heures sup.), Rémunération + primes (transport, logement,
+  IRPP/CNSS), Congés payés (art. 121, 26 jours ouvrables), Protection
+  sociale (CNSS), Confidentialité, Propriété intellectuelle, Rupture
+  (préavis légaux), Discipline & règlement intérieur, Litiges
+  (Tribunal du travail + OHADA), Dispositions finales.
+- **CDD Congo** : 12 articles — motif obligatoire (art. 25), durée
+  bornée (max 2 ans art. 27), période d'essai, congés au prorata,
+  rupture anticipée (art. 26), **indemnité de fin de contrat 5 %**
+  (art. 31).
+- **Mission/Intérim** : 7 articles avec entreprise utilisatrice,
+  protection CNSS, indemnité de précarité.
+- **Prestation/Indépendant** : 10 articles — indépendance (sans
+  subordination), honoraires HT + pénalités de retard (3× taux légal),
+  PI (cession exclusive), confidentialité, responsabilité limitée,
+  force majeure (art. 119 OHADA), arbitrage CCJA Abidjan.
+
+### Auto-fill enrichi
+- `AutofillKey` étendu : `companyNiu`, `companyRccm`, `companyIdNat`,
+  `companyTaxId`, `companyPhone`, `companyEmail`, `companyCity`,
+  `companyCountry`, `companyCurrency`, `employeeCni`, `employeeNiu`,
+  `employeeMatricule`, `employeeEmail`, `employeePhone`,
+  `employeeDepartment`, `employeeJoinDate`.
+- `HR.tsx` passe désormais l'intégralité des champs `companies` +
+  `employees` au `ContractBuilder` (NIU, RCCM, ID NAT, CNI, matricule
+  CNSS, téléphones, emails, devise…).
+- Variables PARTIES enrichies : pour le salarié on demande/auto-remplit
+  date de naissance, lieu de naissance, nationalité, CNI, NIU,
+  matricule CNSS, situation de famille, nombre d'enfants. Pour
+  l'employeur : RCCM + NIU + ID NAT + représentant + qualité.
+
+### Articles modifiables (`ContractBuilder.tsx`)
+- Bouton **« Modifier l'article »** par section (icône `Edit3`).
+  Quand activé, le texte légal complet (avec ses placeholders
+  `{{key}}`) s'affiche dans un `<textarea>` mono-space — l'utilisateur
+  peut tout réécrire.
+- Bouton **« Original »** (icône `RotateCcw`) pour annuler les
+  modifications et revenir au texte de référence.
+- `editedBodies[articleId]` propagé jusqu'à `renderContract` qui
+  remplace le body par défaut tout en interpolant les variables —
+  ainsi la modification d'un champ continue à mettre à jour le
+  contrat même après l'édition manuelle.
+
+### Validé (Playwright)
+- Modal Nouveau contrat → CDI sélectionné → 14 articles rendus.
+- Inputs `contract-var-employeeCni`, `contract-var-companyNiu`,
+  `contract-var-companyRccm` présents.
+- Auto-fill : `Jean Test`, `Brazzaville`, `Développeur`,
+  `Congolaise` pré-remplis.
+- Click `contract-edit-engagement` → textarea avec 240 chars du texte
+  légal apparaît, en mode édition.
+
 ## Page de signature publique : breakdown OHADA + diagnostic conversion (2026-04-30 — iter 19)
 
 L'utilisateur signalait :
