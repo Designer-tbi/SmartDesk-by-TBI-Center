@@ -44,6 +44,7 @@ export const Planning = ({ user }: { user?: any }) => {
   const [view, setView] = useState<ViewType>('week');
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [users, setUsers] = useState<any[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
@@ -51,6 +52,7 @@ export const Planning = ({ user }: { user?: any }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     userId: '',
+    employeeId: '',
     title: '',
     description: '',
     startDate: format(new Date(), "yyyy-MM-dd'T'09:00"),
@@ -62,6 +64,7 @@ export const Planning = ({ user }: { user?: any }) => {
   useEffect(() => {
     fetchSchedules();
     fetchUsers();
+    fetchEmployees();
     fetchCurrentUser();
   }, []);
 
@@ -80,6 +83,15 @@ export const Planning = ({ user }: { user?: any }) => {
       if (res.ok) setUsers(await res.json());
     } catch (err) {
       console.error('Failed to fetch users:', err);
+    }
+  };
+
+  const fetchEmployees = async () => {
+    try {
+      const res = await apiFetch('/api/employees');
+      if (res.ok) setEmployees(await res.json());
+    } catch (err) {
+      console.error('Failed to fetch employees:', err);
     }
   };
 
@@ -109,7 +121,15 @@ export const Planning = ({ user }: { user?: any }) => {
     else if (view === 'day') setCurrentDate(addDays(currentDate, 1));
   };
 
-  const canManage = currentUser?.role === 'admin' || currentUser?.role === 'super_admin' || currentUser?.role === 'rh';
+  // SmartDesk roles are keyed per-company (e.g. `role_admin_demo-1`,
+  // `role_rh_demo-2`) so we accept those prefixes plus the legacy plain
+  // role values used by super-admin and seeded fixtures.
+  const isManagerRole = (role?: string | null) => {
+    if (!role) return false;
+    if (role === 'admin' || role === 'super_admin' || role === 'rh') return true;
+    return role.startsWith('role_admin_') || role.startsWith('role_rh_') || role.startsWith('role_super_admin_');
+  };
+  const canManage = isManagerRole(currentUser?.role);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,7 +202,7 @@ export const Planning = ({ user }: { user?: any }) => {
     }
   };
 
-  const openAddModal = (date?: Date, userId?: string) => {
+  const openAddModal = (date?: Date, userId?: string, employeeId?: string) => {
     if (!canManage) return;
     setShowDeleteConfirm(false);
     const start = date ? format(date, "yyyy-MM-dd'T'09:00") : format(new Date(), "yyyy-MM-dd'T'09:00");
@@ -190,6 +210,7 @@ export const Planning = ({ user }: { user?: any }) => {
     
     setFormData({
       userId: userId || '',
+      employeeId: employeeId || '',
       title: 'Poste de travail',
       description: '',
       startDate: start,
@@ -206,7 +227,8 @@ export const Planning = ({ user }: { user?: any }) => {
     setSelectedSchedule(schedule);
     setShowDeleteConfirm(false);
     setFormData({
-      userId: schedule.userId,
+      userId: schedule.userId || '',
+      employeeId: (schedule as any).employeeId || '',
       title: schedule.title,
       description: schedule.description,
       startDate: format(new Date(schedule.startDate), "yyyy-MM-dd'T'HH:mm"),
@@ -271,9 +293,20 @@ export const Planning = ({ user }: { user?: any }) => {
   const renderWeekView = () => {
     const startDate = startOfWeek(currentDate, { weekStartsOn: 1 });
     const weekDays = eachDayOfInterval({ start: startDate, end: addDays(startDate, 6) });
-    
-    // In planning view, we might want to see all users if admin, or just self
-    const displayUsers = canManage ? users : users.filter(u => u.id === currentUser?.id);
+
+    // Unified list: SmartDesk users (login accounts) + HR employees. The
+    // dropdown can target either, so the planning grid must display both
+    // as separate rows.
+    type Entity = { id: string; name: string; role: string; kind: 'user' | 'employee' };
+    const userEntities: Entity[] = users.map(u => ({ id: u.id, name: u.name, role: u.role || 'Utilisateur', kind: 'user' }));
+    const employeeEntities: Entity[] = employees.map(e => ({ id: e.id, name: e.name, role: e.position || 'Employé', kind: 'employee' }));
+    const allEntities: Entity[] = [...employeeEntities, ...userEntities];
+    const displayUsers = canManage ? allEntities : userEntities.filter(u => u.id === currentUser?.id);
+
+    const matchesEntity = (s: Schedule, ent: Entity) =>
+      ent.kind === 'employee'
+        ? (s as any).employeeId === ent.id
+        : s.userId === ent.id;
 
     return (
       <div className="flex flex-col border border-slate-200 rounded-xl overflow-hidden bg-white">
@@ -289,9 +322,10 @@ export const Planning = ({ user }: { user?: any }) => {
         </div>
         <div className="flex-1">
           {displayUsers.map(user => {
-            const weekTotal = calculateTotalHours(user.id, startDate, addDays(startDate, 6));
+            const userIdForTotal = user.kind === 'user' ? user.id : null;
+            const weekTotal = userIdForTotal ? calculateTotalHours(userIdForTotal, startDate, addDays(startDate, 6)) : 0;
             return (
-              <div key={user.id} className="grid grid-cols-[200px_repeat(7,1fr)_100px] border-b border-slate-100 last:border-b-0 hover:bg-slate-50/30 transition-colors">
+              <div key={`${user.kind}_${user.id}`} className="grid grid-cols-[200px_repeat(7,1fr)_100px] border-b border-slate-100 last:border-b-0 hover:bg-slate-50/30 transition-colors">
                 <div className="p-4 border-r border-slate-100 flex items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-soft-red flex items-center justify-center text-accent-red font-bold text-xs">
                     {user.name.charAt(0)}
@@ -303,7 +337,7 @@ export const Planning = ({ user }: { user?: any }) => {
                 </div>
                 {weekDays.map(day => {
                   const daySchedules = schedules.filter(s => {
-                    if (s.userId !== user.id) return false;
+                    if (!matchesEntity(s, user)) return false;
                     const start = startOfDay(new Date(s.startDate));
                     const end = endOfDay(new Date(s.endDate));
                     return day >= start && day <= end;
@@ -312,7 +346,7 @@ export const Planning = ({ user }: { user?: any }) => {
                     <div 
                       key={day.toString()} 
                       className="p-2 border-r border-slate-100 min-h-[80px] relative group"
-                      onClick={() => canManage && openAddModal(day, user.id)}
+                      onClick={() => canManage && openAddModal(day, user.kind === 'user' ? user.id : undefined, user.kind === 'employee' ? user.id : undefined)}
                     >
                       {daySchedules.map(sch => (
                         <div 
@@ -680,13 +714,36 @@ export const Planning = ({ user }: { user?: any }) => {
                           <select
                             required
                             className="w-full pl-11 pr-4 py-4 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 focus:bg-white focus:border-accent-red focus:ring-4 focus:ring-accent-red/5 transition-all appearance-none cursor-pointer"
-                            value={formData.userId || ''}
-                            onChange={(e) => setFormData({ ...formData, userId: e.target.value })}
+                            value={formData.employeeId ? `emp:${formData.employeeId}` : (formData.userId ? `usr:${formData.userId}` : '')}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              if (v.startsWith('emp:')) {
+                                setFormData({ ...formData, employeeId: v.slice(4), userId: '' });
+                              } else if (v.startsWith('usr:')) {
+                                setFormData({ ...formData, userId: v.slice(4), employeeId: '' });
+                              } else {
+                                setFormData({ ...formData, userId: '', employeeId: '' });
+                              }
+                            }}
+                            data-testid="planning-member-select"
                           >
                             <option value="">{t('planning.modal.selectMember')}</option>
-                            {users.map(u => (
-                              <option key={u.id} value={u.id}>{u.name}</option>
-                            ))}
+                            {employees.length > 0 && (
+                              <optgroup label={t('planning.employeesGroup') || 'Employés'}>
+                                {employees.map(e => (
+                                  <option key={`emp_${e.id}`} value={`emp:${e.id}`}>
+                                    {e.name}{e.position ? ` — ${e.position}` : ''}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            )}
+                            {users.length > 0 && (
+                              <optgroup label={t('planning.usersGroup') || 'Utilisateurs SmartDesk'}>
+                                {users.map(u => (
+                                  <option key={`usr_${u.id}`} value={`usr:${u.id}`}>{u.name}</option>
+                                ))}
+                              </optgroup>
+                            )}
                           </select>
                           <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-accent-red transition-colors" />
                           <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-slate-300">
@@ -726,7 +783,7 @@ export const Planning = ({ user }: { user?: any }) => {
                             { id: 'Travail', label: t('planning.types.work'), icon: '💼', color: 'accent-red' },
                             { id: 'Congé', label: t('planning.types.leave'), icon: '🏖️', color: 'amber' },
                             { id: 'Maladie', label: t('planning.types.sick'), icon: '🤒', color: 'red' },
-                            { id: 'Formation', label: t('planning.types.training'), icon: 'emerald' },
+                            { id: 'Formation', label: t('planning.types.training'), icon: '🎓', color: 'emerald' },
                             { id: 'Autre', label: t('planning.types.other'), icon: '✨', color: 'slate' }
                           ].map((type) => (
                             <button

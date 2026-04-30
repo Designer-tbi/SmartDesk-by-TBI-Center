@@ -507,6 +507,11 @@ export async function initializeDatabase() {
         await db.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "foreignCountry" TEXT`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "onboardingCompleted" BOOLEAN DEFAULT TRUE`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS city TEXT`);
+        // Allow scheduling HR employees (not just login users). userId is
+        // now optional; one of (userId | employeeId) must be set.
+        await db.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS "employeeId" TEXT`);
+        await db.query(`ALTER TABLE schedules ALTER COLUMN "userId" DROP NOT NULL`);
+        await db.query(`CREATE INDEX IF NOT EXISTS idx_schedules_employee ON schedules("employeeId")`);
         await db.query(
           `UPDATE companies SET "fiscalizationApiKey" = $1
            WHERE type = 'demo' AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,

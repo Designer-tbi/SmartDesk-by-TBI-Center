@@ -471,6 +471,58 @@ utilisateurs France et RDC.
 - P2 : rate-limit sur `/api/auth/login` (brute force).
 - P2 : retirer les indices de mot de passe des erreurs 401 en production.
 
+## Planning : employés RH dans le sélecteur (2026-04-29 — iter 17)
+
+L'utilisateur ne voyait pas les employés créés dans le module RH lors
+de la création d'un planning : seul son compte de connexion
+(« Demo Admin ») apparaissait dans la liste « Employé ».
+
+### Schéma DB
+- `schedules` : ajout d'une colonne nullable `employeeId TEXT`,
+  contrainte `NOT NULL` retirée sur `userId` (un planning peut
+  désormais cibler **un utilisateur SmartDesk OU un employé RH**).
+  Index `idx_schedules_employee` ajouté. Migration appliquée à chaud
+  via SQL direct + insérée dans `db.ts` pour les cold starts Vercel.
+
+### Backend — `/app/server/routes/schedules.ts`
+- `GET /api/schedules` : `LEFT JOIN users` + `LEFT JOIN employees`,
+  `userName` résolu avec `COALESCE(u.name, e.name)`.
+- `POST /api/schedules` accepte désormais `employeeId` ou `userId`
+  (au moins l'un des deux). Stocke `null` pour celui non fourni.
+- `PUT /api/schedules/:id` idem.
+- Helper `isManagerRole(role)` : reconnaît les rôles **per-tenant**
+  (`role_admin_demo-1`, `role_rh_demo-2`, etc.) en plus des valeurs
+  legacy (`admin`, `rh`, `super_admin`). Sans ça, le POST renvoyait
+  `403 Forbidden` pour les admins démo.
+
+### Frontend — `/app/src/modules/Planning.tsx`
+- Nouveau `fetchEmployees()` appelle `/api/employees` au mount.
+- Sélecteur « Employé » dans le modal : 2 `<optgroup>` —
+  « Employés (RH) » + « Utilisateurs SmartDesk ». Valeurs préfixées
+  `emp:` ou `usr:` pour différencier au submit.
+- Vue Semaine : la liste des « rangées » fusionne désormais
+  employés RH + utilisateurs SmartDesk. Filtre des planning par
+  `userId` OU `employeeId` selon le type de l'entité.
+- `openAddModal(date, userId, employeeId)` : pré-remplit la bonne
+  cible quand on clique dans une cellule de la rangée.
+- `canManage` utilise désormais le helper `isManagerRole` (mêmes
+  règles que le backend) : les admins démo peuvent maintenant
+  créer / éditer / supprimer.
+- i18n : `planning.employeesGroup` + `planning.usersGroup` (FR/EN).
+- Cleanup : icône `Formation` corrigée (`'emerald'` → `'🎓'`).
+
+### Validé (curl + Playwright)
+- `POST /api/schedules` avec `employeeId="emp-…"` → 201, ligne créée
+  avec `userId=null`, `employeeId="emp-…"`.
+- `GET /api/schedules` retourne `userName="Jean Test"` (depuis la
+  table `employees`).
+- Vue Semaine de Planning : 2 rangées affichées (`Jean Test`,
+  `Demo Admin`), planning « 09:00 - 17:00 Mission » visible sur
+  Jean Test sam. 2 mai.
+- Modal `Nouveau planning` : sélecteur contient
+  `optgroup label="Employés (RH)"` (Jean Test) +
+  `optgroup label="Utilisateurs SmartDesk"` (Demo Admin).
+
 ## Actions sur devis signés (2026-04-29 — iter 15 + iter 16)
 
 L'utilisateur peut désormais **prévisualiser, télécharger et supprimer**
