@@ -17,7 +17,10 @@ publicSignatureRouter.get('/quotes/:id', async (req, res, next) => {
 
     const invRes = await req.db.query(
       `SELECT id, type, "contactId", "companyId", date, "dueDate",
-              "totalHT", "tvaTotal", total, status, notes, "signedAt"
+              "totalHT", "tvaTotal", total, status, notes, "signedAt",
+              remise, "remiseType", rabais, "rabaisType",
+              ristourne, "ristourneType", escompte, "escompteType",
+              "centimesAdditionnels", "netCommercial", "netFinancier"
          FROM invoices
         WHERE id = $1 AND type = 'Quote'`,
       [id],

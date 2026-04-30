@@ -471,6 +471,40 @@ utilisateurs France et RDC.
 - P2 : rate-limit sur `/api/auth/login` (brute force).
 - P2 : retirer les indices de mot de passe des erreurs 401 en production.
 
+## Page de signature publique : breakdown OHADA + diagnostic conversion (2026-04-30 — iter 19)
+
+L'utilisateur signalait :
+- Le **Centime Additionnel** n'apparaissait pas dans la page de signature publique du devis.
+- La **conversion devis → facture** affichait « Échec de la conversion » sans plus d'info.
+
+### Page publique (`/sign-quote/:id`)
+- `GET /api/public/quotes/:id` (`publicSignature.ts`) renvoie maintenant
+  les colonnes OHADA + CAC : `remise/remiseType`, `rabais/rabaisType`,
+  `ristourne/ristourneType`, `escompte/escompteType`,
+  `centimesAdditionnels`, `netCommercial`, `netFinancier`.
+- `SignQuotePage.tsx` rend désormais le breakdown complet :
+  `Brut HT → réductions non nulles (en montant ou %) → Net commercial
+  → Net financier → TVA → Centimes additionnels (5% TVA, en orange) →
+  Total TTC`. Les lignes nulles sont masquées pour rester compact.
+
+### Diagnostic conversion
+- `handleConvertToInvoice` (`Sales.tsx`) affiche désormais le message
+  d'erreur précis renvoyé par le backend (« Ce devis a déjà été
+  converti », « Seuls les devis acceptés ou signés peuvent être
+  convertis »…) au lieu d'un générique « Échec de la conversion ».
+- Ajoute aussi un body JSON vide explicite + `Content-Type:
+  application/json` pour éviter d'éventuels rejets de `Content-Length:
+  0` côté reverse-proxy.
+
+### Validé
+- Test curl : `POST /:id/convert-to-invoice` → 201 sur DEV-2026-937
+  (Signed). Refait sur le même devis → 409 « Ce devis a déjà été
+  converti en facture. »
+- Page publique du devis DEV-2026-937 : screenshot Playwright montre
+  bien Brut HT 95 000 / TVA 17 100 / **Centimes additionnels (5%
+  TVA) 855 XAF** / Total TTC 112 955 XAF.
+- Vérification DOM : `Centimes additionnels` présent dans `body.innerText`.
+
 ## Réductions OHADA + CAC + conversion devis→facture (2026-04-30 — iter 18)
 
 ### Schéma DB

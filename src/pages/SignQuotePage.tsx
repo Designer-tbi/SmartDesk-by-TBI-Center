@@ -315,11 +315,57 @@ export default function SignQuotePage() {
               </div>
 
               <div className="flex justify-end">
-                <div className="w-full md:w-72 space-y-1 text-sm">
-                  <div className="flex justify-between text-slate-600"><span>Total HT</span><span>{fmt(inv?.totalHT)}</span></div>
-                  <div className="flex justify-between text-slate-600"><span>TVA</span><span>{fmt(inv?.tvaTotal)}</span></div>
+                <div className="w-full md:w-80 space-y-1.5 text-sm">
+                  <div className="flex justify-between text-slate-600">
+                    <span>Brut HT</span>
+                    <span>{fmt(inv?.totalHT)}</span>
+                  </div>
+
+                  {/* OHADA reductions — only render rows that are non-zero. */}
+                  {(['rabais','remise','ristourne','escompte'] as const).map((field) => {
+                    const value = (inv as any)?.[field] ?? 0;
+                    const type = (inv as any)?.[`${field}Type`] || 'amount';
+                    if (!value) return null;
+                    const labels: Record<string,string> = { rabais: 'Rabais', remise: 'Remise', ristourne: 'Ristourne', escompte: 'Escompte' };
+                    const display = type === 'percent'
+                      ? `${value}%`
+                      : `${Number(value).toLocaleString()} ${currency}`;
+                    return (
+                      <div key={field} className="flex justify-between text-slate-600">
+                        <span>{labels[field]}</span>
+                        <span>- {display}</span>
+                      </div>
+                    );
+                  })}
+
+                  {((inv?.netCommercial || 0) > 0 && inv?.netCommercial !== inv?.totalHT) && (
+                    <div className="flex justify-between text-slate-700 font-bold pt-1 border-t border-slate-100">
+                      <span>Net commercial</span>
+                      <span>{fmt(inv?.netCommercial)}</span>
+                    </div>
+                  )}
+                  {((inv?.netFinancier || 0) > 0 && inv?.netFinancier !== inv?.netCommercial) && (
+                    <div className="flex justify-between text-slate-700 font-bold">
+                      <span>Net financier</span>
+                      <span>{fmt(inv?.netFinancier)}</span>
+                    </div>
+                  )}
+
+                  <div className="flex justify-between text-slate-600">
+                    <span>TVA</span>
+                    <span>{fmt(inv?.tvaTotal)}</span>
+                  </div>
+
+                  {(inv?.centimesAdditionnels || 0) > 0 && (
+                    <div className="flex justify-between text-amber-700">
+                      <span title="Centimes additionnels (Congo)">Centimes additionnels (5% TVA)</span>
+                      <span>{fmt(inv?.centimesAdditionnels)}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between text-base font-black text-accent-red border-t border-slate-200 pt-1.5">
-                    <span>Total TTC</span><span>{fmt(inv?.total)}</span>
+                    <span>Total TTC</span>
+                    <span>{fmt(inv?.total)}</span>
                   </div>
                 </div>
               </div>

@@ -453,19 +453,26 @@ export const Sales = ({ user }: { user: any }) => {
     if (!confirm(`Convertir le devis ${quote.id} en facture ?\nLe devis sera marqué « Converti » et une nouvelle facture (statut Brouillon) sera créée.`)) return;
     setConvertingId(quote.id);
     try {
-      const r = await apiFetch(`/api/invoices/${quote.id}/convert-to-invoice`, { method: 'POST' });
+      const r = await apiFetch(`/api/invoices/${quote.id}/convert-to-invoice`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
       const data = await r.json().catch(() => null);
       if (!r.ok) {
-        setError(data?.error || 'Échec de la conversion.');
+        // Surface the precise backend reason ("déjà converti", "non signé"…)
+        // instead of a generic "Échec de la conversion".
+        const msg = data?.error || `Échec de la conversion (HTTP ${r.status}).`;
+        setError(msg);
         return;
       }
       // Refresh the list so the new invoice + the locked quote are visible.
       await fetchInvoices();
       // Open the freshly created invoice in the preview modal.
       if (data && data.id) setViewInvoice(data);
-    } catch (e) {
+    } catch (e: any) {
       console.error('Convert quote failed:', e);
-      setError('Échec de la conversion.');
+      setError(e?.message || 'Échec de la conversion.');
     } finally {
       setConvertingId(null);
     }
