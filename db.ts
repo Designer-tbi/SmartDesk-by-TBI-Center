@@ -467,27 +467,12 @@ export async function initializeDatabase() {
           "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `);
-      const flag = await db.query(
-        `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
-      );
-      if (flag.rows[0]?.value === '2026-04-29-onboarding') {
-        console.log('Database schema already up-to-date, skipping init.');
-        return;
-      }
 
-      // Second fast-path: if the core tables already exist AND RLS is
-      // already enabled on `contacts`, we're fine. Just mark and exit
-      // without re-running DDL. This handles the transition from the
-      // previous deploy (which initialized everything) to this one.
-      const rlsCheck = await db.query(`
-        SELECT c.relrowsecurity
-        FROM pg_class c
-        JOIN pg_namespace n ON n.oid = c.relnamespace
-        WHERE n.nspname = 'public' AND c.relname = 'contacts'
-      `);
-      if (rlsCheck.rows[0]?.relrowsecurity === true) {
-        console.log('Tables exist & RLS already enabled, applying incremental migrations.');
-        // Idempotent migrations that must run regardless of schema_version.
+      // Idempotent incremental migrations — these MUST run on every cold
+      // start regardless of `schema_version`, otherwise existing
+      // production deploys never pick up new columns added in later
+      // releases. They use `IF NOT EXISTS` so they're cheap to re-run.
+      const runIncrementalMigrations = async () => {
         await db.query(
           `ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'::jsonb`,
         );
@@ -507,14 +492,16 @@ export async function initializeDatabase() {
         await db.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "foreignCountry" TEXT`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "onboardingCompleted" BOOLEAN DEFAULT TRUE`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS city TEXT`);
-        // Allow scheduling HR employees (not just login users). userId is
-        // now optional; one of (userId | employeeId) must be set.
         await db.query(`ALTER TABLE schedules ADD COLUMN IF NOT EXISTS "employeeId" TEXT`);
-        await db.query(`ALTER TABLE schedules ALTER COLUMN "userId" DROP NOT NULL`);
+        // schedules.userId being NOT NULL was a leftover from before
+        // employee-targeted scheduling. Idempotent-ish: errors out if
+        // already nullable but that's harmless.
+        try {
+          await db.query(`ALTER TABLE schedules ALTER COLUMN "userId" DROP NOT NULL`);
+        } catch { /* already nullable */ }
         await db.query(`CREATE INDEX IF NOT EXISTS idx_schedules_employee ON schedules("employeeId")`);
         // OHADA reductions + Congo "centimes additionnels" (CAC = TVA × 5%)
-        // + quote→invoice conversion tracking. All columns nullable so this
-        // migration is safe to re-run on every cold start.
+        // + quote→invoice conversion tracking. All nullable / defaulted.
         await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "remise" REAL DEFAULT 0`);
         await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "remiseType" TEXT DEFAULT 'amount'`);
         await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "rabais" REAL DEFAULT 0`);
@@ -534,11 +521,37 @@ export async function initializeDatabase() {
            WHERE type = 'demo' AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
           [process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c'],
         );
+      };
+
+      const flag = await db.query(
+        `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
+      );
+      // Bumped to 2026-05-02-ohada so existing deploys (which were marked
+      // up-to-date with 2026-04-29-onboarding) re-run the incremental
+      // migrations exactly once and pick up the OHADA columns.
+      const TARGET_SCHEMA = '2026-05-02-ohada';
+      if (flag.rows[0]?.value === TARGET_SCHEMA) {
+        console.log('Database schema already up-to-date, skipping init.');
+        return;
+      }
+
+      // Second fast-path: if the core tables already exist AND RLS is
+      // already enabled on `contacts`, we're fine. Just run the
+      // incremental column adds and bump the version flag.
+      const rlsCheck = await db.query(`
+        SELECT c.relrowsecurity
+        FROM pg_class c
+        JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public' AND c.relname = 'contacts'
+      `);
+      if (rlsCheck.rows[0]?.relrowsecurity === true) {
+        console.log('Tables exist & RLS already enabled, applying incremental migrations.');
+        await runIncrementalMigrations();
         await db.query(`
           INSERT INTO _app_meta (key, value, "updatedAt")
-          VALUES ('schema_version', '2026-04-29-onboarding', NOW())
+          VALUES ('schema_version', $1, NOW())
           ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
-        `);
+        `, [TARGET_SCHEMA]);
         return;
       }
     } catch (err) {

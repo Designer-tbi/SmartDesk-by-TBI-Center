@@ -471,6 +471,41 @@ utilisateurs France et RDC.
 - P2 : rate-limit sur `/api/auth/login` (brute force).
 - P2 : retirer les indices de mot de passe des erreurs 401 en production.
 
+## Bug fix : conversion devis→facture en production (2026-05-02 — iter 22)
+
+L'utilisateur signalait « la conversion devis facture fonctionne mal »
+avec message d'erreur en **production Vercel**.
+
+### Cause racine
+La fonction `seedDatabase` dans `db.ts` court-circuitait tout le travail
+de migration dès que `_app_meta.schema_version` valait
+`'2026-04-29-onboarding'` (valeur stockée par le déploiement précédent).
+
+Conséquence : sur les déploiements existants, **aucune des nouvelles
+colonnes OHADA** (`remise`, `rabais`, `ristourne`, `escompte`,
+`centimesAdditionnels`, `netCommercial`, `netFinancier`,
+`convertedFromQuoteId`, `convertedToInvoiceId`, `convertedAt`) n'était
+ajoutée → l'`INSERT INTO invoices` du endpoint
+`POST /:id/convert-to-invoice` échouait avec
+`column "convertedFromQuoteId" does not exist`.
+
+### Fix
+- Refactor `db.ts` :
+  - Extraction des migrations incrémentales dans une lambda
+    `runIncrementalMigrations()`.
+  - Bump du `TARGET_SCHEMA` à `'2026-05-02-ohada'`.
+  - Le fast-path retourne uniquement si `schema_version === TARGET_SCHEMA`
+    (et non l'ancienne valeur).
+  - Sur déploiements existants (`relrowsecurity=true` mais ancien
+    schema_version), exécution forcée des migrations puis bump du flag.
+
+### Validé
+- DB locale après restart : les 10 colonnes OHADA sont présentes
+  (`SELECT column_name FROM information_schema.columns`).
+- `_app_meta.schema_version = '2026-05-02-ohada'`.
+- Conversion devis acceptés→facture : 201 OK, total = 118 900 XAF
+  (100k brut + TVA 18k + CAC 900). Items copiés correctement.
+
 ## Lien public de signature pour les contrats RH (2026-05-02 — iter 21)
 
 Implémente le flux complet « Envoyer le contrat → Email avec lien public
