@@ -471,6 +471,58 @@ utilisateurs France et RDC.
 - P2 : rate-limit sur `/api/auth/login` (brute force).
 - P2 : retirer les indices de mot de passe des erreurs 401 en production.
 
+## Lien public de signature pour les contrats RH (2026-05-02 — iter 21)
+
+Implémente le flux complet « Envoyer le contrat → Email avec lien public
+→ Signature manuscrite par le salarié → Archivage » à parité avec le
+flux devis.
+
+### Backend
+- **Nouveau endpoint** `POST /api/employees/contracts/:id/send-email`
+  (`employees.ts`) :
+  - Récupère contrat + employé + société.
+  - Construit le lien public `${origin}/sign-contract/<id>` à partir
+    du header `Origin` (fallback `PUBLIC_BASE_URL` /
+    `REACT_APP_BACKEND_URL`).
+  - Validation syntaxique de l'email avant tout SMTP roundtrip
+    (rejet immédiat si typo).
+  - Met le statut à `Sent` + persiste le `signatureLink`.
+  - Envoie l'email HTML stylé via le mailer per-tenant
+    (`getMailerForCompany` — OVH SMTP pour les démos).
+  - **Rollback automatique** du statut si le serveur SMTP rejette
+    le destinataire (domaine inconnu, etc.) → réponse 502 avec
+    message + détail.
+- `publicSignature.ts` GET `/contracts/:id` : `position` désormais
+  dérivé de `role || department` (la table `employees` n'a pas
+  de colonne `position`, ce qui faisait planter l'endpoint).
+
+### Frontend (`HR.tsx`)
+- `handleSendContract` réécrit pour appeler le nouvel endpoint.
+  Copie le lien dans le presse-papier après succès, surface le
+  message d'erreur précis du backend en cas d'échec
+  (« Adresse email invalide pour X », « Le serveur a refusé… »).
+- **Onglet « Contrats Signés / Réception »** : la colonne Actions,
+  qui n'avait qu'un bouton Download sans handler, comporte
+  désormais 3 boutons fonctionnels avec testids
+  `signed-contract-{preview|link}-<id>` (preview ouvre la modale,
+  link copie le lien public).
+- **Nouvelle modale `viewingContract`** (read-only) : titre rouge
+  avec ID + nom employé, contenu du contrat en mono-space avec
+  préservation des sauts de ligne, bloc vert « ✓ Contrat signé »
+  affichant la signature manuscrite, le nom du signataire,
+  l'horodatage français et la mention juridique eIDAS / OHADA.
+
+### Validé (curl + Playwright)
+- `POST /:id/send-email` → 200 + lien retourné ; statut DB passe à
+  `Sent`.
+- Email avec destinataire `jean@test.cg` → 502 « domaine refusé »,
+  status DB rollback à `Draft` (vérifié curl).
+- `POST /api/public/contracts/:id/sign` → status `Signed`,
+  `signedAt` défini.
+- Onglet « Contrats Signés / Réception » :
+  `signed-contract-row-<id>` rendu, bouton aperçu ouvre la modale,
+  signature manuscrite + nom + date affichés.
+
 ## Templates de contrats RH OHADA / Congo (2026-04-30 — iter 20)
 
 L'utilisateur souhaitait des modèles complets et conformes OHADA (Code du

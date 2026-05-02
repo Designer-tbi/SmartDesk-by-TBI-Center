@@ -124,10 +124,15 @@ publicSignatureRouter.get('/contracts/:id', async (req, res, next) => {
     let employee: any = null;
     if (contract.employeeId) {
       const eRes = await req.db.query(
-        `SELECT name, email, position FROM employees WHERE id = $1`,
+        `SELECT name, email, role, department FROM employees WHERE id = $1`,
         [contract.employeeId],
       );
-      employee = eRes.rows[0] || null;
+      const row = eRes.rows[0];
+      // Normalise to a `position` field for the frontend (the public page
+      // expects `employee.position`).
+      employee = row
+        ? { name: row.name, email: row.email, position: row.role || row.department || '' }
+        : null;
     }
 
     res.json({

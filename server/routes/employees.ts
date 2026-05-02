@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireCompany } from '../middleware/auth.js';
+import { getMailerForCompany } from '../services/mailer.js';
 
 export const employeesRouter = Router();
 
@@ -139,6 +140,152 @@ employeesRouter.delete('/contracts/:id', async (req, res, next) => {
     await req.db.query('DELETE FROM contracts WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     res.status(204).send();
   } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Send the contract to the employee by email with a public signature link.
+ *
+ * Mirrors the invoice "Envoyer" flow: builds the public URL from the
+ * request's Origin (so it works in dev / preview / production), updates the
+ * contract status to 'Sent', and dispatches the message via the per-tenant
+ * mailer (OVH SMTP for demo accounts, regular SMTP for production).
+ */
+employeesRouter.post('/contracts/:id/send-email', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const cRes = await req.db.query(
+      'SELECT * FROM contracts WHERE id = $1 AND "companyId" = $2',
+      [id, req.user!.companyId],
+    );
+    const contract = cRes.rows[0];
+    if (!contract) return res.status(404).json({ error: 'Contrat introuvable' });
+
+    const eRes = await req.db.query(
+      'SELECT * FROM employees WHERE id = $1 AND "companyId" = $2',
+      [contract.employeeId, req.user!.companyId],
+    );
+    const employee = eRes.rows[0];
+    if (!employee) return res.status(404).json({ error: 'Employé introuvable' });
+    if (!employee.email) {
+      return res.status(400).json({ error: 'Aucune adresse email pour cet employé.' });
+    }
+
+    const compRes = await req.db.query(
+      'SELECT * FROM companies WHERE id = $1',
+      [req.user!.companyId],
+    );
+    const company = compRes.rows[0];
+
+    const reqOrigin =
+      (req.headers.origin as string | undefined) ||
+      (req.headers.referer ? new URL(req.headers.referer as string).origin : undefined);
+    const baseUrl =
+      reqOrigin ||
+      process.env.PUBLIC_BASE_URL ||
+      process.env.REACT_APP_BACKEND_URL ||
+      'https://smart-desk.pro';
+    const signatureLink = `${baseUrl}/sign-contract/${id}`;
+
+    const { transporter, from } = getMailerForCompany(company.type, company.name);
+    const fmt = (n: number) => `${Number(n || 0).toLocaleString()} ${company.currency || ''}`;
+
+    // Validate the recipient before flipping the contract to "Sent" and
+    // before incurring an SMTP round-trip. A simple syntactic check is
+    // enough — the mail server still has the final word.
+    const emailLooksValid = /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(employee.email);
+    if (!emailLooksValid) {
+      return res.status(400).json({
+        error: `Adresse email invalide pour ${employee.name} : "${employee.email}". Mettez à jour la fiche employé avant d'envoyer.`,
+      });
+    }
+
+    // Stamp the contract as "Sent" + link FIRST so that even if the SMTP
+    // server is slow, the recipient still sees a Sent contract when the
+    // email is finally delivered. We rollback the status if delivery
+    // fails outright (e.g. domain rejected) so the user can fix the
+    // email and retry.
+    await req.db.query(
+      `UPDATE contracts
+          SET status = 'Sent', "signatureLink" = $1
+        WHERE id = $2 AND "companyId" = $3`,
+      [signatureLink, id, req.user!.companyId],
+    );
+
+    const subject = `Contrat ${contract.type} – ${company.name}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto;">
+        <h2 style="color: #111827; margin-bottom: 4px;">Contrat à signer</h2>
+        <p style="color: #6b7280; margin-top: 0;">Émis par <strong>${company.name}</strong></p>
+        <p>Bonjour <strong>${employee.name}</strong>,</p>
+        <p>
+          Veuillez trouver ci-dessous votre contrat de travail
+          (<strong>${contract.type}</strong>). Pour le valider, cliquez sur
+          le bouton ci-dessous et apposez votre signature manuscrite.
+        </p>
+        <table style="border-collapse: collapse; margin: 18px 0; font-size: 14px;">
+          <tr>
+            <td style="padding: 4px 12px 4px 0; color: #6b7280;">Type</td>
+            <td style="padding: 4px 0; font-weight: bold;">${contract.type}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 12px 4px 0; color: #6b7280;">Date d'effet</td>
+            <td style="padding: 4px 0; font-weight: bold;">${contract.startDate || '—'}</td>
+          </tr>
+          ${contract.endDate ? `<tr><td style="padding: 4px 12px 4px 0; color: #6b7280;">Date de fin</td><td style="padding: 4px 0; font-weight: bold;">${contract.endDate}</td></tr>` : ''}
+          <tr>
+            <td style="padding: 4px 12px 4px 0; color: #6b7280;">Rémunération</td>
+            <td style="padding: 4px 0; font-weight: bold;">${fmt(contract.salary)}</td>
+          </tr>
+        </table>
+        <p style="margin: 24px 0; text-align: center;">
+          <a href="${signatureLink}"
+             style="display: inline-block; padding: 14px 28px; background: #dc2626;
+                    color: #ffffff; border-radius: 12px; text-decoration: none;
+                    font-weight: bold;">
+            Consulter & signer mon contrat
+          </a>
+        </p>
+        <p style="color: #6b7280; font-size: 12px; margin-top: 32px; border-top: 1px solid #e5e7eb; padding-top: 16px;">
+          Cet email a été envoyé automatiquement. Si vous n'attendiez pas
+          ce contrat, merci de contacter ${company.email || company.name}.
+        </p>
+      </div>
+    `;
+    const text =
+      `Bonjour ${employee.name},\n\n` +
+      `Vous avez un nouveau contrat ${contract.type} à signer.\n` +
+      `Lien de signature : ${signatureLink}\n\n` +
+      `${company.name}`;
+
+    try {
+      await transporter.sendMail({
+        from,
+        to: employee.email,
+        subject,
+        html,
+        text,
+      });
+    } catch (mailErr: any) {
+      // Mail server rejected the recipient (typo, sandbox domain…).
+      // Rollback the status so the user can fix the address and retry.
+      await req.db.query(
+        `UPDATE contracts SET status = $1 WHERE id = $2 AND "companyId" = $3`,
+        [contract.status || 'Draft', id, req.user!.companyId],
+      );
+      console.error('Contract email delivery failed:', mailErr?.message || mailErr);
+      const detail = mailErr?.response || mailErr?.message || 'Échec de l’envoi.';
+      return res.status(502).json({
+        error: `Le serveur de messagerie a refusé la livraison à ${employee.email}.`,
+        detail,
+      });
+    }
+
+    res.json({ ok: true, signatureLink });
+  } catch (error) {
+    console.error('POST /contracts/:id/send-email failed', error);
     next(error);
   }
 });

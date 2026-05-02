@@ -41,6 +41,7 @@ export const HR = ({ user }: { user: any }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   
   const [signingContract, setSigningContract] = useState<Contract | null>(null);
+  const [viewingContract, setViewingContract] = useState<Contract | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -277,24 +278,30 @@ export const HR = ({ user }: { user: any }) => {
 
   const handleSendContract = async (id: string) => {
     setIsSending(id);
-    const contract = contracts.find(c => c.id === id);
-    if (!contract) return;
-    
     try {
-      const response = await apiFetch(`/api/employees/contracts/${id}`, {
-        method: 'PUT',
+      const response = await apiFetch(`/api/employees/contracts/${id}/send-email`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...contract,
-          status: 'Sent',
-          signatureLink: `${window.location.origin}/sign/${id}`
-        }),
+        body: JSON.stringify({}),
       });
+      const data = await response.json().catch(() => null);
       if (response.ok) {
-        fetchData();
+        // Best-effort UX confirmation; copy the freshly minted link to
+        // the clipboard so the user can also share it manually.
+        if (data?.signatureLink && navigator.clipboard) {
+          navigator.clipboard.writeText(data.signatureLink).catch(() => {});
+        }
+        await fetchData();
+      } else {
+        // Surface the precise backend reason (typo dans l'email,
+        // domaine refusé, employé sans email…) au lieu d'un générique.
+        const msg = data?.error || `Échec de l’envoi du contrat (HTTP ${response.status}).`;
+        const detail = data?.detail ? `\n\n${data.detail}` : '';
+        alert(`${msg}${detail}`);
       }
     } catch (error) {
       console.error('Failed to send contract:', error);
+      alert('Échec de l’envoi du contrat.');
     } finally {
       setIsSending(null);
     }
@@ -704,17 +711,36 @@ export const HR = ({ user }: { user: any }) => {
                     </thead>
                     <tbody className="divide-y divide-slate-100">
                       {contracts.filter(c => c.status === 'Signed' || c.status === 'Active').map((contract) => (
-                        <tr key={contract.id} className="hover:bg-slate-50 transition-colors">
+                        <tr key={contract.id} className="hover:bg-slate-50 transition-colors" data-testid={`signed-contract-row-${contract.id}`}>
                           <td className="px-6 py-4">
                             <div className="text-sm font-bold text-slate-900">{contract.id}</div>
                             <div className="text-[10px] text-slate-400">{contract.type}</div>
                           </td>
                           <td className="px-6 py-4 text-sm font-bold text-slate-900">{getEmployeeName(contract.employeeId)}</td>
-                          <td className="px-6 py-4 text-sm text-slate-500 font-medium">{contract.signedAt || contract.startDate}</td>
-                          <td className="px-6 py-4 text-right">
-                            <button className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all">
-                              <Download className="w-4 h-4" />
-                            </button>
+                          <td className="px-6 py-4 text-sm text-slate-500 font-medium">
+                            {contract.signedAt
+                              ? new Date(contract.signedAt).toLocaleString('fr-FR')
+                              : (contract.startDate || '—')}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-end gap-1">
+                              <button
+                                onClick={() => setViewingContract(contract)}
+                                className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"
+                                title="Aperçu"
+                                data-testid={`signed-contract-preview-${contract.id}`}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => contract.signatureLink && copyToClipboard(contract.signatureLink)}
+                                className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"
+                                title="Copier le lien public"
+                                data-testid={`signed-contract-link-${contract.id}`}
+                              >
+                                <LinkIcon className="w-4 h-4" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -1697,6 +1723,96 @@ export const HR = ({ user }: { user: any }) => {
         onConfirm={() => deleteConfirmId && handleDeleteEmployee(deleteConfirmId)}
         onCancel={() => setDeleteConfirmId(null)}
       />
+
+      {/* Contract preview — read-only, used from the "Devis Signés" tab
+          when the user wants to inspect a Sent / Signed contract. */}
+      {viewingContract && (() => {
+        const sig = (() => {
+          const raw = viewingContract.signatureLink || '';
+          if (raw.startsWith('{')) {
+            try { return JSON.parse(raw); } catch { return null; }
+          }
+          return null;
+        })();
+        return (
+          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-sm" data-testid="contract-preview-modal">
+            <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl">
+              <div className="bg-gradient-to-r from-accent-red to-rose-600 p-6 text-white flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-black tracking-[0.25em] uppercase opacity-80">{viewingContract.type}</div>
+                  <h3 className="text-xl font-black tracking-tight">{viewingContract.id}</h3>
+                  <p className="text-xs text-white/85 mt-1">{getEmployeeName(viewingContract.employeeId)}</p>
+                </div>
+                <button onClick={() => setViewingContract(null)} className="p-2 hover:bg-white/10 rounded-xl transition-all">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 overflow-y-auto max-h-[calc(90vh-180px)] space-y-6">
+                {/* Contract content rendered as plain text — preserves
+                    line breaks & spacing exactly as the template emitted. */}
+                <div
+                  className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed font-mono bg-slate-50 p-4 rounded-2xl border border-slate-100"
+                  data-testid="contract-preview-content"
+                >
+                  {viewingContract.content || '—'}
+                </div>
+
+                {viewingContract.status === 'Signed' && sig && (
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                    <div className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-3">
+                      ✓ Contrat signé
+                    </div>
+                    <div className="flex items-start gap-4">
+                      {sig.signatureDataUrl && (
+                        <img
+                          src={sig.signatureDataUrl}
+                          alt="Signature manuscrite"
+                          className="h-20 w-auto max-w-[260px] object-contain bg-white border border-emerald-200 rounded-lg p-2"
+                          data-testid="contract-signature-image"
+                        />
+                      )}
+                      <div className="flex-1 min-w-0 text-xs text-slate-700 space-y-1">
+                        {sig.signerName && (
+                          <div>
+                            <span className="font-bold text-slate-900">Signé par :</span>{' '}
+                            <span data-testid="contract-signer-name">{sig.signerName}</span>
+                          </div>
+                        )}
+                        {viewingContract.signedAt && (
+                          <div>
+                            <span className="font-bold text-slate-900">Date :</span>{' '}
+                            {new Date(viewingContract.signedAt).toLocaleString('fr-FR')}
+                          </div>
+                        )}
+                        <div className="text-[10px] text-emerald-700 font-semibold pt-1">
+                          ✓ Signature à valeur juridique (eIDAS / OHADA)
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="border-t border-slate-100 p-4 bg-slate-50 flex items-center justify-end gap-2">
+                {viewingContract.signatureLink && !viewingContract.signedAt && (
+                  <button
+                    onClick={() => copyToClipboard(viewingContract.signatureLink!)}
+                    className="px-4 py-2 text-sm font-bold text-slate-600 hover:text-accent-red hover:bg-soft-red rounded-xl transition-all flex items-center gap-2"
+                    data-testid="contract-preview-copy-link"
+                  >
+                    <LinkIcon className="w-4 h-4" /> Copier le lien
+                  </button>
+                )}
+                <button
+                  onClick={() => setViewingContract(null)}
+                  className="px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl"
+                >
+                  Fermer
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
