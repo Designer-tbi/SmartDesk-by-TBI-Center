@@ -928,6 +928,34 @@ export const Sales = ({ user }: { user: any }) => {
                               <Download className="w-4 h-4" />
                             )}
                           </button>
+                          {/* Convert-to-invoice — available here too so demo
+                              users (and everyone) can turn a signed/accepted
+                              quote into a draft invoice directly from the
+                              reception space, not only from the main list. */}
+                          {!quote.convertedToInvoiceId && (
+                            <button
+                              onClick={() => handleConvertToInvoice(quote)}
+                              disabled={convertingId === quote.id}
+                              className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all"
+                              title="Convertir en facture"
+                              data-testid={`reception-convert-${quote.id}`}
+                            >
+                              {convertingId === quote.id ? (
+                                <div className="w-4 h-4 border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
+                              ) : (
+                                <Repeat className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
+                          {quote.convertedToInvoiceId && (
+                            <span
+                              className="px-2 py-1 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-lg uppercase tracking-widest"
+                              title={`Converti en ${quote.convertedToInvoiceId}`}
+                              data-testid={`reception-converted-${quote.id}`}
+                            >
+                              Converti
+                            </span>
+                          )}
                           <button
                             onClick={() => setDeleteConfirmId(quote.id)}
                             className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
