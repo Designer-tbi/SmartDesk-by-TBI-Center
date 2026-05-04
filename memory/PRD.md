@@ -1119,6 +1119,36 @@ pures, idempotentes, chacune gère sa transaction).
   sans F5.
 
 ### Reste à faire
+
+## Fix UX conversion devis — Espace Réception (2026-05-04)
+
+### Demande utilisateur
+« Les entreprises en démo peuvent aussi convertir les devis en facture ».
+
+### Cause racine
+Le bouton « Convertir en facture » n'existait que dans l'onglet
+**Liste des Devis**. Il manquait dans l'onglet **Devis Signés / Réception**
+— là où les utilisateurs (en démo ET en prod) consultent en priorité
+leurs devis signés. Le backend n'avait AUCUNE restriction demo : la
+limitation était purement UI.
+
+### Fix
+`/app/src/modules/Sales.tsx` (table de la réception) :
+- Nouveau bouton `reception-convert-{quoteId}` (icône Repeat) à côté
+  des actions Aperçu / Télécharger / Supprimer, visible uniquement si
+  `!quote.convertedToInvoiceId`.
+- Nouveau badge vert `reception-converted-{quoteId}` (libellé
+  « Converti ») pour les devis déjà convertis.
+- Réutilise le handler `handleConvertToInvoice` existant (pas de
+  duplication).
+
+### Testing (iteration_6.json)
+- **100 % frontend** : bouton visible, dialog natif confirm,
+  POST /api/invoices/{id}/convert-to-invoice, création d'une
+  facture Draft avec `convertedFromQuoteId` correctement lié,
+  badge Converti apparaît après conversion.
+- Vérifié sur le compte démo `admin@smartdesk.cg` / `admin`.
+
 - Widget « Activité récente » agrégeant les events `ACTIVITY`
   (déjà broadcastés) sur le dashboard.
 - Tests d'intégration E2E Playwright pour les deep-links
