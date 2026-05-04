@@ -924,3 +924,46 @@ Réécriture du flow d'auth pour gérer les routes publiques.
   « Confirmer ma signature ».
 - Page d'un devis déjà signé : badge vert « DEVIS SIGNÉ » au lieu du formulaire.
 
+
+
+## Refactorisation Sales/HR (2026-05-04) — P1
+
+### Objectif
+Réduire la taille des fichiers monolithiques `Sales.tsx` (1904 lignes) et
+`HR.tsx` (2343 lignes) pour améliorer la maintenabilité sans modifier
+le comportement.
+
+### Composants extraits
+
+#### Module HR (`/app/src/modules/hr/`)
+- `LeavesTab.tsx` — Tableau des demandes de congés + popover « Gérer »
+  (Approuver/Refuser/Remettre en attente/Supprimer).
+- `PayrollTab.tsx` — Tableau des bulletins + actions (téléchargement PDF,
+  bascule statut Payé/Brouillon, suppression).
+- `StatsTab.tsx` — 4 cartes statistiques (effectif, congés actifs,
+  masse salariale, départements).
+- `LeaveRequestModal.tsx` — Formulaire modal de nouvelle demande de congé.
+- `PayrollGenerateModal.tsx` — Modal de génération des bulletins
+  (mois/année).
+
+#### Module Sales (`/app/src/modules/sales/`)
+- `SignatureModal.tsx` — Modal de signature de devis avec canvas
+  manuscrit et résumé du devis.
+
+### Stratégie
+- Composants **purement présentationnels** : tout l'état et tous les
+  handlers restent dans le parent (`HR.tsx` / `Sales.tsx`) et sont
+  transmis via props.
+- Zéro changement de comportement : c'est un déplacement de JSX.
+
+### Résultat
+- HR.tsx : **2343 → 2008 lignes** (−335, −14 %).
+- Sales.tsx : **1904 → 1798 lignes** (−106, −6 %).
+- 6 fichiers focalisés créés (557 lignes au total).
+
+### Validé (testing_agent_v3_fork — iteration_3.json)
+- 100 % des tests de non-régression passent (HR 6 onglets, Sales CRUD
+  + sous-onglets + signature + preview, pages publiques `/sign-quote`
+  et `/sign-contract`).
+- Build Vite OK (16.5 s), aucun warning bloquant.
+- Aucun bug détecté (ni critique ni mineur).
