@@ -523,6 +523,25 @@ export async function initializeDatabase() {
           `CREATE INDEX IF NOT EXISTS idx_journal_entries_source_ref
              ON journal_entries("companyId", "sourceRef")`,
         );
+
+        // Subscription / billing columns on companies.
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "trialStartedAt" TIMESTAMPTZ`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "subscriptionStatus" TEXT DEFAULT 'trial'`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalSubscriptionId" TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "subscriptionPlan" TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "subscriptionPeriodEnd" TIMESTAMPTZ`);
+
+        // Key/value store used (so far) to persist the PayPal product +
+        // plan ids generated on first bootstrap — avoids hard-coding
+        // them or re-creating them on every deploy.
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS app_config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            "updatedAt" TIMESTAMPTZ DEFAULT NOW()
+          )
+        `);
+
         await db.query(
           `UPDATE companies SET "fiscalizationApiKey" = $1
            WHERE type = 'demo' AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
@@ -536,7 +555,7 @@ export async function initializeDatabase() {
       // Bumped to 2026-05-02-ohada so existing deploys (which were marked
       // up-to-date with 2026-04-29-onboarding) re-run the incremental
       // migrations exactly once and pick up the OHADA columns.
-      const TARGET_SCHEMA = '2026-05-04-automations';
+      const TARGET_SCHEMA = '2026-05-04-subscriptions';
       if (flag.rows[0]?.value === TARGET_SCHEMA) {
         console.log('Database schema already up-to-date, skipping init.');
         return;
@@ -705,7 +724,7 @@ export async function initializeDatabase() {
     try {
       await db.query(`
         INSERT INTO _app_meta (key, value, "updatedAt")
-        VALUES ('schema_version', '2026-05-04-automations', NOW())
+        VALUES ('schema_version', '2026-05-04-subscriptions', NOW())
         ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, "updatedAt" = NOW()
       `);
     } catch (err) {

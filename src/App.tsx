@@ -10,6 +10,7 @@ import { OnboardingWizard } from './components/OnboardingWizard';
 import SignQuotePage from './pages/SignQuotePage';
 import { ToastHost } from './lib/toast';
 import { useAutomationNotifications } from './lib/useAutomationNotifications';
+import { SubscriptionGate } from './components/SubscriptionGate';
 
 // Lazy load modules for better initial load time
 const Dashboard = lazy(() => import('./modules/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -197,6 +198,7 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
         />
       )}
       <PageWrapper onLogout={logout} user={user}>
+        <SubscriptionGate>
         <Suspense fallback={<div className="flex items-center justify-center h-64">Chargement du module...</div>}>
           <Routes>
             <Route path="/" element={<Dashboard user={user} />} />
@@ -219,6 +221,7 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
             {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
           </Routes>
         </Suspense>
+        </SubscriptionGate>
       </PageWrapper>
     </AuthProvider>
   );

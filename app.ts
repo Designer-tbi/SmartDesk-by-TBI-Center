@@ -33,6 +33,8 @@ import { companyRouter } from './server/routes/company.js';
 import { eventsRouter } from './server/routes/events.js';
 import { schedulesRouter } from './server/routes/schedules.js';
 import { publicSignatureRouter } from './server/routes/publicSignature.js';
+import { subscriptionRouter } from './server/routes/subscription.js';
+import { enforceSubscription } from './server/middleware/enforceSubscription.js';
 
 const app = express();
 
@@ -63,7 +65,13 @@ app.use(dbMiddleware);
 // mutating request so connected clients can sync in real-time.
 app.use(resourceChangeBroadcaster);
 
+// Subscription gate — blocks API calls when the 15-day trial is over
+// and no active PayPal subscription is in place. MUST run after
+// dbMiddleware (to have req.db) but can sit before the routes.
+app.use(enforceSubscription);
+
 // API Routes
+app.use('/api/subscription', subscriptionRouter);
 app.use('/api/contacts', contactsRouter);
 app.use('/api/products', productsRouter);
 app.use('/api/invoices', invoicesRouter);

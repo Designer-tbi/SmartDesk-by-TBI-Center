@@ -1,19 +1,18 @@
-# SmartDesk — Comptes de test
+# Test Credentials
 
-Base PostgreSQL (Neon) — URL dans `/app/.env` (`DATABASE_URL`).
+## Super Admin
+- Email: eden@tbi-center.fr
+- Password: loub@ki2014D
 
-## Super Admins (mot de passe partagé)
-- eden@tbi-center.fr / loub@ki2014D
-- missengue07@gmail.com / loub@ki2014D
-- contact@tbi-center.fr / loub@ki2014D
+## Demo Company (CG — Republic of Congo)
+- Email: admin@smartdesk.cg
+- Password: admin
+- Company ID: demo-1
+- Country: CG
+- Subscription plan: CG_XAF (75 USD ≈ 45 000 XAF / month)
+- Trial state: fresh (reset 2026-05-04)
 
-## Utilisateurs démo (entreprises isolées)
-- admin@smartdesk.cg / admin → société `demo-1` (TechCorp Demo)
-- admin@greenenergy.demo / admin → société `demo-2` (GreenEnergy Demo)
-
-Chaque entreprise démo dispose de ses propres contacts, produits et factures.
-L'isolation est garantie par PostgreSQL Row-Level Security (policies sur
-`companyId = current_setting('app.current_company_id')`).
-
-Les mots de passe et les données de démo sont (re)semés par `seedDatabase()`
-dans `/app/db.ts` au démarrage du serveur Node (idempotent).
+## PayPal (production)
+- Mode: live
+- Plans bootstrapped automatically on first `/api/subscription/create`
+- Product ID + plan IDs persisted in `app_config` table

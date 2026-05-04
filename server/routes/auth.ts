@@ -176,30 +176,39 @@ authRouter.post('/login', async (req, res, next) => {
         return res.status(403).json({ error: 'Cet utilisateur ne peut pas se connecter en mode démo.' });
       }
 
-      // --- Demo lifecycle: 15-day countdown from first login ---
+      // --- Trial lifecycle: 15-day countdown from first admin login ---
+      // Stamp both the legacy `firstLoginAt` fields (kept for display
+      // purposes) and the unified `trialStartedAt` used by the
+      // subscription gate middleware.
       if (company.type === 'demo') {
         const now = new Date();
         if (!company.firstLoginAt) {
-          // First ever login: stamp the clock and compute the expiry.
           const expires = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
           await req.db.query(
-            `UPDATE companies SET "firstLoginAt" = $1, "demoExpiresAt" = $2 WHERE id = $3`,
+            `UPDATE companies
+                SET "firstLoginAt" = $1,
+                    "demoExpiresAt" = $2,
+                    "trialStartedAt" = COALESCE("trialStartedAt", $1),
+                    "subscriptionStatus" = COALESCE(NULLIF("subscriptionStatus", ''), 'trial')
+              WHERE id = $3`,
             [now.toISOString(), expires.toISOString(), user.companyId],
           );
           company.firstLoginAt = now.toISOString();
           company.demoExpiresAt = expires.toISOString();
-        } else if (company.demoExpiresAt && new Date(company.demoExpiresAt) < now) {
-          // Past the 15-day window: deactivate the company and refuse login.
-          await req.db.query(
-            `UPDATE companies SET status = 'inactive' WHERE id = $1`,
-            [user.companyId],
-          );
-          console.log(`Demo ${user.companyId} expired, account deactivated.`);
-          return res.status(403).json({
-            error:
-              'Votre période d\'essai de 15 jours est terminée. Contactez-nous pour activer votre abonnement.',
-          });
         }
+        // Expiry is now surfaced via the subscription gate (HTTP 402)
+        // which opens a dedicated upgrade modal instead of blocking
+        // login altogether — keeps the user on the app so they can
+        // pay and come right back in.
+      } else if (user.role !== 'super_admin') {
+        // Non-demo tenants also have a 15-day trial before billing.
+        await req.db.query(
+          `UPDATE companies
+              SET "trialStartedAt" = COALESCE("trialStartedAt", NOW()),
+                  "subscriptionStatus" = COALESCE(NULLIF("subscriptionStatus", ''), 'trial')
+            WHERE id = $1`,
+          [user.companyId],
+        );
       }
     } else if (user.companyId && user.role === 'super_admin') {
       // Still fetch company info for super admin to get country/state

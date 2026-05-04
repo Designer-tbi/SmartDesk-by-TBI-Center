@@ -1,0 +1,87 @@
+{
+  "summary": "Phase 5 Subscription & Trial System - All tests passed. Backend: 18/18 tests passed. Frontend: All UI components verified working correctly.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_subscription.py",
+    "/app/test_reports/pytest/pytest_subscription.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "VERIFIED: POST /api/auth/login stamps trialStartedAt idempotently via COALESCE",
+    "VERIFIED: Login does NOT block with 403 on expired trial - middleware handles 402 on protected endpoints",
+    "VERIFIED: GET /api/subscription/status returns correct plan for CG (CG_XAF, 75 USD, 45 000 XAF)",
+    "VERIFIED: POST /api/subscription/create returns valid PayPal approveUrl (https://www.paypal.com/webapps/...)",
+    "VERIFIED: Enforcement middleware returns 402 with SUBSCRIPTION_REQUIRED code on protected endpoints when trial expired",
+    "VERIFIED: Allowlisted endpoints (/api/subscription/*, /api/company, /api/stats) work when trial expired",
+    "VERIFIED: Super admin bypasses subscription gate entirely",
+    "VERIFIED: Webhook endpoint accepts PayPal events (ACTIVATED, CANCELLED, etc.)",
+    "VERIFIED: Cancel endpoint sets subscriptionStatus='cancelled'",
+    "VERIFIED: Trial banner appears at <=7 days (amber), <=3 days (red), <=1 day ('Dernier jour' message)",
+    "VERIFIED: Blocker modal appears when trial expired with correct CG pricing (45 000 XAF / 75 USD disclosure)",
+    "VERIFIED: S'abonner button redirects to PayPal approval URL",
+    "REGRESSION PASSED: CRM, Sales, HR modules load correctly during active trial"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_subscription.py"
+  ],
+  "success_rate": {
+    "backend": "100% (18/18 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "demo_cg": "admin@smartdesk.cg / admin (companyId=demo-1, country=CG)",
+    "super_admin": "eden@tbi-center.fr / loub@ki2014D"
+  },
+  "seed_data_creation": "None - used existing demo-1 company with trial manipulation via direct DB queries",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 5 subscription system fully tested. demo-1 trial reset to fresh state (trialStartedAt=NOW()). PayPal LIVE integration working - subscription creates real PayPal objects. Do NOT click 'Approve' on PayPal to avoid real-money charges. Test files: /app/backend/tests/test_subscription.py",
+  "tests_executed": {
+    "backend_tests": [
+      {"test": "test_login_stamps_trial_started_at", "result": "PASSED"},
+      {"test": "test_login_does_not_block_on_expired_trial", "result": "PASSED"},
+      {"test": "test_status_returns_correct_plan_for_cg", "result": "PASSED"},
+      {"test": "test_status_shows_trial_active_for_fresh_company", "result": "PASSED"},
+      {"test": "test_create_returns_paypal_approve_url", "result": "PASSED"},
+      {"test": "test_contacts_blocked_when_trial_expired", "result": "PASSED"},
+      {"test": "test_invoices_blocked_when_trial_expired", "result": "PASSED"},
+      {"test": "test_employees_blocked_when_trial_expired", "result": "PASSED"},
+      {"test": "test_allowlisted_endpoints_still_work", "result": "PASSED"},
+      {"test": "test_super_admin_bypasses_gate", "result": "PASSED"},
+      {"test": "test_webhook_accepts_activation_event", "result": "PASSED"},
+      {"test": "test_webhook_accepts_cancelled_event", "result": "PASSED"},
+      {"test": "test_webhook_handles_missing_custom_id", "result": "PASSED"},
+      {"test": "test_cancel_sets_status_cancelled", "result": "PASSED"},
+      {"test": "test_contacts_work_during_trial", "result": "PASSED"},
+      {"test": "test_invoices_work_during_trial", "result": "PASSED"},
+      {"test": "test_employees_work_during_trial", "result": "PASSED"},
+      {"test": "test_stats_work_during_trial", "result": "PASSED"}
+    ],
+    "frontend_tests": [
+      {"test": "Dashboard loads after login", "result": "PASSED"},
+      {"test": "Trial banner (5 days left) - amber color", "result": "PASSED"},
+      {"test": "Trial banner (2 days left) - red color", "result": "PASSED"},
+      {"test": "Trial banner (1 day left) - 'Dernier jour' message", "result": "PASSED"},
+      {"test": "Blocker modal on expired trial", "result": "PASSED"},
+      {"test": "Blocker shows CG pricing (45 000 XAF / 75 USD)", "result": "PASSED"},
+      {"test": "S'abonner button redirects to PayPal", "result": "PASSED"},
+      {"test": "Regression: CRM navigation works", "result": "PASSED"},
+      {"test": "Regression: Sales navigation works", "result": "PASSED"},
+      {"test": "Regression: HR navigation works", "result": "PASSED"}
+    ]
+  },
+  "paypal_integration_notes": {
+    "mode": "LIVE (production)",
+    "product_created": "SmartDesk ERP",
+    "plans_created": ["CG_XAF (75 USD)", "WORLD (40 USD)"],
+    "warning": "Do NOT approve subscriptions in PayPal to avoid real charges"
+  }
+}
