@@ -7,6 +7,8 @@ import QRCode from 'qrcode';
 import { certifyInvoice } from '../services/fiscalization.js';
 import { getMailerForCompany } from '../services/mailer.js';
 import { computeInvoiceTotals } from '../services/invoiceTotals.js';
+import { autoPostPaidInvoiceJournal, autoConvertSignedQuoteToInvoice } from '../services/automations.js';
+import { broadcast } from '../activity.js';
 
 export const invoicesRouter = Router();
 
@@ -387,6 +389,27 @@ invoicesRouter.put('/:id', async (req, res, next) => {
           [inv.status, id, req.user.companyId],
         );
         await req.db.query('COMMIT');
+
+        // Automation on the certified path too — same rule applies:
+        // Paid transition → auto journal entry.
+        if (prevInvoice.status !== 'Paid' && inv.status === 'Paid') {
+          try {
+            const entryId = await autoPostPaidInvoiceJournal(
+              req.db,
+              id,
+              req.user.companyId,
+            );
+            if (entryId) {
+              broadcast({
+                type: 'JOURNAL_AUTO_CREATED',
+                data: { invoiceId: id, entryId, companyId: req.user.companyId },
+              });
+            }
+          } catch (err) {
+            console.error('auto-post paid invoice journal (certified) failed', err);
+          }
+        }
+
         const refreshed = await req.db.query(
           'SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2',
           [id, req.user.companyId],
@@ -460,7 +483,59 @@ invoicesRouter.put('/:id', async (req, res, next) => {
       
       await req.db.query('COMMIT');
       console.log(`PUT /api/invoices/${id} - Success`);
+
+    // Automation: when an invoice transitions to Paid for the first
+    // time, post the corresponding OHADA journal entry so the
+    // accounting module stays in sync without manual data entry.
+    if (
+      prevInvoice
+      && prevInvoice.status !== 'Paid'
+      && inv.status === 'Paid'
+      && inv.type === 'Invoice'
+    ) {
+      try {
+        const entryId = await autoPostPaidInvoiceJournal(
+          req.db,
+          id,
+          req.user.companyId,
+        );
+        if (entryId) {
+          broadcast({
+            type: 'JOURNAL_AUTO_CREATED',
+            data: { invoiceId: id, entryId, companyId: req.user.companyId },
+          });
+        }
+      } catch (err) {
+        console.error('auto-post paid invoice journal failed', err);
+      }
+    }
     
+    // Automation: quote signed internally → auto draft invoice.
+    // Mirrors the public signature flow so both paths stay in sync.
+    let autoInvoiceIdInternal: string | null = null;
+    if (
+      prevInvoice
+      && prevInvoice.status !== 'Signed'
+      && inv.status === 'Signed'
+      && inv.type === 'Quote'
+    ) {
+      try {
+        autoInvoiceIdInternal = await autoConvertSignedQuoteToInvoice(
+          req.db,
+          id,
+          req.user.companyId,
+        );
+        if (autoInvoiceIdInternal) {
+          broadcast({
+            type: 'INVOICE_AUTO_CREATED',
+            data: { quoteId: id, invoiceId: autoInvoiceIdInternal, companyId: req.user.companyId },
+          });
+        }
+      } catch (err) {
+        console.error('auto-convert signed quote→invoice (internal) failed', err);
+      }
+    }
+
     // If status changed to Signed, send an email with the PDF
     if (prevInvoice && prevInvoice.status !== 'Signed' && inv.status === 'Signed') {
       try {

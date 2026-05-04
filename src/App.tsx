@@ -8,6 +8,8 @@ import { I18nProvider, useTranslation } from './lib/i18n';
 import { AuthProvider } from './lib/AuthContext';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import SignQuotePage from './pages/SignQuotePage';
+import { ToastHost } from './lib/toast';
+import { useAutomationNotifications } from './lib/useAutomationNotifications';
 
 // Lazy load modules for better initial load time
 const Dashboard = lazy(() => import('./modules/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -179,6 +181,10 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
 
   return (
     <AuthProvider user={user} setUser={setUser}>
+      {/* Listen to automation events on the tenant WebSocket so the
+          user sees cross-module ripples (signed quote → invoice,
+          paid invoice → journal, …) without refreshing the page. */}
+      <AutomationNotifier companyId={user?.preferences?.selectedCompanyId || user?.companyId} />
       {/* First-login onboarding (skipped if the company has already
           completed it). Mounted at the top level so the rest of the app
           stays interactable underneath the modal backdrop, but the
@@ -220,6 +226,12 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
 
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 
+// Tiny wrapper so we can call the hook inside the logged-in tree only.
+const AutomationNotifier: React.FC<{ companyId?: string | null }> = ({ companyId }) => {
+  useAutomationNotifications(companyId);
+  return null;
+};
+
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -229,6 +241,7 @@ export default function App() {
       <I18nProvider>
         <Router>
           <AppContent user={user} setUser={setUser} isLoading={isLoading} setIsLoading={setIsLoading} />
+          <ToastHost />
         </Router>
       </I18nProvider>
     </ErrorBoundary>

@@ -3,6 +3,8 @@ import { requireAuth, requireCompany } from '../middleware/auth.js';
 import { getMailerForCompany } from '../services/mailer.js';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { autoCreateDefaultContract, autoCreateFirstPayslip } from '../services/automations.js';
+import { broadcast } from '../activity.js';
 
 export const employeesRouter = Router();
 
@@ -236,11 +238,42 @@ employeesRouter.put('/contracts/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const contract = req.body;
+
+    // Check previous status so we can run the payslip automation when
+    // a contract transitions into Signed/Active for the first time.
+    const prev = await req.db.query(
+      'SELECT status FROM contracts WHERE id = $1 AND "companyId" = $2',
+      [id, req.user!.companyId],
+    );
+    const prevStatus = prev.rows[0]?.status;
+
     await req.db.query(
       'UPDATE contracts SET "employeeId" = $1, type = $2, "startDate" = $3, "endDate" = $4, salary = $5, status = $6, content = $7, "signatureLink" = $8, "signedAt" = $9 WHERE id = $10 AND "companyId" = $11',
       [contract.employeeId, contract.type, contract.startDate, contract.endDate || null, contract.salary, contract.status, contract.content, contract.signatureLink || null, contract.signedAt || null, id, req.user!.companyId]
     );
-    res.json(contract);
+
+    // Automation: Signed → seed current-month draft payslip.
+    const activatingStatuses = new Set(['Signed', 'Active']);
+    let autoPayslipId: string | null = null;
+    if (
+      prevStatus !== contract.status
+      && activatingStatuses.has(contract.status)
+      && !activatingStatuses.has(prevStatus)
+    ) {
+      try {
+        autoPayslipId = await autoCreateFirstPayslip(req.db, id, req.user!.companyId);
+        if (autoPayslipId) {
+          broadcast({
+            type: 'PAYSLIP_AUTO_CREATED',
+            data: { contractId: id, payslipId: autoPayslipId, companyId: req.user!.companyId },
+          });
+        }
+      } catch (err) {
+        console.error('auto-create first payslip (internal PUT) failed', err);
+      }
+    }
+
+    res.json({ ...contract, autoPayslipId });
   } catch (error) {
     next(error);
   }
@@ -513,7 +546,21 @@ employeesRouter.post('/', async (req, res, next) => {
     const documentsStr = emp.documents ? JSON.stringify(emp.documents) : null;
     await req.db.query('INSERT INTO employees (id, "companyId", name, role, department, email, phone, address, status, "contractType", "joinDate", salary, "profilePicture", documents) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)',
       [emp.id, req.user!.companyId, emp.name, emp.role, emp.department, emp.email, emp.phone, emp.address, emp.status, emp.contractType, emp.joinDate, emp.salary, emp.profilePicture || null, documentsStr]);
-    res.status(201).json(emp);
+
+    // Automation: seed a Draft contract matching the employee's
+    // contractType so the HR manager just opens & sends it.
+    let autoContractId: string | null = null;
+    try {
+      autoContractId = await autoCreateDefaultContract(
+        req.db,
+        emp.id,
+        req.user!.companyId,
+      );
+    } catch (err) {
+      console.error('auto-create default contract failed', err);
+    }
+
+    res.status(201).json({ ...emp, autoContractId });
   } catch (error) {
     next(error);
   }

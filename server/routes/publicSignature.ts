@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { autoConvertSignedQuoteToInvoice, autoCreateFirstPayslip } from '../services/automations.js';
+import { broadcast } from '../activity.js';
 
 /**
  * Public router for quote signing flows.
@@ -74,7 +76,7 @@ publicSignatureRouter.post('/quotes/:id/sign', async (req, res, next) => {
     }
 
     const exists = await req.db.query(
-      `SELECT id, status, "signedAt" FROM invoices WHERE id = $1 AND type = 'Quote'`,
+      `SELECT id, status, "signedAt", "companyId" FROM invoices WHERE id = $1 AND type = 'Quote'`,
       [id],
     );
     const inv = exists.rows[0];
@@ -93,7 +95,27 @@ publicSignatureRouter.post('/quotes/:id/sign', async (req, res, next) => {
       [signedAt, JSON.stringify({ signerName, signatureDataUrl }), id],
     );
 
-    res.json({ ok: true, signedAt });
+    // Automation: turn the signed quote into a draft invoice ready
+    // to be sent. The signing flow stays successful even if the
+    // automation fails (e.g. RLS edge case) — we just log it.
+    let autoInvoiceId: string | null = null;
+    try {
+      autoInvoiceId = await autoConvertSignedQuoteToInvoice(
+        req.db,
+        id,
+        inv.companyId,
+      );
+      if (autoInvoiceId) {
+        broadcast({
+          type: 'INVOICE_AUTO_CREATED',
+          data: { quoteId: id, invoiceId: autoInvoiceId, companyId: inv.companyId },
+        });
+      }
+    } catch (err) {
+      console.error('auto-convert quote→invoice failed', err);
+    }
+
+    res.json({ ok: true, signedAt, autoInvoiceId });
   } catch (error) {
     next(error);
   }
@@ -159,7 +181,7 @@ publicSignatureRouter.post('/contracts/:id/sign', async (req, res, next) => {
     }
 
     const exists = await req.db.query(
-      `SELECT id, status, "signedAt" FROM contracts WHERE id = $1`,
+      `SELECT id, status, "signedAt", "companyId" FROM contracts WHERE id = $1`,
       [id],
     );
     const c = exists.rows[0];
@@ -174,7 +196,23 @@ publicSignatureRouter.post('/contracts/:id/sign', async (req, res, next) => {
       [signedAt, JSON.stringify({ signerName, signatureDataUrl }), id],
     );
 
-    res.json({ ok: true, signedAt });
+    // Automation: seed the current-month payslip as Draft so the HR
+    // admin simply has to review & mark it Paid when they process
+    // the next payroll cycle.
+    let autoPayslipId: string | null = null;
+    try {
+      autoPayslipId = await autoCreateFirstPayslip(req.db, id, c.companyId);
+      if (autoPayslipId) {
+        broadcast({
+          type: 'PAYSLIP_AUTO_CREATED',
+          data: { contractId: id, payslipId: autoPayslipId, companyId: c.companyId },
+        });
+      }
+    } catch (err) {
+      console.error('auto-create first payslip failed', err);
+    }
+
+    res.json({ ok: true, signedAt, autoPayslipId });
   } catch (error) {
     next(error);
   }
