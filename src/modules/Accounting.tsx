@@ -12,6 +12,7 @@ import autoTable from 'jspdf-autotable';
 import { useTranslation } from '../lib/i18n';
 
 import { ConfirmModal } from '../components/ConfirmModal';
+import { useLiveSync } from '../lib/useLiveSync';
 
 export const Accounting = ({ user }: { user?: any }) => {
   const { t, language } = useTranslation();
@@ -22,6 +23,13 @@ export const Accounting = ({ user }: { user?: any }) => {
     fetchCompany();
     fetchData();
   }, []);
+
+  // Phase 3 — live sync: auto-posted journal entries (from Paid
+  // invoices) must surface here without a manual refresh.
+  useLiveSync(
+    ['journalEntries', 'transactions', 'invoices'],
+    () => fetchData(),
+  );
 
   const fetchCompany = async () => {
     try {

@@ -19,6 +19,8 @@ import { PayrollTab } from './hr/PayrollTab';
 import { StatsTab } from './hr/StatsTab';
 import { LeaveRequestModal } from './hr/LeaveRequestModal';
 import { PayrollGenerateModal } from './hr/PayrollGenerateModal';
+import { EmployeeDetailModal } from './hr/EmployeeDetailModal';
+import { useLiveSync } from '../lib/useLiveSync';
 
 const MONTH_LABELS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
@@ -109,6 +111,12 @@ export const HR = ({ user }: { user: any }) => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Phase 3 — live sync: refetch HR data on any related mutation.
+  useLiveSync(
+    ['employees', 'contracts', 'payslips', 'leaves', 'employeeTasks'],
+    () => fetchData(),
+  );
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -1726,87 +1734,21 @@ export const HR = ({ user }: { user: any }) => {
       )}
       {/* Preview Modal */}
       {viewEmployee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-          <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
-            <div className="relative h-32 bg-accent-red">
-              <button 
-                onClick={() => setViewEmployee(null)} 
-                className="absolute right-4 top-4 p-2 bg-white/20 hover:bg-white/30 text-white rounded-xl backdrop-blur-md transition-all"
-              >
-                <X className="w-5 h-5"/>
-              </button>
-              <div className="absolute -bottom-12 left-8 p-1 bg-white rounded-3xl shadow-lg">
-                <div className="w-24 h-24 rounded-2xl bg-slate-100 flex items-center justify-center text-3xl font-bold text-accent-red overflow-hidden border border-slate-100">
-                  {viewEmployee.profilePicture ? (
-                    <img src={viewEmployee.profilePicture} alt="Profile" className="w-full h-full object-cover" />
-                  ) : (
-                    viewEmployee.name.charAt(0)
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            <div className="pt-16 p-8 space-y-8">
-              <div>
-                <h3 className="text-2xl font-black text-slate-900">{viewEmployee.name}</h3>
-                <p className="text-accent-red font-bold">{viewEmployee.role} • {viewEmployee.department}</p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 text-slate-600">
-                    <Mail className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm font-medium">{viewEmployee.email}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-slate-600">
-                    <Phone className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm font-medium">{viewEmployee.phone || 'Non renseigné'}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-slate-600">
-                    <MapPin className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm font-medium">{viewEmployee.address || 'Non renseignée'}</span>
-                  </div>
-                </div>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3 text-slate-600">
-                    <Calendar className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm font-medium">Arrivée : {viewEmployee.joinDate}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-slate-600">
-                    <Briefcase className="w-4 h-4 text-slate-400" />
-                    <span className="text-sm font-medium">Contrat : {viewEmployee.contractType}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-slate-900 font-bold">
-                    <DollarSign className="w-4 h-4 text-emerald-500" />
-                    <span className="text-sm">{viewEmployee.salary.toLocaleString()} {currencySymbol} / an</span>
-                  </div>
-                </div>
-              </div>
-
-              {viewEmployee.documents && viewEmployee.documents.length > 0 && (
-                <div className="pt-6 border-t border-slate-100">
-                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Documents joints</h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    {viewEmployee.documents.map((doc, idx) => (
-                      <a 
-                        key={idx} 
-                        href={doc.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-xl hover:bg-slate-100 transition-all group"
-                      >
-                        <div className="p-2 bg-white rounded-lg text-slate-400 group-hover:text-accent-red transition-colors">
-                          <Download className="w-4 h-4" />
-                        </div>
-                        <span className="text-xs font-bold text-slate-600 truncate">{doc.name}</span>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <EmployeeDetailModal
+          employee={viewEmployee}
+          contracts={contracts}
+          payslips={payslips}
+          leaves={leaves}
+          tasks={tasks}
+          currencySymbol={currencySymbol}
+          onClose={() => setViewEmployee(null)}
+          onOpenContract={(cid) => {
+            setViewEmployee(null);
+            setActiveTab('contracts');
+            // Scroll target handled by contracts list — we simply switch tabs.
+            void cid;
+          }}
+        />
       )}
       {/* Task Modal */}
       {isTaskModalOpen && (

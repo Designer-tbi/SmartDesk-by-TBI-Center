@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
@@ -14,6 +15,7 @@ import { useTranslation } from '../lib/i18n';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useAuth } from '../lib/AuthContext';
 import { SignatureModal } from './sales/SignatureModal';
+import { useLiveSync } from '../lib/useLiveSync';
 
 export const Sales = ({ user }: { user: any }) => {
   const { t } = useTranslation();
@@ -53,9 +55,11 @@ export const Sales = ({ user }: { user: any }) => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Deep-link: when navigated from CRM / Dashboard with `?open=ID`,
+  // open the matching quote/invoice preview once data is loaded and
+  // strip the query so refreshing doesn't re-open it.
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -79,6 +83,26 @@ export const Sales = ({ user }: { user: any }) => {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // Phase 3 — live sync: refetch sales data when invoices, contacts
+  // or products mutate (could be auto-created by an automation).
+  useLiveSync(['invoices', 'contacts', 'products'], fetchData);
+
+  useEffect(() => {
+    if (!invoices.length) return;
+    const params = new URLSearchParams(location.search);
+    const openId = params.get('open');
+    if (!openId) return;
+    const target = invoices.find((i) => i.id === openId);
+    if (target) {
+      setViewInvoice(target);
+      navigate(location.pathname, { replace: true });
+    }
+  }, [invoices, location.search, location.pathname, navigate]);
 
   const [newInvoice, setNewInvoice] = useState<Partial<Invoice>>({
     type: 'Invoice',
@@ -468,7 +492,7 @@ export const Sales = ({ user }: { user: any }) => {
         return;
       }
       // Refresh the list so the new invoice + the locked quote are visible.
-      await fetchInvoices();
+      await fetchData();
       // Open the freshly created invoice in the preview modal.
       if (data && data.id) setViewInvoice(data);
     } catch (e: any) {

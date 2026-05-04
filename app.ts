@@ -4,6 +4,7 @@ import compression from "compression";
 import cookieParser from "cookie-parser";
 import { dbMiddleware } from './server/middleware/db.js';
 import { errorHandler } from './server/middleware/error.js';
+import { resourceChangeBroadcaster } from './server/middleware/resourceBroadcast.js';
 
 // Install global error handlers ASAP — this is critical on Vercel where an
 // unhandled rejection in a background task would otherwise crash the whole
@@ -57,6 +58,10 @@ app.use((req, res, next) => {
 
 // Attach database instance to request
 app.use(dbMiddleware);
+
+// Phase 3 — Broadcast a RESOURCE_CHANGED event on every successful
+// mutating request so connected clients can sync in real-time.
+app.use(resourceChangeBroadcaster);
 
 // API Routes
 app.use('/api/contacts', contactsRouter);

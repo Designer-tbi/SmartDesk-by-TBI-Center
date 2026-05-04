@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { apiFetch } from '../lib/api';
 import { motion, AnimatePresence } from 'motion/react';
 import { Plus, Filter, MoreVertical, Mail, Phone, ExternalLink, X, User, Building2, Globe, Tag, Briefcase, Check, Pencil, Trash2, Eye, Calendar, Loader2, AlertCircle, Search, Users, UserPlus, TrendingUp, Hash, MapPin, UserCircle, Landmark, Plane } from 'lucide-react';
 import { Contact, Company } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { ContactDetailModal } from './crm/ContactDetailModal';
+import { useLiveSync } from '../lib/useLiveSync';
 
 import { useTranslation } from '../lib/i18n';
 import { resolveLocale, formatAddressHint } from '../lib/locale';
@@ -25,6 +27,15 @@ export const CRM = ({ user }: { user?: any }) => {
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const loadContacts = useCallback(async () => {
+    try {
+      const contactsRes = await apiFetch('/api/contacts');
+      if (contactsRes.ok) setContacts(await contactsRes.json());
+    } catch (err) {
+      console.error('CRM refetch contacts failed:', err);
+    }
+  }, []);
+
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
@@ -59,6 +70,10 @@ export const CRM = ({ user }: { user?: any }) => {
     
     loadData();
   }, [user, t]);
+
+  // Phase 3 — live sync: refetch contacts when any other tab / user
+  // writes to the /api/contacts resource.
+  useLiveSync(['contacts'], loadContacts, selectedCompany?.id);
   
   const [newContact, setNewContact] = useState<Partial<Contact>>({
     name: '',
@@ -768,91 +783,15 @@ export const CRM = ({ user }: { user?: any }) => {
       {/* Preview Modal */}
       <AnimatePresence>
         {viewContact && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-red/20 backdrop-blur-sm">
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white w-full max-w-md sm:max-w-lg md:max-w-xl rounded-3xl shadow-2xl border border-red-100 overflow-hidden"
-            >
-            <div className="px-6 py-6 border-b border-red-50 flex items-center justify-between bg-soft-red/30">
-              <h3 className="text-xl font-bold text-slate-900">{t('crm.contactDetails')}</h3>
-              <button 
-                onClick={() => setViewContact(null)}
-                className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all shadow-sm"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-accent-red to-primary-red flex items-center justify-center text-white text-2xl font-bold shadow-md shadow-accent-red/10">
-                  {viewContact.name.charAt(0)}
-                </div>
-                <div>
-                  <h4 className="text-lg font-bold text-slate-900">{viewContact.name}</h4>
-                  <p className="text-sm font-medium text-slate-500">
-                    {viewContact.role ? `${viewContact.role}${t('crm.at')}` : ''}{viewContact.company}
-                  </p>
-                  <span className={`mt-2 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                    viewContact.status === 'Client' ? 'bg-emerald-100 text-emerald-700' : 
-                    viewContact.status === 'Lead' ? 'bg-amber-100 text-amber-700' : 
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {t(`crm.status.${viewContact.status.toLowerCase()}`)}
-                  </span>
-                </div>
-              </div>
-              
-              <div className="space-y-3 bg-luxury-gray p-4 rounded-2xl border border-slate-100">
-                <a 
-                  href={`mailto:${viewContact.email}`}
-                  className="flex items-center gap-3 text-sm font-medium text-slate-600 hover:text-accent-red transition-colors"
-                >
-                  <Mail className="w-4 h-4 text-slate-400" />
-                  {viewContact.email}
-                </a>
-                <a 
-                  href={`tel:${viewContact.phone}`}
-                  className="flex items-center gap-3 text-sm font-medium text-slate-600 hover:text-accent-red transition-colors"
-                >
-                  <Phone className="w-4 h-4 text-slate-400" />
-                  {viewContact.phone}
-                </a>
-                {viewContact.niu && (
-                  <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
-                    <Hash className="w-4 h-4 text-slate-400" />
-                    {t('crm.niu')} : {viewContact.niu}
-                  </div>
-                )}
-                <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  {t('crm.lastContact')} : {new Date(viewContact.lastContact).toLocaleDateString(language === 'fr' ? 'fr-FR' : 'en-US')}
-                </div>
-              </div>
-              
-              {viewContact.notes && (
-                <div>
-                  <h5 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2 ml-1">{t('crm.notes')}</h5>
-                  <p className="text-sm text-slate-600 bg-luxury-gray p-4 rounded-2xl border border-slate-100 leading-relaxed">
-                    {viewContact.notes}
-                  </p>
-                </div>
-              )}
-            </div>
-            
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex gap-3">
-              <button 
-                onClick={() => { setViewContact(null); openEdit(viewContact); }}
-                className="flex-1 py-3 bg-accent-red text-white rounded-2xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95"
-              >
-                {t('crm.editContact')}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
+          <ContactDetailModal
+            contact={viewContact}
+            onClose={() => setViewContact(null)}
+            onEdit={(c) => openEdit(c)}
+            currencySymbol={selectedCompany?.currency || 'XAF'}
+            t={t}
+            language={language}
+          />
+        )}
       </AnimatePresence>
 
       <ConfirmModal

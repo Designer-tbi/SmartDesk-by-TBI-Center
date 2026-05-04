@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslation } from '../lib/i18n';
+import { DashboardWidgets } from './dashboard/DashboardWidgets';
+import { useLiveSync } from '../lib/useLiveSync';
 
 const COLORS = ['#991b1b', '#dc2626', '#7f1d1d', '#ef4444'];
 
@@ -72,6 +74,20 @@ export const Dashboard = ({ user }: { user: any }) => {
     };
     fetchStats();
   }, [user]);
+
+  // Phase 3 + 4 — auto-refresh dashboard when any business entity
+  // mutates (new invoice, new leave, new employee, …).
+  useLiveSync(
+    ['invoices', 'contacts', 'products', 'employees', 'contracts', 'payslips', 'leaves', 'journalEntries', 'transactions'],
+    async () => {
+      try {
+        const response = await apiFetch('/api/stats');
+        if (response.ok) setStats(await response.json());
+      } catch (err) {
+        console.error('Dashboard live refresh failed:', err);
+      }
+    },
+  );
 
   if (isLoading) {
     return (
@@ -376,6 +392,18 @@ export const Dashboard = ({ user }: { user: any }) => {
           </div>
         </motion.div>
       </div>
+
+      {/* Phase 4 — Cross-module widgets */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <DashboardWidgets
+          stats={stats as any}
+          currencySymbol={currencySymbol}
+        />
+      </motion.div>
     </div>
   );
 };

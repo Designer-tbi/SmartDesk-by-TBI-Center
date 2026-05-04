@@ -4,6 +4,7 @@ import { apiFetch } from '../lib/api';
 import { Plus, Calendar, CheckCircle2, Circle, Clock, MoreHorizontal, X, Pencil, Trash2, Eye, Loader2, DollarSign, Flag, Briefcase, User, AlertCircle, Users, Check } from 'lucide-react';
 import { Project, Contact, Employee } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
+import { useLiveSync } from '../lib/useLiveSync';
 
 export const Projects = ({ user }: { user?: any }) => {
   const { t } = useTranslation();
@@ -46,6 +47,9 @@ export const Projects = ({ user }: { user?: any }) => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Phase 3 — live sync: projects depend on contacts & employees too.
+  useLiveSync(['projects', 'contacts', 'employees'], () => fetchData());
 
   const fetchData = async () => {
     setIsLoading(true);

@@ -6,6 +6,7 @@ import { Product } from '../types';
 import { useTranslation } from '../lib/i18n';
 
 import { ConfirmModal } from '../components/ConfirmModal';
+import { useLiveSync } from '../lib/useLiveSync';
 
 export const Inventory = ({ user }: { user: any }) => {
   const { t } = useTranslation();
@@ -37,6 +38,9 @@ export const Inventory = ({ user }: { user: any }) => {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  // Phase 3 — live sync on product mutations.
+  useLiveSync(['products'], () => fetchProducts());
 
   const fetchProducts = async () => {
     setIsLoading(true);
