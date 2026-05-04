@@ -192,6 +192,63 @@ export async function ensureProductAndPlans(db: any): Promise<Record<string, str
 }
 
 /* ------------------------------------------------------------------ */
+/* Webhook registration (idempotent)                                   */
+/* ------------------------------------------------------------------ */
+
+const WEBHOOK_EVENTS = [
+  'BILLING.SUBSCRIPTION.ACTIVATED',
+  'BILLING.SUBSCRIPTION.CANCELLED',
+  'BILLING.SUBSCRIPTION.SUSPENDED',
+  'BILLING.SUBSCRIPTION.EXPIRED',
+  'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
+  'BILLING.SUBSCRIPTION.RENEWED',
+  'PAYMENT.SALE.COMPLETED',
+];
+
+/**
+ * Ensures a PayPal webhook pointing to our /api/subscription/webhook
+ * endpoint exists. If one already points to the same URL it is
+ * reused (and its `event_types` updated if they drift). Returns the
+ * webhook id that the app then caches in `app_config` so subsequent
+ * webhook calls can be cryptographically verified.
+ */
+export async function ensureWebhook(
+  db: any,
+  publicBaseUrl: string,
+): Promise<{ id: string; url: string; created: boolean }> {
+  if (!publicBaseUrl.startsWith('https://')) {
+    throw new Error(`PayPal webhooks require HTTPS, got: ${publicBaseUrl}`);
+  }
+  const webhookUrl = `${publicBaseUrl.replace(/\/$/, '')}/api/subscription/webhook`;
+
+  // 1. List current webhooks and look for one that matches.
+  const list = await paypalFetch('/v1/notifications/webhooks');
+  const existing = (list.webhooks || []).find((w: any) => w.url === webhookUrl);
+
+  if (existing) {
+    await configSet(db, 'paypal_webhook_id', existing.id);
+    await configSet(db, 'paypal_webhook_url', webhookUrl);
+    return { id: existing.id, url: webhookUrl, created: false };
+  }
+
+  // 2. Create.
+  const created = await paypalFetch('/v1/notifications/webhooks', {
+    method: 'POST',
+    body: JSON.stringify({
+      url: webhookUrl,
+      event_types: WEBHOOK_EVENTS.map((name) => ({ name })),
+    }),
+  });
+  await configSet(db, 'paypal_webhook_id', created.id);
+  await configSet(db, 'paypal_webhook_url', webhookUrl);
+  return { id: created.id, url: webhookUrl, created: true };
+}
+
+export async function getStoredWebhookId(db: any): Promise<string | null> {
+  return configGet(db, 'paypal_webhook_id');
+}
+
+/* ------------------------------------------------------------------ */
 /* Subscription lifecycle                                              */
 /* ------------------------------------------------------------------ */
 

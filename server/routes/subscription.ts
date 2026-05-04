@@ -16,6 +16,9 @@ import {
   createSubscription,
   getSubscription,
   cancelSubscription,
+  ensureWebhook,
+  getStoredWebhookId,
+  verifyWebhookSignature,
   PLAN_SPECS,
 } from '../services/paypal.js';
 
@@ -219,15 +222,56 @@ subscriptionRouter.post('/cancel', requireAuth, requireCompany, async (req, res,
 });
 
 /* -------------------------------------------------------------- */
+/* Webhook bootstrap (super admin only)                            */
+/* -------------------------------------------------------------- */
+
+subscriptionRouter.post('/bootstrap-webhook', requireAuth, async (req, res, next) => {
+  try {
+    if (req.user?.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Réservé au super admin.' });
+    }
+    const base = (req.body?.baseUrl as string) || process.env.PAYPAL_RETURN_URL_BASE || '';
+    if (!base) {
+      return res.status(400).json({
+        error: 'PAYPAL_RETURN_URL_BASE non configurée. Précisez `baseUrl` dans le corps de la requête.',
+      });
+    }
+    const result = await ensureWebhook(req.db, base);
+    res.json({ ok: true, ...result });
+  } catch (err: any) {
+    console.error('bootstrap-webhook failed:', err);
+    res.status(500).json({ error: err?.message || 'Erreur PayPal' });
+  }
+});
+
+/* -------------------------------------------------------------- */
 /* Webhook                                                         */
 /* -------------------------------------------------------------- */
 
 subscriptionRouter.post('/webhook', async (req, res, next) => {
   try {
-    // Signature verification would require PAYPAL_WEBHOOK_ID env var
-    // which the user hasn't provided. We still accept events but log
-    // a warning so we remember to enable verification in prod.
     const body = req.body as any;
+
+    // Cryptographic verification — fetch the webhook id we registered
+    // on bootstrap and ask PayPal to verify the transmission. We
+    // accept the event when verification succeeds; we also accept it
+    // (with a warning) when no webhook id is configured yet, so the
+    // first deployment doesn't lose events while bootstrapping.
+    const webhookId = await getStoredWebhookId(req.db);
+    if (webhookId) {
+      const ok = await verifyWebhookSignature(
+        req.headers as Record<string, string | string[] | undefined>,
+        webhookId,
+        body,
+      );
+      if (!ok) {
+        console.warn('PayPal webhook signature verification FAILED — rejecting event:', body?.event_type);
+        return res.status(400).json({ error: 'Invalid webhook signature' });
+      }
+    } else {
+      console.warn('PayPal webhook received but no webhook_id stored yet — accepting unverified.');
+    }
+
     const type = String(body?.event_type || '');
     const sub = body?.resource;
     const customId: string | undefined = sub?.custom_id;

@@ -1253,3 +1253,36 @@ pointer vers le domaine final du tenant.)
   ne pas les supprimer côté PayPal, sinon les subscriptions
   échoueront.
 
+
+
+## Webhook PayPal — auto-bootstrap + vérification (2026-05-04)
+
+### Approche
+Plutôt que d'aller dans le dashboard PayPal, on crée le webhook via
+l'API REST (`POST /v1/notifications/webhooks`) — automatisable et
+idempotent.
+
+### Implémentation
+- `paypal.ts` → `ensureWebhook(db, baseUrl)` : liste les webhooks
+  existants, ne crée qu'en cas d'absence, persiste l'id en
+  `app_config`.
+- 7 événements souscrits : `BILLING.SUBSCRIPTION.ACTIVATED /
+  CANCELLED / SUSPENDED / EXPIRED / RENEWED / PAYMENT.FAILED`,
+  `PAYMENT.SALE.COMPLETED`.
+- Nouvel endpoint `POST /api/subscription/bootstrap-webhook` (super
+  admin only) : retourne `{ok, id, url, created}`.
+- `routes/subscription.ts` → POST /webhook **vérifie maintenant la
+  signature** via `getStoredWebhookId(db)` + `verifyWebhookSignature`.
+  Faux headers → HTTP 400. Aucune signature stockée encore → accepte
+  avec warning (bootstrap initial).
+
+### Trace production (LIVE)
+```
+paypal_webhook_id    = 7W15370887869372P
+paypal_webhook_url   = https://…/api/subscription/webhook
+```
+Webhook PayPal réel, persistant. Ne pas supprimer.
+
+### Production checklist (Vercel)
+- Mettre à jour `PAYPAL_RETURN_URL_BASE` au domaine prod.
+- Rejouer `POST /api/subscription/bootstrap-webhook` côté super admin.
