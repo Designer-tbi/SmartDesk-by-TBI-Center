@@ -1154,3 +1154,102 @@ limitation était purement UI.
 - Tests d'intégration E2E Playwright pour les deep-links
   CRM→Sales et HR→sous-modules.
 
+
+## Phase 5 — Abonnement PayPal récurrent (2026-05-04)
+
+### Objectif utilisateur
+« Quand une entreprise atteint 15 jours, demander une souscription
+abonnement. République du Congo : 45.000 XAF / mois. RDC : 40 $ / mois.
+Utiliser PayPal. » (clés LIVE fournies)
+
+### Blocage technique résolu
+PayPal ne supporte **PAS** le XAF pour la facturation récurrente
+(25 devises supportées, XAF n'en fait pas partie — vérifié via web
+search + playbook PayPal). Décision : les clients CG sont facturés
+**75 USD** (équivalent ~45 000 XAF au taux de change du jour), la
+banque du client applique la conversion automatiquement. L'UI
+communique **explicitement** le montant en XAF au client pour
+transparence.
+
+### Architecture
+
+**Pricing** (`/app/server/services/paypal.ts`)
+- `CG_XAF` : 75 USD (affiché « 45 000 XAF ») — pour `country='CG'`
+- `WORLD` : 40 USD (affiché « $40 USD ») — défaut pour tous les autres (y compris CD)
+
+**Backend**
+- `paypal.ts` : OAuth client_credentials (token caché), bootstrap
+  idempotent du produit + 2 plans (IDs persistés dans `app_config`),
+  helpers createSubscription / getSubscription / cancelSubscription /
+  verifyWebhookSignature.
+- `routes/subscription.ts` : 6 endpoints
+  - `GET  /api/subscription/status`  → état courant + plan
+  - `POST /api/subscription/start-trial` → stamp idempotent
+  - `POST /api/subscription/create` → retourne `approveUrl` PayPal
+  - `POST /api/subscription/activate` → sync après retour PayPal
+  - `POST /api/subscription/cancel`
+  - `POST /api/subscription/webhook` → handle BILLING.SUBSCRIPTION.*
+- `middleware/enforceSubscription.ts` : décode lui-même le JWT
+  (cookie ou Bearer), renvoie **HTTP 402** `SUBSCRIPTION_REQUIRED`
+  sur les routes protégées quand `trial expiré + subStatus ≠ active`.
+  Super admin bypass.
+- Liste blanche : `/api/auth/*`, `/api/subscription/*`,
+  `/api/public/*`, `GET /api/company`, `GET /api/stats`.
+- `auth.ts` : stamp automatique de `trialStartedAt` + `subscriptionStatus='trial'`
+  sur la première connexion admin (demo ET tenants réels). Ne
+  bloque plus le login sur expiration (ancien 403 supprimé).
+
+**DB (`2026-05-04-subscriptions`)**
+- `companies` : `trialStartedAt`, `subscriptionStatus`,
+  `paypalSubscriptionId`, `subscriptionPlan`, `subscriptionPeriodEnd`.
+- Nouvelle table `app_config(key PK, value, updatedAt)` pour les IDs
+  PayPal persistants.
+
+**Frontend**
+- `SubscriptionGate.tsx` : wrap la zone authentifiée, 3 états :
+  1. **Actif / trial >7j** : pass-through transparent.
+  2. **Trial ≤ 7j** : bannière sticky haut (ambre ≤7, rouge ≤3,
+     « Dernier jour » ≤1) avec bouton « S'abonner ».
+  3. **Expiré / no active sub** : **modal full-screen bloquante**,
+     aucune navigation possible, bouton « S'abonner avec PayPal »
+     ou « Déconnexion » uniquement.
+- Message CG explicite : « Vous êtes facturé l'équivalent en
+  dollars par PayPal (75 USD), mais votre carte sera débitée en XAF
+  selon le taux de change du jour appliqué par votre banque — le
+  coût final reste 45 000 XAF. »
+- Retour PayPal (`?subscription=return`) : appel auto à
+  `/activate` + toast de succès.
+
+**Environnement**
+`/app/.env` :
+```
+PAYPAL_MODE=live
+PAYPAL_CLIENT_ID=…
+PAYPAL_CLIENT_SECRET=…
+PAYPAL_RETURN_URL_BASE=https://login-troubleshoot-18.preview.emergentagent.com
+```
+(À adapter en production sur Vercel — `PAYPAL_RETURN_URL_BASE` doit
+pointer vers le domaine final du tenant.)
+
+### Validation (iteration_7.json)
+- **100 % backend (18/18)** : login ne bloque plus, stamping
+  idempotent, plan CG correct, plan WORLD par défaut, approveUrl
+  PayPal valide, 402 sur les routes protégées, allowlist OK,
+  webhooks 4 events (ACTIVATED/CANCELLED/SUSPENDED/PAYMENT.FAILED),
+  super admin bypass.
+- **100 % frontend** : bannière amber/rouge selon daysLeft, modal
+  bloquant avec pricing CG/World correct, disclosure XAF claire,
+  redirect vers PayPal.com OK.
+- Aucune régression sur Phases 1-4.
+
+### À faire pour la production
+- **Webhook PayPal** : créer le webhook dans le dashboard PayPal
+  pointant vers `https://<domaine>/api/subscription/webhook` avec
+  les événements BILLING.SUBSCRIPTION.* + PAYMENT.SALE.COMPLETED.
+  Ajouter `PAYPAL_WEBHOOK_ID=…` à `.env` puis décommenter la
+  vérification de signature dans `routes/subscription.ts`.
+- **PAYPAL_RETURN_URL_BASE** : mettre à jour sur le domaine prod.
+- Les 2 plans PayPal déjà créés (LIVE) persistent dans `app_config` ;
+  ne pas les supprimer côté PayPal, sinon les subscriptions
+  échoueront.
+
