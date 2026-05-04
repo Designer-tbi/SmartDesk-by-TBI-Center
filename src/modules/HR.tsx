@@ -20,6 +20,8 @@ import { StatsTab } from './hr/StatsTab';
 import { LeaveRequestModal } from './hr/LeaveRequestModal';
 import { PayrollGenerateModal } from './hr/PayrollGenerateModal';
 
+const MONTH_LABELS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
+
 export const HR = ({ user }: { user: any }) => {
   const { t, dateLocale } = useTranslation();
   const isUS = user?.country === 'USA';
@@ -66,6 +68,7 @@ export const HR = ({ user }: { user: any }) => {
   const [payrollYear, setPayrollYear] = useState(new Date().getFullYear());
   const [generatingPayroll, setGeneratingPayroll] = useState(false);
   const [payrollError, setPayrollError] = useState<string | null>(null);
+  const [payrollSuccess, setPayrollSuccess] = useState<string | null>(null);
 
   // Leave "Gérer" popover + payslip actions.
   const [manageLeaveId, setManageLeaveId] = useState<string | null>(null);
@@ -344,9 +347,12 @@ export const HR = ({ user }: { user: any }) => {
       return;
     }
     // Skip employees already with a payslip for this month/year.
+    // NB: the backend stores `month` as TEXT so we coerce both sides to
+    // numbers before comparing — otherwise "5" === 5 would always be
+    // false and we would silently create duplicate payslips.
     const already = new Set(
       payslips
-        .filter((p) => p.month === payrollMonth && p.year === payrollYear)
+        .filter((p) => Number(p.month) === Number(payrollMonth) && Number(p.year) === Number(payrollYear))
         .map((p) => p.employeeId),
     );
     const toCreate = employees.filter((e) => !already.has(e.id));
@@ -360,6 +366,7 @@ export const HR = ({ user }: { user: any }) => {
         String(companyInfo?.country || '').toUpperCase() === 'CG' ||
         String(companyInfo?.country || '').toUpperCase() === 'CONGO';
       let created = 0;
+      let skippedNoSalary = 0;
       for (const emp of toCreate) {
         // Resolve the contractual base salary: active contract first, then
         // the employee card default.
@@ -367,7 +374,7 @@ export const HR = ({ user }: { user: any }) => {
           .filter((c) => c.employeeId === emp.id && (c.status === 'Signed' || c.status === 'Active'))
           .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))[0];
         const base = activeContract?.salary ?? emp.salary ?? 0;
-        if (base <= 0) continue;
+        if (base <= 0) { skippedNoSalary++; continue; }
         const { cnss, irpp, net } = isCongo
           ? computeCongoPayroll(base)
           : { cnss: 0, irpp: 0, net: base };
@@ -389,11 +396,28 @@ export const HR = ({ user }: { user: any }) => {
         });
         if (r.ok) created++;
       }
-      setPayrollModalOpen(false);
       await fetchData();
       if (created === 0) {
-        setPayrollError('Aucun bulletin créé (employés sans salaire défini ?).');
+        // Keep the modal open so the user actually sees why nothing was
+        // generated instead of a blank payroll table.
+        if (skippedNoSalary > 0) {
+          setPayrollError(
+            `Aucun bulletin créé : ${skippedNoSalary} employé(s) sans salaire défini. Renseignez un salaire ou un contrat actif avant de générer la paie.`,
+          );
+        } else {
+          setPayrollError('Aucun bulletin créé. Vérifiez les salaires des employés.');
+        }
+        return;
       }
+      setPayrollModalOpen(false);
+      // Switch to the Payroll tab (in case the user triggered the flow
+      // from elsewhere) and surface a visible confirmation so the action
+      // doesn't feel like a no-op.
+      setActiveTab('payroll');
+      const plural = created > 1 ? 's' : '';
+      const skippedMsg = skippedNoSalary > 0 ? ` (${skippedNoSalary} ignoré${skippedNoSalary > 1 ? 's' : ''} sans salaire)` : '';
+      setPayrollSuccess(`${created} bulletin${plural} généré${plural} pour ${MONTH_LABELS[payrollMonth - 1]} ${payrollYear}${skippedMsg}.`);
+      window.setTimeout(() => setPayrollSuccess(null), 6000);
     } catch (err) {
       console.error('Payroll generation failed:', err);
       setPayrollError('Échec de la génération.');
@@ -1050,17 +1074,35 @@ export const HR = ({ user }: { user: any }) => {
 
       {/* Payroll View */}
       {activeTab === 'payroll' && (
-        <PayrollTab
-          payslips={payslips}
-          currencySymbol={currencySymbol}
-          getEmployeeName={getEmployeeName}
-          downloadingPayslipId={downloadingPayslipId}
-          t={t}
-          onOpenPayrollModal={() => { setPayrollError(null); setPayrollModalOpen(true); }}
-          onDownload={handleDownloadPayslip}
-          onToggleStatus={handleTogglePayslipStatus}
-          onDelete={handleDeletePayslip}
-        />
+        <>
+          {payrollSuccess && (
+            <div
+              className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-sm font-semibold text-emerald-700 flex items-center gap-3"
+              data-testid="hr-payroll-success"
+            >
+              <CheckCircle className="w-5 h-5 shrink-0" />
+              <span className="flex-1">{payrollSuccess}</span>
+              <button
+                onClick={() => setPayrollSuccess(null)}
+                className="p-1 hover:bg-emerald-100 rounded-lg"
+                aria-label="Fermer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+          <PayrollTab
+            payslips={payslips}
+            currencySymbol={currencySymbol}
+            getEmployeeName={getEmployeeName}
+            downloadingPayslipId={downloadingPayslipId}
+            t={t}
+            onOpenPayrollModal={() => { setPayrollError(null); setPayrollSuccess(null); setPayrollModalOpen(true); }}
+            onDownload={handleDownloadPayslip}
+            onToggleStatus={handleTogglePayslipStatus}
+            onDelete={handleDeletePayslip}
+          />
+        </>
       )}
 
       {/* Stats View */}
