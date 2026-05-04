@@ -14,6 +14,11 @@ import { useTranslation } from '../lib/i18n';
 
 import { ConfirmModal } from '../components/ConfirmModal';
 import { ContractBuilder, ContractBuilderValue } from '../components/ContractBuilder';
+import { LeavesTab } from './hr/LeavesTab';
+import { PayrollTab } from './hr/PayrollTab';
+import { StatsTab } from './hr/StatsTab';
+import { LeaveRequestModal } from './hr/LeaveRequestModal';
+import { PayrollGenerateModal } from './hr/PayrollGenerateModal';
 
 export const HR = ({ user }: { user: any }) => {
   const { t, dateLocale } = useTranslation();
@@ -1032,227 +1037,35 @@ export const HR = ({ user }: { user: any }) => {
 
       {/* Leaves View */}
       {activeTab === 'leaves' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-bold text-slate-900">Demandes de Congés</h3>
-            <div className="flex gap-2">
-              <button className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg"><Filter className="w-4 h-4" /></button>
-              <button
-                onClick={openLeaveModal}
-                className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-all shadow-sm"
-                data-testid="hr-add-leave-btn"
-              >
-                <Plus className="w-4 h-4" /> Nouvelle Demande
-              </button>
-            </div>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Employé</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Type</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Période</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">Statut</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {leaves.map((leave) => (
-                  <tr key={leave.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-bold text-slate-900">{getEmployeeName(leave.employeeId)}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">{leave.type}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-xs text-slate-600">Du {leave.startDate}</div>
-                      <div className="text-xs text-slate-600">Au {leave.endDate}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 w-fit ${
-                        leave.status === 'Approved' ? 'bg-emerald-50 text-emerald-600' : 
-                        leave.status === 'Pending' ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
-                      }`}>
-                        {leave.status === 'Approved' ? <CheckCircle className="w-3 h-3" /> : 
-                         leave.status === 'Pending' ? <Clock className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
-                        {leave.status === 'Approved' ? 'Approuvé' : leave.status === 'Pending' ? 'En attente' : 'Refusé'}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-right relative">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setManageLeaveId(manageLeaveId === leave.id ? null : leave.id); }}
-                        className="text-xs font-bold text-accent-red hover:underline"
-                        data-testid={`hr-leave-manage-${leave.id}`}
-                      >
-                        Gérer
-                      </button>
-                      {manageLeaveId === leave.id && (
-                        <div
-                          className="absolute right-4 top-12 z-30 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden"
-                          onClick={(e) => e.stopPropagation()}
-                          data-testid={`hr-leave-manage-menu-${leave.id}`}
-                        >
-                          {leave.status !== 'Approved' && (
-                            <button
-                              onClick={() => handleUpdateLeaveStatus(leave, 'Approved')}
-                              className="w-full px-4 py-2.5 text-left text-sm font-medium text-emerald-600 hover:bg-emerald-50 flex items-center gap-2"
-                            >
-                              <CheckCircle className="w-4 h-4" /> Approuver
-                            </button>
-                          )}
-                          {leave.status !== 'Rejected' && (
-                            <button
-                              onClick={() => handleUpdateLeaveStatus(leave, 'Rejected')}
-                              className="w-full px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
-                            >
-                              <AlertCircle className="w-4 h-4" /> Refuser
-                            </button>
-                          )}
-                          {leave.status !== 'Pending' && (
-                            <button
-                              onClick={() => handleUpdateLeaveStatus(leave, 'Pending')}
-                              className="w-full px-4 py-2.5 text-left text-sm font-medium text-amber-600 hover:bg-amber-50 flex items-center gap-2"
-                            >
-                              <Clock className="w-4 h-4" /> Remettre en attente
-                            </button>
-                          )}
-                          <div className="border-t border-slate-100" />
-                          <button
-                            onClick={() => handleDeleteLeave(leave.id)}
-                            className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-2"
-                          >
-                            <X className="w-4 h-4" /> Supprimer
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <LeavesTab
+          leaves={leaves}
+          getEmployeeName={getEmployeeName}
+          manageLeaveId={manageLeaveId}
+          setManageLeaveId={setManageLeaveId}
+          onOpenLeaveModal={openLeaveModal}
+          onUpdateStatus={handleUpdateLeaveStatus}
+          onDelete={handleDeleteLeave}
+        />
       )}
 
       {/* Payroll View */}
       {activeTab === 'payroll' && (
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="font-bold text-slate-900">Gestion de la Paie</h3>
-            <button
-              onClick={() => { setPayrollError(null); setPayrollModalOpen(true); }}
-              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-all shadow-sm"
-              data-testid="hr-generate-payroll-btn"
-            >
-              <Download className="w-4 h-4" /> Générer les Bulletins
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200">
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.employee')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.period')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.netSalary')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest">{t('hr.status')}</th>
-                  <th className="px-6 py-4 text-xs font-bold text-slate-400 uppercase tracking-widest text-right">{t('hr.actions')}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {payslips.map((payslip) => (
-                  <tr key={payslip.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div className="text-sm font-bold text-slate-900">{getEmployeeName(payslip.employeeId)}</div>
-                    </td>
-                    <td className="px-6 py-4 text-sm text-slate-600">
-                      {payslip.month} {payslip.year}
-                    </td>
-                    <td className="px-6 py-4 font-bold text-slate-900">
-                      {payslip.netSalary.toLocaleString()} {currencySymbol}
-                    </td>
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleTogglePayslipStatus(payslip)}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold hover:opacity-80 transition-opacity ${
-                          payslip.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                        }`}
-                        title="Cliquer pour changer le statut"
-                        data-testid={`hr-payslip-toggle-${payslip.id}`}
-                      >
-                        {payslip.status === 'Paid' ? t('hr.paid') : t('hr.draft')}
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleDownloadPayslip(payslip)}
-                          disabled={downloadingPayslipId === payslip.id}
-                          className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"
-                          title="Télécharger le bulletin"
-                          data-testid={`hr-payslip-download-${payslip.id}`}
-                        >
-                          {downloadingPayslipId === payslip.id ? (
-                            <div className="w-4 h-4 border-2 border-slate-300 border-t-accent-red rounded-full animate-spin" />
-                          ) : (
-                            <Download className="w-4 h-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleDeletePayslip(payslip.id)}
-                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
-                          title="Supprimer"
-                          data-testid={`hr-payslip-delete-${payslip.id}`}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <PayrollTab
+          payslips={payslips}
+          currencySymbol={currencySymbol}
+          getEmployeeName={getEmployeeName}
+          downloadingPayslipId={downloadingPayslipId}
+          t={t}
+          onOpenPayrollModal={() => { setPayrollError(null); setPayrollModalOpen(true); }}
+          onDownload={handleDownloadPayslip}
+          onToggleStatus={handleTogglePayslipStatus}
+          onDelete={handleDeletePayslip}
+        />
       )}
 
       {/* Stats View */}
       {activeTab === 'stats' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-soft-red text-accent-red rounded-lg"><Users className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-emerald-600">{t('hr.newThisMonth')}</span>
-            </div>
-            <div className="text-2xl font-black text-slate-900">{employees.length}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.totalEffectif')}</div>
-          </div>
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><Coffee className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-amber-600">3 {t('hr.status.active').toLowerCase()}s</span>
-            </div>
-            <div className="text-2xl font-black text-slate-900">{leaves.filter(l => l.status === 'Approved').length}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.currentLeaves')}</div>
-          </div>
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><DollarSign className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-slate-400">{t('hr.payrollMass')}</span>
-            </div>
-            <div className="text-2xl font-black text-slate-900">{(employees.reduce((acc, curr) => acc + curr.salary, 0) / 12).toLocaleString()}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{currencySymbol} {t('hr.perMonth')}</div>
-          </div>
-          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <div className="p-2 bg-soft-red text-accent-red rounded-lg"><Briefcase className="w-5 h-5" /></div>
-              <span className="text-xs font-bold text-slate-400">{t('nav.section.management')}</span>
-            </div>
-            <div className="text-2xl font-black text-slate-900">{new Set(employees.map(e => e.department)).size}</div>
-            <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.activeUnits')}</div>
-          </div>
-        </div>
+        <StatsTab employees={employees} leaves={leaves} currencySymbol={currencySymbol} t={t} />
       )}
 
       {/* Tasks View */}
@@ -2065,179 +1878,31 @@ export const HR = ({ user }: { user: any }) => {
       )}
 
       {/* Leave request modal */}
-      {leaveModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-sm" data-testid="hr-leave-modal">
-          <form onSubmit={handleSubmitLeave} className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-lg font-black text-slate-900">Nouvelle demande de congé</h3>
-              <button type="button" onClick={() => setLeaveModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl">
-                <X className="w-5 h-5 text-slate-400" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              {leaveError && (
-                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600" data-testid="hr-leave-error">
-                  {leaveError}
-                </div>
-              )}
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Employé</label>
-                <select
-                  required
-                  className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-accent-red/20 outline-none"
-                  value={newLeave.employeeId || ''}
-                  onChange={(e) => setNewLeave({ ...newLeave, employeeId: e.target.value })}
-                  data-testid="hr-leave-employee-select"
-                >
-                  <option value="">Sélectionner…</option>
-                  {employees.map((e) => (
-                    <option key={e.id} value={e.id}>{e.name}{e.role ? ` — ${e.role}` : ''}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Type</label>
-                <select
-                  className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-accent-red/20 outline-none"
-                  value={newLeave.type}
-                  onChange={(e) => setNewLeave({ ...newLeave, type: e.target.value })}
-                >
-                  <option>Congé annuel</option>
-                  <option>Congé maladie</option>
-                  <option>Congé maternité</option>
-                  <option>Congé sans solde</option>
-                  <option>Permission exceptionnelle</option>
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Du</label>
-                  <input
-                    type="date"
-                    required
-                    className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    value={newLeave.startDate || ''}
-                    onChange={(e) => setNewLeave({ ...newLeave, startDate: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Au</label>
-                  <input
-                    type="date"
-                    required
-                    className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    value={newLeave.endDate || ''}
-                    onChange={(e) => setNewLeave({ ...newLeave, endDate: e.target.value })}
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Motif (optionnel)</label>
-                <textarea
-                  className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm min-h-[80px] resize-y"
-                  value={newLeave.reason || ''}
-                  onChange={(e) => setNewLeave({ ...newLeave, reason: e.target.value })}
-                  placeholder="Vacances familiales…"
-                />
-              </div>
-            </div>
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setLeaveModalOpen(false)}
-                className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
-              >
-                Annuler
-              </button>
-              <button
-                type="submit"
-                disabled={savingLeave}
-                className="px-4 py-2 text-sm font-bold bg-accent-red text-white rounded-xl hover:bg-red-700 disabled:opacity-60"
-                data-testid="hr-leave-save-btn"
-              >
-                {savingLeave ? 'Enregistrement…' : 'Enregistrer'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <LeaveRequestModal
+        open={leaveModalOpen}
+        employees={employees}
+        newLeave={newLeave}
+        setNewLeave={setNewLeave}
+        leaveError={leaveError}
+        savingLeave={savingLeave}
+        onClose={() => setLeaveModalOpen(false)}
+        onSubmit={handleSubmitLeave}
+      />
 
       {/* Payroll generation modal */}
-      {payrollModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-sm" data-testid="hr-payroll-modal">
-          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-lg font-black text-slate-900">Générer les bulletins</h3>
-              <button type="button" onClick={() => setPayrollModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl">
-                <X className="w-5 h-5 text-slate-400" />
-              </button>
-            </div>
-            <div className="p-6 space-y-4">
-              {payrollError && (
-                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600" data-testid="hr-payroll-error">
-                  {payrollError}
-                </div>
-              )}
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Un bulletin sera généré automatiquement pour chaque employé,
-                à partir du salaire de son contrat actif. Pour les sociétés
-                congolaises, les retenues CNSS (4 %) et IRPP (barème 2025)
-                sont calculées automatiquement.
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mois</label>
-                  <select
-                    className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    value={payrollMonth}
-                    onChange={(e) => setPayrollMonth(Number(e.target.value))}
-                    data-testid="hr-payroll-month"
-                  >
-                    {['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'].map((m, i) => (
-                      <option key={i} value={i + 1}>{m}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Année</label>
-                  <input
-                    type="number"
-                    className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
-                    value={payrollYear}
-                    onChange={(e) => setPayrollYear(Number(e.target.value))}
-                  />
-                </div>
-              </div>
-              <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl">
-                Employés éligibles :{' '}
-                <strong className="text-slate-900">{employees.length}</strong>
-                {' • '}Déjà traités pour cette période :{' '}
-                <strong className="text-slate-900">
-                  {payslips.filter((p) => p.month === payrollMonth && p.year === payrollYear).length}
-                </strong>
-              </div>
-            </div>
-            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setPayrollModalOpen(false)}
-                className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
-              >
-                Annuler
-              </button>
-              <button
-                type="button"
-                onClick={handleGeneratePayroll}
-                disabled={generatingPayroll}
-                className="px-4 py-2 text-sm font-bold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60"
-                data-testid="hr-payroll-confirm-btn"
-              >
-                {generatingPayroll ? 'Génération…' : 'Générer'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PayrollGenerateModal
+        open={payrollModalOpen}
+        employees={employees}
+        payslips={payslips}
+        payrollMonth={payrollMonth}
+        setPayrollMonth={setPayrollMonth}
+        payrollYear={payrollYear}
+        setPayrollYear={setPayrollYear}
+        payrollError={payrollError}
+        generatingPayroll={generatingPayroll}
+        onClose={() => setPayrollModalOpen(false)}
+        onGenerate={handleGeneratePayroll}
+      />
 
       {/* Confirm Modal */}
       <ConfirmModal
