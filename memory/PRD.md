@@ -1045,3 +1045,82 @@ pures, idempotentes, chacune gère sa transaction).
 - **Phase 4 (c)** — Tableau de bord centralisé (widgets agrégés CA,
   factures impayées, alertes RH, stocks faibles, top clients).
 
+
+## Phases 2 + 3 + 4 — Liens UI, synchro temps réel, dashboard centralisé (2026-05-04)
+
+### Phase 2 — Liens UI bidirectionnels
+- **Nouvelle modale « Fiche contact CRM »** (`/app/src/modules/crm/ContactDetailModal.tsx`)
+  avec 4 onglets : Informations, Devis, Factures, Projets.
+  Chaque ligne est cliquable et deep-link vers `/sales?open=:id` ou
+  `/projects?open=:id` (la page cible lit le paramètre et ouvre la
+  prévisualisation automatiquement).
+  Ajout de 2 KPIs en tête : CA encaissé + encours.
+- **Nouvelle modale « Fiche employé RH »**
+  (`/app/src/modules/hr/EmployeeDetailModal.tsx`) avec 5 onglets :
+  Informations, Contrats, Bulletins, Congés, Tâches, chacun avec
+  badge de compteur.
+- Sales.tsx : nouvel effet `useEffect` qui lit `?open=:id` et ouvre
+  le devis/facture correspondant.
+
+### Phase 3 — Synchronisation temps réel sur TOUS les CRUD
+- **Backend** : nouveau middleware global
+  `/app/server/middleware/resourceBroadcast.ts` qui intercepte les
+  POST/PUT/PATCH/DELETE réussis sur les routes principales et
+  émet un événement WebSocket `RESOURCE_CHANGED` avec
+  `{ resource, method, url, id, companyId, at }`.
+  Ressources couvertes : contacts, products, invoices, projects,
+  employees, leaves, payslips, contracts, employeeTasks, schedules,
+  journalEntries, transactions, events.
+- **Frontend** : nouveau hook `/app/src/lib/useLiveSync.ts` qui
+  s'abonne au WebSocket et rappelle `refetch()` (debounced 250 ms)
+  quand une ressource pertinente change. Filtrage par `companyId`
+  pour la sécurité multi-tenant.
+- Branché dans : Dashboard, CRM, Sales, HR, Projects, Accounting,
+  Inventory.
+- Dégradation gracieuse : le WebSocket n'est instancié qu'en runtime
+  local (tsx). Sur Vercel, `broadcast()` est un no-op.
+
+### Phase 4 — Dashboard centralisé
+- **Backend** : extension de `/api/stats` avec les nouveaux champs :
+  `outstanding` (count, total, overdueCount, overdueTotal),
+  `topClients` (top 5 par CA encaissé), `upcomingLeaves`
+  (congés approuvés démarrant dans les 14 j), `expiringContracts`
+  (CDD expirant dans les 30 j), `lowStock` (produits avec stock ≤ 5),
+  `pendingLeaves` (count). `monthlyData` passé de 6 à **12 mois**.
+- **Frontend** : nouveau composant `DashboardWidgets` avec :
+  - 3 cartes d'alerte cliquables : Factures en retard, En attente
+    de paiement, Congés à valider.
+  - 4 panneaux : Top 5 Clients, Congés à venir, Contrats arrivant
+    à échéance, Stock à recommander.
+- Chaque ligne navigue vers le module correspondant ; les empty
+  states sont traités proprement.
+
+### DB
+- Aucune nouvelle migration.
+- Contournement : `invoices.dueDate`, `contracts.endDate`,
+  `leave_requests.startDate/endDate` stockés en TEXT → cast
+  `::date` ajouté dans les requêtes Phase 4.
+
+### Testing (iteration_5.json)
+- Backend : **25/26 tests passent** (1 skipped, aucun produit en base
+  pour le test PUT).
+- Frontend : **100 %** — Phase 2 modales + onglets, Phase 3 broadcasts,
+  Phase 4 widgets tous vérifiés.
+- 2 bugs critiques corrigés par le testing agent :
+  1. `fetchData` hoisting dans Sales.tsx (useLiveSync appelé avant
+     la définition const) → déplacé au-dessus.
+  2. Référence `fetchInvoices()` inexistante → remplacée par
+     `fetchData()`.
+
+### Limitation connue
+- WebSocket indisponible sur Vercel (serverless). Sur ce
+  déploiement, le temps réel tombera en graceful no-op — les pages
+  se rafraîchiront à chaque navigation mais pas entre utilisateurs
+  sans F5.
+
+### Reste à faire
+- Widget « Activité récente » agrégeant les events `ACTIVITY`
+  (déjà broadcastés) sur le dashboard.
+- Tests d'intégration E2E Playwright pour les deep-links
+  CRM→Sales et HR→sous-modules.
+
