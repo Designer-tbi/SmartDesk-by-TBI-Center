@@ -42,6 +42,25 @@ export const HR = ({ user }: { user: any }) => {
   
   const [signingContract, setSigningContract] = useState<Contract | null>(null);
   const [viewingContract, setViewingContract] = useState<Contract | null>(null);
+
+  // Leave request form + payroll generation state.
+  const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [newLeave, setNewLeave] = useState<Partial<LeaveRequest>>({
+    employeeId: '',
+    type: 'Congé annuel',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'Pending',
+    reason: '',
+  });
+  const [leaveError, setLeaveError] = useState<string | null>(null);
+  const [savingLeave, setSavingLeave] = useState(false);
+
+  const [payrollModalOpen, setPayrollModalOpen] = useState(false);
+  const [payrollMonth, setPayrollMonth] = useState(new Date().getMonth() + 1);
+  const [payrollYear, setPayrollYear] = useState(new Date().getFullYear());
+  const [generatingPayroll, setGeneratingPayroll] = useState(false);
+  const [payrollError, setPayrollError] = useState<string | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -213,6 +232,164 @@ export const HR = ({ user }: { user: any }) => {
     } catch (error) {
       console.error('Failed to delete employee:', error);
       setError(t('hr.errorConnection'));
+    }
+  };
+
+  /* ----------- Leave requests ----------- */
+  const openLeaveModal = () => {
+    setLeaveError(null);
+    setNewLeave({
+      employeeId: employees[0]?.id || '',
+      type: 'Congé annuel',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      status: 'Pending',
+      reason: '',
+    });
+    setLeaveModalOpen(true);
+  };
+
+  const handleSubmitLeave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLeave.employeeId) {
+      setLeaveError('Sélectionnez un employé.');
+      return;
+    }
+    if (!newLeave.startDate || !newLeave.endDate) {
+      setLeaveError('Dates requises.');
+      return;
+    }
+    if (new Date(newLeave.endDate) < new Date(newLeave.startDate)) {
+      setLeaveError('La date de fin doit être postérieure à la date de début.');
+      return;
+    }
+    setSavingLeave(true);
+    try {
+      const payload = {
+        id: `leave_${Date.now()}`,
+        employeeId: newLeave.employeeId,
+        type: newLeave.type,
+        startDate: newLeave.startDate,
+        endDate: newLeave.endDate,
+        status: newLeave.status || 'Pending',
+        reason: newLeave.reason || '',
+      };
+      const r = await apiFetch('/api/employees/leaves', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => null);
+        setLeaveError(d?.error || `Échec (HTTP ${r.status}).`);
+        return;
+      }
+      setLeaveModalOpen(false);
+      await fetchData();
+    } catch (err) {
+      console.error('Leave submit failed:', err);
+      setLeaveError('Échec de l’enregistrement.');
+    } finally {
+      setSavingLeave(false);
+    }
+  };
+
+  /* ----------- Payroll generation ----------- */
+  /**
+   * Generates one payslip per active employee for the selected month.
+   * The base salary is read from the employee's most recent active
+   * contract (CDI / CDD); if none is found we fall back to
+   * `employee.salary`. Congo CNSS / IRPP deductions are computed using
+   * the 2025 official rates (CNSS 4 % salarié, IRPP barème simplifié).
+   */
+  const computeCongoPayroll = (base: number) => {
+    const cnss = Math.round(base * 0.04); // salarié 4% (employeur 16%)
+    // IRPP barème mensuel simplifié (République du Congo, 2025)
+    let irpp = 0;
+    const taxable = Math.max(0, base - cnss);
+    const brackets: Array<[number, number]> = [
+      [54_166, 0],
+      [125_000, 0.08],
+      [291_666, 0.15],
+      [500_000, 0.2],
+      [Infinity, 0.4],
+    ];
+    let remaining = taxable;
+    let floor = 0;
+    for (const [ceil, rate] of brackets) {
+      const slab = Math.min(remaining, ceil - floor);
+      if (slab <= 0) break;
+      irpp += slab * rate;
+      remaining -= slab;
+      floor = ceil;
+      if (remaining <= 0) break;
+    }
+    irpp = Math.round(irpp);
+    return { cnss, irpp, net: base - cnss - irpp };
+  };
+
+  const handleGeneratePayroll = async () => {
+    setPayrollError(null);
+    if (!employees.length) {
+      setPayrollError('Aucun employé à traiter.');
+      return;
+    }
+    // Skip employees already with a payslip for this month/year.
+    const already = new Set(
+      payslips
+        .filter((p) => p.month === payrollMonth && p.year === payrollYear)
+        .map((p) => p.employeeId),
+    );
+    const toCreate = employees.filter((e) => !already.has(e.id));
+    if (!toCreate.length) {
+      setPayrollError('Bulletins déjà générés pour cette période.');
+      return;
+    }
+    setGeneratingPayroll(true);
+    try {
+      const isCongo =
+        String(companyInfo?.country || '').toUpperCase() === 'CG' ||
+        String(companyInfo?.country || '').toUpperCase() === 'CONGO';
+      let created = 0;
+      for (const emp of toCreate) {
+        // Resolve the contractual base salary: active contract first, then
+        // the employee card default.
+        const activeContract = contracts
+          .filter((c) => c.employeeId === emp.id && (c.status === 'Signed' || c.status === 'Active'))
+          .sort((a, b) => (b.startDate || '').localeCompare(a.startDate || ''))[0];
+        const base = activeContract?.salary ?? emp.salary ?? 0;
+        if (base <= 0) continue;
+        const { cnss, irpp, net } = isCongo
+          ? computeCongoPayroll(base)
+          : { cnss: 0, irpp: 0, net: base };
+        const payload = {
+          id: `pay_${emp.id}_${payrollYear}${String(payrollMonth).padStart(2, '0')}_${Date.now()}`,
+          employeeId: emp.id,
+          month: payrollMonth,
+          year: payrollYear,
+          baseSalary: base,
+          bonuses: 0,
+          deductions: cnss + irpp,
+          netSalary: net,
+          status: 'Draft',
+        };
+        const r = await apiFetch('/api/employees/payslips', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        if (r.ok) created++;
+      }
+      setPayrollModalOpen(false);
+      await fetchData();
+      if (created === 0) {
+        setPayrollError('Aucun bulletin créé (employés sans salaire défini ?).');
+      }
+    } catch (err) {
+      console.error('Payroll generation failed:', err);
+      setPayrollError('Échec de la génération.');
+    } finally {
+      setGeneratingPayroll(false);
     }
   };
 
@@ -767,7 +944,11 @@ export const HR = ({ user }: { user: any }) => {
             <h3 className="font-bold text-slate-900">Demandes de Congés</h3>
             <div className="flex gap-2">
               <button className="p-2 text-slate-400 hover:text-slate-600 border border-slate-200 rounded-lg"><Filter className="w-4 h-4" /></button>
-              <button className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-all shadow-sm">
+              <button
+                onClick={openLeaveModal}
+                className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-lg text-sm font-bold hover:bg-red-700 transition-all shadow-sm"
+                data-testid="hr-add-leave-btn"
+              >
                 <Plus className="w-4 h-4" /> Nouvelle Demande
               </button>
             </div>
@@ -822,7 +1003,11 @@ export const HR = ({ user }: { user: any }) => {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <h3 className="font-bold text-slate-900">Gestion de la Paie</h3>
-            <button className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-all shadow-sm">
+            <button
+              onClick={() => { setPayrollError(null); setPayrollModalOpen(true); }}
+              className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-all shadow-sm"
+              data-testid="hr-generate-payroll-btn"
+            >
               <Download className="w-4 h-4" /> Générer les Bulletins
             </button>
           </div>
@@ -1710,6 +1895,181 @@ export const HR = ({ user }: { user: any }) => {
                 <button type="submit" className="flex-1 py-4 bg-accent-red text-white rounded-2xl font-bold hover:bg-red-700 transition-all shadow-xl shadow-accent-red/20">Enregistrer la Tâche</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Leave request modal */}
+      {leaveModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-sm" data-testid="hr-leave-modal">
+          <form onSubmit={handleSubmitLeave} className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-lg font-black text-slate-900">Nouvelle demande de congé</h3>
+              <button type="button" onClick={() => setLeaveModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {leaveError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600" data-testid="hr-leave-error">
+                  {leaveError}
+                </div>
+              )}
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Employé</label>
+                <select
+                  required
+                  className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-accent-red/20 outline-none"
+                  value={newLeave.employeeId || ''}
+                  onChange={(e) => setNewLeave({ ...newLeave, employeeId: e.target.value })}
+                  data-testid="hr-leave-employee-select"
+                >
+                  <option value="">Sélectionner…</option>
+                  {employees.map((e) => (
+                    <option key={e.id} value={e.id}>{e.name}{e.role ? ` — ${e.role}` : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Type</label>
+                <select
+                  className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium focus:ring-2 focus:ring-accent-red/20 outline-none"
+                  value={newLeave.type}
+                  onChange={(e) => setNewLeave({ ...newLeave, type: e.target.value })}
+                >
+                  <option>Congé annuel</option>
+                  <option>Congé maladie</option>
+                  <option>Congé maternité</option>
+                  <option>Congé sans solde</option>
+                  <option>Permission exceptionnelle</option>
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Du</label>
+                  <input
+                    type="date"
+                    required
+                    className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                    value={newLeave.startDate || ''}
+                    onChange={(e) => setNewLeave({ ...newLeave, startDate: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Au</label>
+                  <input
+                    type="date"
+                    required
+                    className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                    value={newLeave.endDate || ''}
+                    onChange={(e) => setNewLeave({ ...newLeave, endDate: e.target.value })}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Motif (optionnel)</label>
+                <textarea
+                  className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm min-h-[80px] resize-y"
+                  value={newLeave.reason || ''}
+                  onChange={(e) => setNewLeave({ ...newLeave, reason: e.target.value })}
+                  placeholder="Vacances familiales…"
+                />
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setLeaveModalOpen(false)}
+                className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={savingLeave}
+                className="px-4 py-2 text-sm font-bold bg-accent-red text-white rounded-xl hover:bg-red-700 disabled:opacity-60"
+                data-testid="hr-leave-save-btn"
+              >
+                {savingLeave ? 'Enregistrement…' : 'Enregistrer'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Payroll generation modal */}
+      {payrollModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-sm" data-testid="hr-payroll-modal">
+          <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+              <h3 className="text-lg font-black text-slate-900">Générer les bulletins</h3>
+              <button type="button" onClick={() => setPayrollModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl">
+                <X className="w-5 h-5 text-slate-400" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              {payrollError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-sm text-red-600" data-testid="hr-payroll-error">
+                  {payrollError}
+                </div>
+              )}
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Un bulletin sera généré automatiquement pour chaque employé,
+                à partir du salaire de son contrat actif. Pour les sociétés
+                congolaises, les retenues CNSS (4 %) et IRPP (barème 2025)
+                sont calculées automatiquement.
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Mois</label>
+                  <select
+                    className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                    value={payrollMonth}
+                    onChange={(e) => setPayrollMonth(Number(e.target.value))}
+                    data-testid="hr-payroll-month"
+                  >
+                    {['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'].map((m, i) => (
+                      <option key={i} value={i + 1}>{m}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Année</label>
+                  <input
+                    type="number"
+                    className="mt-1 w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                    value={payrollYear}
+                    onChange={(e) => setPayrollYear(Number(e.target.value))}
+                  />
+                </div>
+              </div>
+              <div className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl">
+                Employés éligibles :{' '}
+                <strong className="text-slate-900">{employees.length}</strong>
+                {' • '}Déjà traités pour cette période :{' '}
+                <strong className="text-slate-900">
+                  {payslips.filter((p) => p.month === payrollMonth && p.year === payrollYear).length}
+                </strong>
+              </div>
+            </div>
+            <div className="p-4 border-t border-slate-100 bg-slate-50 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPayrollModalOpen(false)}
+                className="px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-100 rounded-xl"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleGeneratePayroll}
+                disabled={generatingPayroll}
+                className="px-4 py-2 text-sm font-bold bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 disabled:opacity-60"
+                data-testid="hr-payroll-confirm-btn"
+              >
+                {generatingPayroll ? 'Génération…' : 'Générer'}
+              </button>
+            </div>
           </div>
         </div>
       )}

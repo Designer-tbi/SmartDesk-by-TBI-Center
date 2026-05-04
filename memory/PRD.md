@@ -471,6 +471,45 @@ utilisateurs France et RDC.
 - P2 : rate-limit sur `/api/auth/login` (brute force).
 - P2 : retirer les indices de mot de passe des erreurs 401 en production.
 
+## Bug fix : boutons « Nouvelle Demande » (congés) & « Générer les Bulletins » (paie) (2026-05-04 — iter 23)
+
+Les deux boutons existaient visuellement dans l'interface RH mais
+**n'avaient aucun `onClick`** — ce n'étaient que des placeholders
+décoratifs. Implémentation complète de la chaîne.
+
+### Congés (`LeaveRequest`)
+- `openLeaveModal` + `handleSubmitLeave` + nouvelle modale
+  `[data-testid="hr-leave-modal"]` avec :
+  - Sélecteur employé (obligatoire).
+  - Type : Congé annuel / maladie / maternité / sans solde /
+    permission exceptionnelle.
+  - Dates début/fin avec validation (fin ≥ début).
+  - Motif libre.
+- Appel POST `/api/employees/leaves` avec gestion d'erreur inline
+  + fermeture modale + refetch après succès.
+
+### Paie (`Payslip`)
+- `handleGeneratePayroll` + modale
+  `[data-testid="hr-payroll-modal"]` avec sélection mois / année.
+- **Calcul automatique Congo OHADA** via `computeCongoPayroll(base)` :
+  - **CNSS salarié 4 %** (employeur 16 % à charge de l'entreprise).
+  - **IRPP barème mensuel 2025** : tranches progressives
+    54 166 / 125 000 / 291 666 / 500 000 / ∞ aux taux
+    0 / 8 / 15 / 20 / 40 %.
+  - Net = brut − CNSS − IRPP.
+- Skip automatique des employés déjà payés pour la même période
+  (évite les doublons).
+- Source du salaire : contrat actif le plus récent (CDI/CDD
+  `Signed`/`Active`) en priorité, sinon `employee.salary`.
+
+### Validé (Playwright)
+- Modale congés ouvre, sélection Jean Test, sauvegarde OK →
+  ligne dans le tableau « Demandes de Congés » avec statut
+  « En attente », 04/05 → 11/05.
+- Modale paie ouvre, confirmation OK → bulletin créé
+  (Jean Test, 5/2026, net **411 667 XAF** sur 500 000 XAF brut
+  après CNSS 20 000 + IRPP 68 333).
+
 ## Bug fix : conversion devis→facture en production (2026-05-02 — iter 22)
 
 L'utilisateur signalait « la conversion devis facture fonctionne mal »
