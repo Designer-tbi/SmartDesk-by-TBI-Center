@@ -61,6 +61,10 @@ export const HR = ({ user }: { user: any }) => {
   const [payrollYear, setPayrollYear] = useState(new Date().getFullYear());
   const [generatingPayroll, setGeneratingPayroll] = useState(false);
   const [payrollError, setPayrollError] = useState<string | null>(null);
+
+  // Leave "Gérer" popover + payslip actions.
+  const [manageLeaveId, setManageLeaveId] = useState<string | null>(null);
+  const [downloadingPayslipId, setDownloadingPayslipId] = useState<string | null>(null);
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -390,6 +394,95 @@ export const HR = ({ user }: { user: any }) => {
       setPayrollError('Échec de la génération.');
     } finally {
       setGeneratingPayroll(false);
+    }
+  };
+
+  /* ----------- Leave status update & deletion ----------- */
+  const handleUpdateLeaveStatus = async (
+    leave: LeaveRequest,
+    status: 'Approved' | 'Rejected' | 'Pending',
+  ) => {
+    try {
+      const r = await apiFetch(`/api/employees/leaves/${leave.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...leave, status }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => null);
+        alert(d?.error || 'Échec de la mise à jour.');
+        return;
+      }
+      setManageLeaveId(null);
+      await fetchData();
+    } catch (err) {
+      console.error('Leave update failed:', err);
+      alert('Échec de la mise à jour.');
+    }
+  };
+
+  const handleDeleteLeave = async (id: string) => {
+    if (!confirm('Supprimer définitivement cette demande de congé ?')) return;
+    try {
+      const r = await apiFetch(`/api/employees/leaves/${id}`, { method: 'DELETE' });
+      if (r.ok) {
+        setManageLeaveId(null);
+        await fetchData();
+      }
+    } catch (err) {
+      console.error('Leave delete failed:', err);
+    }
+  };
+
+  /* ----------- Payslip PDF download + status ----------- */
+  const handleDownloadPayslip = async (payslip: Payslip) => {
+    setDownloadingPayslipId(payslip.id);
+    try {
+      const r = await apiFetch(`/api/employees/payslips/${payslip.id}/pdf`);
+      if (!r.ok) {
+        const d = await r.json().catch(() => null);
+        alert(d?.error || `Échec du téléchargement (HTTP ${r.status}).`);
+        return;
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const empName = employees.find((e) => e.id === payslip.employeeId)?.name || 'bulletin';
+      a.href = url;
+      a.download = `Bulletin_${payslip.month}-${payslip.year}_${empName}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Payslip PDF failed:', err);
+      alert('Échec du téléchargement.');
+    } finally {
+      setDownloadingPayslipId(null);
+    }
+  };
+
+  const handleTogglePayslipStatus = async (payslip: Payslip) => {
+    try {
+      const next = payslip.status === 'Paid' ? 'Draft' : 'Paid';
+      const r = await apiFetch(`/api/employees/payslips/${payslip.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payslip, status: next }),
+      });
+      if (r.ok) await fetchData();
+    } catch (err) {
+      console.error('Payslip status update failed:', err);
+    }
+  };
+
+  const handleDeletePayslip = async (id: string) => {
+    if (!confirm('Supprimer ce bulletin ?')) return;
+    try {
+      const r = await apiFetch(`/api/employees/payslips/${id}`, { method: 'DELETE' });
+      if (r.ok) await fetchData();
+    } catch (err) {
+      console.error('Payslip delete failed:', err);
     }
   };
 
@@ -987,8 +1080,53 @@ export const HR = ({ user }: { user: any }) => {
                         {leave.status === 'Approved' ? 'Approuvé' : leave.status === 'Pending' ? 'En attente' : 'Refusé'}
                       </span>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-xs font-bold text-accent-red hover:underline">Gérer</button>
+                    <td className="px-6 py-4 text-right relative">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setManageLeaveId(manageLeaveId === leave.id ? null : leave.id); }}
+                        className="text-xs font-bold text-accent-red hover:underline"
+                        data-testid={`hr-leave-manage-${leave.id}`}
+                      >
+                        Gérer
+                      </button>
+                      {manageLeaveId === leave.id && (
+                        <div
+                          className="absolute right-4 top-12 z-30 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden"
+                          onClick={(e) => e.stopPropagation()}
+                          data-testid={`hr-leave-manage-menu-${leave.id}`}
+                        >
+                          {leave.status !== 'Approved' && (
+                            <button
+                              onClick={() => handleUpdateLeaveStatus(leave, 'Approved')}
+                              className="w-full px-4 py-2.5 text-left text-sm font-medium text-emerald-600 hover:bg-emerald-50 flex items-center gap-2"
+                            >
+                              <CheckCircle className="w-4 h-4" /> Approuver
+                            </button>
+                          )}
+                          {leave.status !== 'Rejected' && (
+                            <button
+                              onClick={() => handleUpdateLeaveStatus(leave, 'Rejected')}
+                              className="w-full px-4 py-2.5 text-left text-sm font-medium text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            >
+                              <AlertCircle className="w-4 h-4" /> Refuser
+                            </button>
+                          )}
+                          {leave.status !== 'Pending' && (
+                            <button
+                              onClick={() => handleUpdateLeaveStatus(leave, 'Pending')}
+                              className="w-full px-4 py-2.5 text-left text-sm font-medium text-amber-600 hover:bg-amber-50 flex items-center gap-2"
+                            >
+                              <Clock className="w-4 h-4" /> Remettre en attente
+                            </button>
+                          )}
+                          <div className="border-t border-slate-100" />
+                          <button
+                            onClick={() => handleDeleteLeave(leave.id)}
+                            className="w-full px-4 py-2.5 text-left text-sm font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                          >
+                            <X className="w-4 h-4" /> Supprimer
+                          </button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1035,14 +1173,41 @@ export const HR = ({ user }: { user: any }) => {
                       {payslip.netSalary.toLocaleString()} {currencySymbol}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                        payslip.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                      }`}>
+                      <button
+                        onClick={() => handleTogglePayslipStatus(payslip)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold hover:opacity-80 transition-opacity ${
+                          payslip.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                        }`}
+                        title="Cliquer pour changer le statut"
+                        data-testid={`hr-payslip-toggle-${payslip.id}`}
+                      >
                         {payslip.status === 'Paid' ? t('hr.paid') : t('hr.draft')}
-                      </span>
+                      </button>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="p-2 text-slate-400 hover:text-accent-red"><Download className="w-4 h-4" /></button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleDownloadPayslip(payslip)}
+                          disabled={downloadingPayslipId === payslip.id}
+                          className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"
+                          title="Télécharger le bulletin"
+                          data-testid={`hr-payslip-download-${payslip.id}`}
+                        >
+                          {downloadingPayslipId === payslip.id ? (
+                            <div className="w-4 h-4 border-2 border-slate-300 border-t-accent-red rounded-full animate-spin" />
+                          ) : (
+                            <Download className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleDeletePayslip(payslip.id)}
+                          className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                          title="Supprimer"
+                          data-testid={`hr-payslip-delete-${payslip.id}`}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

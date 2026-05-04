@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { requireAuth, requireCompany } from '../middleware/auth.js';
 import { getMailerForCompany } from '../services/mailer.js';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export const employeesRouter = Router();
 
@@ -94,6 +96,116 @@ employeesRouter.delete('/payslips/:id', async (req, res, next) => {
     await req.db.query('DELETE FROM payslips WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     res.status(204).send();
   } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Generate a printable payslip PDF.
+ *
+ * Layout is kept deliberately simple so it fits on a single A4 page and
+ * remains readable when printed in black and white — that's what most
+ * Congolese HR departments still do for employee archives.
+ */
+employeesRouter.get('/payslips/:id/pdf', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const payRes = await req.db.query(
+      'SELECT * FROM payslips WHERE id = $1 AND "companyId" = $2',
+      [id, req.user!.companyId],
+    );
+    const payslip = payRes.rows[0];
+    if (!payslip) return res.status(404).json({ error: 'Bulletin introuvable' });
+
+    const [empRes, compRes, contractRes] = await Promise.all([
+      req.db.query('SELECT * FROM employees WHERE id = $1 AND "companyId" = $2', [payslip.employeeId, req.user!.companyId]),
+      req.db.query('SELECT * FROM companies WHERE id = $1', [req.user!.companyId]),
+      req.db.query(
+        `SELECT * FROM contracts
+          WHERE "employeeId" = $1 AND "companyId" = $2
+          ORDER BY "startDate" DESC LIMIT 1`,
+        [payslip.employeeId, req.user!.companyId],
+      ),
+    ]);
+    const employee = empRes.rows[0];
+    const company = compRes.rows[0];
+    const contract = contractRes.rows[0];
+    const cur = company?.currency || 'XAF';
+    const monthLabel = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][(payslip.month || 1) - 1] || '';
+    const fmt = (n: number) => `${Math.round(Number(n || 0)).toLocaleString('fr-FR')} ${cur}`;
+
+    const doc = new jsPDF();
+    doc.setFontSize(16);
+    doc.setFont(undefined, 'bold');
+    doc.text('BULLETIN DE PAIE', 14, 20);
+    doc.setFontSize(9);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${monthLabel} ${payslip.year}`, 14, 27);
+
+    // Employer block
+    doc.setFont(undefined, 'bold');
+    doc.text('EMPLOYEUR', 14, 40);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${company?.name || ''}`, 14, 46);
+    const addr = String(company?.address || '').split('\n');
+    let y = 52;
+    for (const line of addr) { doc.text(line, 14, y); y += 5; }
+    if (company?.niu) { doc.text(`NIU : ${company.niu}`, 14, y); y += 5; }
+    if (company?.rccm) { doc.text(`RCCM : ${company.rccm}`, 14, y); y += 5; }
+
+    // Employee block
+    doc.setFont(undefined, 'bold');
+    doc.text('SALARIÉ', 120, 40);
+    doc.setFont(undefined, 'normal');
+    doc.text(`${employee?.name || ''}`, 120, 46);
+    if (employee?.role) doc.text(employee.role, 120, 52);
+    if (employee?.matricule) doc.text(`Matricule CNSS : ${employee.matricule}`, 120, 58);
+    if (employee?.niu) doc.text(`NIU : ${employee.niu}`, 120, 64);
+    if (contract?.type) doc.text(`Contrat : ${contract.type}`, 120, 70);
+
+    const base = Number(payslip.baseSalary) || 0;
+    const bonuses = Number(payslip.bonuses) || 0;
+    const deductions = Number(payslip.deductions) || 0;
+    const net = Number(payslip.netSalary) || 0;
+
+    // Breakdown table
+    const rows: Array<[string, string]> = [
+      ['Salaire de base', fmt(base)],
+    ];
+    if (bonuses > 0) rows.push(['Primes / avantages', `+ ${fmt(bonuses)}`]);
+    if (deductions > 0) rows.push(['Retenues (CNSS + IRPP)', `- ${fmt(deductions)}`]);
+    rows.push(['NET À PAYER', fmt(net)]);
+
+    autoTable(doc, {
+      startY: 90,
+      head: [['Rubrique', 'Montant']],
+      body: rows,
+      theme: 'striped',
+      headStyles: { fillColor: [220, 38, 38] },
+      styles: { fontSize: 10 },
+      columnStyles: { 1: { halign: 'right' } },
+    });
+
+    const finalY = (doc as any).lastAutoTable?.finalY || 140;
+    doc.setFontSize(8);
+    doc.setTextColor(100);
+    doc.text(
+      'Document à conserver. Les cotisations CNSS (4 % salarié / 16 % employeur) et IRPP sont reversées aux administrations compétentes.',
+      14, finalY + 12, { maxWidth: 180 },
+    );
+
+    doc.setFontSize(9);
+    doc.setTextColor(0);
+    doc.text(`Fait à ${company?.city || ''}, le ${new Date().toLocaleDateString('fr-FR')}`, 14, finalY + 30);
+    doc.text('Signature Employeur', 14, finalY + 45);
+    doc.text('Signature Salarié', 120, finalY + 45);
+
+    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Bulletin_${monthLabel}_${payslip.year}_${employee?.name || ''}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('GET /payslips/:id/pdf error', error);
     next(error);
   }
 });
