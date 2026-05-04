@@ -967,3 +967,81 @@ le comportement.
   et `/sign-contract`).
 - Build Vite OK (16.5 s), aucun warning bloquant.
 - Aucun bug détecté (ni critique ni mineur).
+
+## Automatisation & Synchronisation inter-modules — Phase 1 (2026-05-04)
+
+### Objectif utilisateur
+« Automatise et synchronise tous les modules du CRM ». Répondu en 4 phases ;
+la Phase 1 couvre les automatisations métier (a). Les phases 2 (liens UI
+bidirectionnels), 3 (WebSocket temps réel sur tous les CRUD) et 4 (dashboard
+centralisé) restent à livrer.
+
+### Automatisations livrées
+
+Tout est centralisé dans `/app/server/services/automations.ts` (4 fonctions
+pures, idempotentes, chacune gère sa transaction).
+
+1. **Devis signé → facture brouillon auto**
+   - Déclenchement : `POST /api/public/quotes/:id/sign` (lien public) et
+     `PUT /api/invoices/:id` avec `status: 'Signed'` (signature interne).
+   - Effet : crée une facture `type=Invoice`, `status=Draft`, avec tous les
+     items + champs OHADA (remise, rabais, ristourne, escompte, CAC) du
+     devis. Met le devis en `Converted` + stocke les liens bidirectionnels
+     `convertedFromQuoteId` / `convertedToInvoiceId`.
+   - Idempotence : si `convertedToInvoiceId` existe déjà, ne fait rien.
+
+2. **Facture payée → écriture comptable OHADA auto**
+   - Déclenchement : `PUT /api/invoices/:id` quand `status` passe de
+     non-Paid à `Paid` (aussi bien sur la route classique que sur la route
+     certifiée DGID).
+   - Effet : insère un `journal_entries` (description « Encaissement
+     facture … ») + 3 `journal_items` :
+     - Débit **521** Banques = Total TTC
+     - Crédit **701** Ventes = Total HT
+     - Crédit **445** TVA facturée = TVA + Centimes Additionnels
+   - Idempotence : colonne `journal_entries.sourceRef` (index) pointant
+     sur l'id de la facture — une seule écriture par facture.
+
+3. **Contrat signé → bulletin brouillon auto**
+   - Déclenchement : `POST /api/public/contracts/:id/sign` et
+     `PUT /api/employees/contracts/:id` quand `status` passe de
+     non-(Signed/Active) à Signed ou Active.
+   - Effet : crée un `payslips` Draft pour le mois/année courant avec
+     `baseSalary = contract.salary`. Pour les sociétés congolaises
+     (`country=CG`) : applique CNSS 4 % + IRPP 2025 (5 tranches).
+   - Idempotence : check (employeeId, month, year).
+
+4. **Nouvel employé → contrat CDI brouillon auto**
+   - Déclenchement : `POST /api/employees`.
+   - Effet : crée un `contracts` Draft avec `type = emp.contractType`
+     (défaut CDI), `startDate = emp.joinDate`, `salary = emp.salary`.
+   - Idempotence : saute si un contrat existe déjà pour l'employé.
+
+### Notifications UI temps réel
+- Chaque automatisation émet un événement WebSocket typé
+  (`INVOICE_AUTO_CREATED`, `JOURNAL_AUTO_CREATED`, `PAYSLIP_AUTO_CREATED`).
+- Nouveau système de toast léger (`/app/src/lib/toast.tsx` + `<ToastHost />`
+  monté dans App.tsx).
+- Nouveau hook `useAutomationNotifications` qui écoute le WebSocket et
+  affiche un toast vert avec un message clair en français.
+
+### Migration DB
+- Schema version bumpée à `2026-05-04-automations`.
+- Ajout colonne `journal_entries.sourceRef TEXT` + index
+  `idx_journal_entries_source_ref ("companyId", "sourceRef")`.
+
+### Validation (iteration_4.json)
+- **10/10 tests d'automatisation passent** (testing_agent_v3_fork).
+- Idempotence vérifiée sur les 4 scénarios.
+- CNSS + IRPP Congo calculés correctement sur le bulletin auto-créé.
+- 1 bug mineur corrigé : `inv.totalHT.toLocaleString()` crashait quand
+  le champ était string (PG numeric) → coerced via `Number()`.
+
+### Phases restantes
+- **Phase 2 (d)** — Liens UI bidirectionnels (contact→factures/devis,
+  employé→contrats/bulletins/congés, navigation cliquable partout).
+- **Phase 3 (b)** — Étendre le broadcast WebSocket à TOUS les CRUD pour
+  une synchro multi-utilisateur temps réel de bout en bout.
+- **Phase 4 (c)** — Tableau de bord centralisé (widgets agrégés CA,
+  factures impayées, alertes RH, stocks faibles, top clients).
+

@@ -572,13 +572,17 @@ invoicesRouter.put('/:id', async (req, res, next) => {
           if (contact.email) doc.text(contact.email, 120, 65);
           if (contact.phone) doc.text(contact.phone, 120, 70);
           
-          const tableData = (inv.items || []).map((item: any) => [
-            item.name + (item.description ? `\n${item.description}` : ''),
-            item.quantity.toString(),
-            `${item.price.toLocaleString()} ${company.currency}`,
-            `${item.tvaRate}%`,
-            `${(item.quantity * item.price).toLocaleString()} ${company.currency}`
-          ]);
+          const tableData = (inv.items || []).map((item: any) => {
+            const qty = Number(item.quantity) || 0;
+            const price = Number(item.price) || 0;
+            return [
+              item.name + (item.description ? `\n${item.description}` : ''),
+              String(qty),
+              `${price.toLocaleString()} ${company.currency}`,
+              `${item.tvaRate ?? 0}%`,
+              `${(qty * price).toLocaleString()} ${company.currency}`,
+            ];
+          });
           
           autoTable(doc, {
             startY: 90,
@@ -589,11 +593,18 @@ invoicesRouter.put('/:id', async (req, res, next) => {
           });
           
           const finalY = (doc as any).lastAutoTable.finalY || 90;
-          
-          doc.text(`Total HT: ${inv.totalHT.toLocaleString()} ${company.currency}`, 140, finalY + 10);
-          doc.text(`TVA: ${inv.tvaTotal.toLocaleString()} ${company.currency}`, 140, finalY + 15);
+
+          // Safe numeric coercion — Postgres returns numerics as strings
+          // and older records may lack these fields entirely, in which
+          // case `.toLocaleString()` blows up during email sending.
+          const totalHT = Number(inv.totalHT) || 0;
+          const tvaTotal = Number(inv.tvaTotal) || 0;
+          const totalTTC = Number(inv.total) || 0;
+
+          doc.text(`Total HT: ${totalHT.toLocaleString()} ${company.currency}`, 140, finalY + 10);
+          doc.text(`TVA: ${tvaTotal.toLocaleString()} ${company.currency}`, 140, finalY + 15);
           doc.setFont(undefined, 'bold');
-          doc.text(`Total TTC: ${inv.total.toLocaleString()} ${company.currency}`, 140, finalY + 20);
+          doc.text(`Total TTC: ${totalTTC.toLocaleString()} ${company.currency}`, 140, finalY + 20);
           
           if (inv.signedAt) {
             doc.setTextColor(34, 197, 94); // Green
