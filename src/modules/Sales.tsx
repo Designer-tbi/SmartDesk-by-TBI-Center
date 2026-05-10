@@ -16,6 +16,7 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { useAuth } from '../lib/AuthContext';
 import { SignatureModal } from './sales/SignatureModal';
 import { useLiveSync } from '../lib/useLiveSync';
+import { currencySymbolFromCode } from '../lib/locale';
 
 export const Sales = ({ user }: { user: any }) => {
   const { t } = useTranslation();
@@ -23,8 +24,15 @@ export const Sales = ({ user }: { user: any }) => {
   // locally — this single source of truth was the root cause of stale
   // headers across the app.
   const { company: ctxCompany, refreshCompany } = useAuth();
-  const isUS = user?.country === 'USA';
-  const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency === 'XAF' ? 'XAF' : (isUS ? '$' : '€');
+  const isUS = user?.country === 'USA' || user?.country === 'US';
+  // Currency resolution priority:
+  //   1. The user's own `currency` setting (saved in preferences)
+  //   2. The active company's `currency` (DB)
+  //   3. A sane locale-based default deduced from the country code
+  // This is the single thing that was missing for CDF (RDC) — the
+  // earlier ladder fell back to € for any non-XAF/USD/EUR value.
+  const currencyCode = user?.currency || ctxCompany?.currency || (isUS ? 'USD' : 'EUR');
+  const currencySymbol = currencySymbolFromCode(currencyCode);
 
   const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
   const [invoices, setInvoices] = useState<Invoice[]>([]);

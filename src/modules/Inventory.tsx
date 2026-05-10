@@ -7,11 +7,12 @@ import { useTranslation } from '../lib/i18n';
 
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useLiveSync } from '../lib/useLiveSync';
+import { currencySymbolFromCode } from '../lib/locale';
 
 export const Inventory = ({ user }: { user: any }) => {
   const { t } = useTranslation();
-  const isUS = user?.country === 'USA';
-  const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency === 'XAF' ? 'XAF' : (isUS ? '$' : '€');
+  const isUS = user?.country === 'USA' || user?.country === 'US';
+  const currencySymbol = currencySymbolFromCode(user?.currency || (isUS ? 'USD' : 'EUR'));
 
   const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
   const [products, setProducts] = useState<Product[]>([]);

@@ -13,6 +13,7 @@ import { useTranslation } from '../lib/i18n';
 
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useLiveSync } from '../lib/useLiveSync';
+import { currencySymbolFromCode } from '../lib/locale';
 
 export const Accounting = ({ user }: { user?: any }) => {
   const { t, language } = useTranslation();
@@ -48,7 +49,7 @@ export const Accounting = ({ user }: { user?: any }) => {
   const isOHADA = standard === 'OHADA';
 
   const PCG = isUS ? US_GAAP : isFR ? FRANCE_PCG : OHADA_PCG;
-  const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency === 'XAF' ? 'XAF' : (isUS ? '$' : '€');
+  const currencySymbol = currencySymbolFromCode(user?.currency || (isUS ? 'USD' : 'EUR'));
 
   const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
 

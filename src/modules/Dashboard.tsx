@@ -12,6 +12,7 @@ import { motion } from 'motion/react';
 import { useTranslation } from '../lib/i18n';
 import { DashboardWidgets } from './dashboard/DashboardWidgets';
 import { useLiveSync } from '../lib/useLiveSync';
+import { currencySymbolFromCode } from '../lib/locale';
 
 const COLORS = ['#991b1b', '#dc2626', '#7f1d1d', '#ef4444'];
 
@@ -45,7 +46,7 @@ const StatCard = ({ title, value, change, icon: Icon, trend, delay }: any) => (
 
 export const Dashboard = ({ user }: { user: any }) => {
   const { t } = useTranslation();
-  const currencySymbol = user?.currency || 'XAF';
+  const currencySymbol = currencySymbolFromCode(user?.currency || 'XAF');
   const [stats, setStats] = useState({ 
     contacts: 0, 
     revenue: 0, 

@@ -21,13 +21,19 @@ import { LeaveRequestModal } from './hr/LeaveRequestModal';
 import { PayrollGenerateModal } from './hr/PayrollGenerateModal';
 import { EmployeeDetailModal } from './hr/EmployeeDetailModal';
 import { useLiveSync } from '../lib/useLiveSync';
+import { currencySymbolFromCode, resolveLocale } from '../lib/locale';
 
 const MONTH_LABELS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
 export const HR = ({ user }: { user: any }) => {
   const { t, dateLocale } = useTranslation();
-  const isUS = user?.country === 'USA';
-  const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency === 'XAF' ? 'XAF' : (isUS ? '$' : '€');
+  const isUS = user?.country === 'USA' || user?.country === 'US';
+  const currencyCode = user?.currency || (isUS ? 'USD' : 'EUR');
+  const currencySymbol = currencySymbolFromCode(currencyCode);
+  // Resolve dial code so new-employee phones are pre-filled with the
+  // company's country prefix (e.g. +243 for RDC) instead of staying
+  // blank — same convention as the CRM module.
+  const employeeLocale = resolveLocale(user?.country);
 
   const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
   const [activeTab, setActiveTab] = useState<'directory' | 'leaves' | 'payroll' | 'contracts' | 'stats' | 'tasks'>('directory');
@@ -184,7 +190,7 @@ export const HR = ({ user }: { user: any }) => {
   const openAddModal = () => {
     setEditingEmployee(null);
     setModalTab('info');
-    setNewEmployee({ name: '', role: '', department: '', email: '', phone: '', address: '', status: 'Active', contractType: 'CDI', joinDate: '', salary: 0, profilePicture: '', documents: [] });
+    setNewEmployee({ name: '', role: '', department: '', email: '', phone: employeeLocale.dialCode, address: '', status: 'Active', contractType: 'CDI', joinDate: '', salary: 0, profilePicture: '', documents: [] });
     setIsModalOpen(true);
   };
 
@@ -232,7 +238,7 @@ export const HR = ({ user }: { user: any }) => {
         if (response.ok) fetchData();
       }
       setIsModalOpen(false);
-      setNewEmployee({ name: '', role: '', department: '', email: '', phone: '', address: '', status: 'Active', contractType: 'CDI', joinDate: '', salary: 0, profilePicture: '', documents: [] });
+      setNewEmployee({ name: '', role: '', department: '', email: '', phone: employeeLocale.dialCode, address: '', status: 'Active', contractType: 'CDI', joinDate: '', salary: 0, profilePicture: '', documents: [] });
     } catch (error) {
       console.error('Failed to save employee:', error);
     } finally {
@@ -1567,7 +1573,7 @@ export const HR = ({ user }: { user: any }) => {
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.phone')}</label>
-                        <input type="tel" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newEmployee.phone || ''} onChange={e => setNewEmployee({...newEmployee, phone: e.target.value})} placeholder="+33 6 00 00 00 00" />
+                        <input type="tel" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newEmployee.phone || ''} onChange={e => setNewEmployee({...newEmployee, phone: e.target.value})} placeholder={employeeLocale.phonePlaceholder} />
                       </div>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.address')}</label>

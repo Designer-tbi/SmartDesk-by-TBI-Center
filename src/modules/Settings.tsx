@@ -493,7 +493,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.defaultCurrency')}</label>
                     <div className="relative">
                       <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400">
-                        {company.currency === 'XAF' ? 'FCFA' : company.currency === 'EUR' ? '€' : '$'}
+                        {company.currency === 'XAF' ? 'FCFA' : company.currency === 'XOF' ? 'FCFA' : company.currency === 'CDF' ? 'FC' : company.currency === 'EUR' ? '€' : '$'}
                       </span>
                       <select
                         className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
@@ -501,6 +501,8 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                         onChange={(e) => setCompany({ ...company, currency: e.target.value })}
                       >
                         <option value="XAF">{t('settings.currencyXaf')}</option>
+                        <option value="XOF">XOF — Franc CFA UEMOA</option>
+                        <option value="CDF">CDF — Franc Congolais</option>
                         <option value="EUR">{t('settings.currencyEur')}</option>
                         <option value="USD">{t('settings.currencyUsd')}</option>
                       </select>

@@ -144,7 +144,7 @@ export const CRM = ({ user }: { user?: any }) => {
     setNewContact({
       name: '',
       email: '',
-      phone: '',
+      phone: locale.dialCode,
       // Don't pre-fill the contact's "company" with the logged-in company's
       // name — that's misleading for individuals and pollutes pro contacts.
       company: '',

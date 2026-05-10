@@ -5,6 +5,7 @@ import { Plus, Calendar, CheckCircle2, Circle, Clock, MoreHorizontal, X, Pencil,
 import { Project, Contact, Employee } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useLiveSync } from '../lib/useLiveSync';
+import { currencySymbolFromCode } from '../lib/locale';
 
 export const Projects = ({ user }: { user?: any }) => {
   const { t } = useTranslation();
@@ -32,9 +33,9 @@ export const Projects = ({ user }: { user?: any }) => {
     teamIds: []
   });
 
-  const isUS = user?.country === 'USA';
-  const currencySymbol = user?.currency === 'USD' ? '$' : user?.currency === 'EUR' ? '€' : user?.currency === 'XAF' ? 'XAF' : (isUS ? '$' : '€');
-  const currencyCode = user?.currency || 'XAF';
+  const isUS = user?.country === 'USA' || user?.country === 'US';
+  const currencySymbol = currencySymbolFromCode(user?.currency || (isUS ? 'USD' : 'EUR'));
+  const currencyCode = user?.currency || (isUS ? 'USD' : 'XAF');
   const locale = user?.language === 'en' ? 'en-US' : 'fr-FR';
 
   const formatCurrency = (amount: number) => {
