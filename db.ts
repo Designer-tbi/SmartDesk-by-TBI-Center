@@ -531,6 +531,15 @@ export async function initializeDatabase() {
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "subscriptionPlan" TEXT`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "subscriptionPeriodEnd" TIMESTAMPTZ`);
 
+        // Extended company configuration: legal form, share capital, legal
+        // representative + CNSS social-security rates (OHADA / Congo).
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "legalForm" TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS capital REAL`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "representativeName" TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "representativeRole" TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "cnssEmployerRate" REAL`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "cnssEmployeeRate" REAL`);
+
         // Key/value store used (so far) to persist the PayPal product +
         // plan ids generated on first bootstrap — avoids hard-coding
         // them or re-creating them on every deploy.
@@ -555,7 +564,7 @@ export async function initializeDatabase() {
       // Bumped to 2026-05-02-ohada so existing deploys (which were marked
       // up-to-date with 2026-04-29-onboarding) re-run the incremental
       // migrations exactly once and pick up the OHADA columns.
-      const TARGET_SCHEMA = '2026-05-04-subscriptions';
+      const TARGET_SCHEMA = '2026-05-04-extended-config';
       if (flag.rows[0]?.value === TARGET_SCHEMA) {
         console.log('Database schema already up-to-date, skipping init.');
         return;

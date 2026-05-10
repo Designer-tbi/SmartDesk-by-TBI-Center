@@ -4,29 +4,28 @@
 - Email: eden@tbi-center.fr
 - Password: loub@ki2014D
 
-## Demo Company (CG — Republic of Congo)
-- Email: admin@smartdesk.cg
+## Demo Company (CG — Republic of Congo) — Onboarding RESET
+- Email: designer@tbi-center.fr
 - Password: admin
-- Company ID: demo-1
+- Company ID: demo-company-1778004153821
 - Country: CG
+- onboardingCompleted=false (fresh wizard test)
 - Subscription plan: CG_XAF (75 USD ≈ 45 000 XAF / month)
-- Trial state: fresh (reset 2026-05-04)
 
-## Demo Company (CD — RDC, currency CDF)
+## Demo Company (CD — RDC, currency CDF) — Onboarding RESET
 - Email: ariane.mbombo@tbi-center.fr
 - Password: admin
 - Company ID: demo-company-1777919795902
 - Country: CD
 - Currency: CDF
-- Used to test +243 dial code + CDF currency localization
+- onboardingCompleted=false (fresh wizard test — should NOT ask SFEC key)
 
-## Demo Company (CD — RDC, currency USD)
+## Demo Company (CD — RDC, currency USD) — Already onboarded
 - Email: plamedi.fika@tbi-center.fr
 - Password: admin
 - Company ID: demo-company-1778066583519
 - Country: CD
 - Currency: USD
-- Used to test +243 dial code + USD currency localization
 
 ## PayPal (production)
 - Mode: live

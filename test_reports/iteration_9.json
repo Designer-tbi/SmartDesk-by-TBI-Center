@@ -1,0 +1,125 @@
+{
+  "summary": "Onboarding Wizard & Extended Company Profile - All tests passed. Backend: 10/10 tests passed. Frontend: All UI flows verified working correctly for RDC (4 steps, no SFEC) and Congo (5 steps, optional SFEC). Responsive design working at mobile (390px), tablet (768px), and desktop (1920px).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Onboarding Wizard",
+        "issues": ["Wizard defaults to Congo (CG) instead of detecting user's existing country from company data. User must manually select their country on step 1. This is a UX improvement suggestion, not a bug."]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_onboarding.py",
+    "/app/test_reports/pytest/pytest_onboarding.xml"
+  ],
+  "action_items": [
+    "OPTIONAL UX IMPROVEMENT: Initialize OnboardingWizard country selection based on user's existing company.country value instead of defaulting to CG"
+  ],
+  "critical_code_review_comments": [
+    "VERIFIED: POST /api/company/onboarding accepts empty fiscalizationApiKey for RDC (CD)",
+    "VERIFIED: POST /api/company/onboarding accepts empty fiscalizationApiKey for Congo (CG) - SFEC is optional",
+    "VERIFIED: POST /api/company/onboarding rejects fiscalizationApiKey < 16 chars for Congo (CG)",
+    "VERIFIED: POST /api/company/onboarding persists all new fields: legalForm, capital, representativeName, representativeRole, cnssEmployerRate, cnssEmployeeRate",
+    "VERIFIED: PUT /api/company updates all new extended fields correctly",
+    "VERIFIED: GET /api/company returns hasFiscalizationKey flag (not raw key)",
+    "VERIFIED: RDC wizard shows 4 steps (no SFEC step)",
+    "VERIFIED: Congo wizard shows 5 steps with optional SFEC step",
+    "VERIFIED: 'Sauter cette étape' (Skip) button visible when SFEC key is empty",
+    "VERIFIED: CNSS defaults: RDC = 13%/5%, Congo = 16%/4%",
+    "VERIFIED: Settings page shows all new fields: Forme juridique, Capital, Représentant légal, Qualité du représentant, CNSS patronale %, CNSS salariale %",
+    "VERIFIED: Responsive mobile (390px): sidebar hidden, hamburger menu, 1-column forms",
+    "VERIFIED: Responsive tablet (768px): sidebar hidden, 2-column forms",
+    "VERIFIED: Responsive desktop (1920px): full layout",
+    "VERIFIED: Onboarding wizard usable on mobile (scrollable, buttons accessible)",
+    "REGRESSION PASSED: RDC localization still working (+243 dial code, CDF/USD currency)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_onboarding.py"
+  ],
+  "success_rate": {
+    "backend": "100% (10/10 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "rdc_cdf_user": "ariane.mbombo@tbi-center.fr / admin (country=CD, currency=CDF, onboardingCompleted=false for testing)",
+    "congo_user": "designer@tbi-center.fr / admin (country=CG, currency=XAF, onboardingCompleted=false for testing)",
+    "rdc_usd_user": "plamedi.fika@tbi-center.fr / admin (country=CD, currency=USD, onboardingCompleted=true)"
+  },
+  "seed_data_creation": "None - used existing demo companies with onboarding reset via direct DB queries",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Onboarding wizard fully tested for both RDC (4 steps) and Congo (5 steps). All new extended company profile fields working. Responsive design verified at mobile/tablet/desktop. Test file: /app/backend/tests/test_onboarding.py. Note: After testing, the ariane.mbombo and designer accounts may have onboardingCompleted=true - reset them if needed for future onboarding tests.",
+  "tests_executed": {
+    "backend_tests": [
+      {"test": "test_rdc_onboarding_accepts_empty_sfec_key", "result": "PASSED"},
+      {"test": "test_congo_onboarding_accepts_empty_sfec_key", "result": "PASSED"},
+      {"test": "test_congo_onboarding_rejects_short_sfec_key", "result": "PASSED"},
+      {"test": "test_congo_onboarding_accepts_valid_sfec_key", "result": "PASSED"},
+      {"test": "test_onboarding_persists_new_fields", "result": "PASSED"},
+      {"test": "test_settings_update_new_fields", "result": "PASSED"},
+      {"test": "test_settings_returns_has_fiscalization_key_flag", "result": "PASSED"},
+      {"test": "test_rdc_user_has_correct_country", "result": "PASSED"},
+      {"test": "test_rdc_user_has_correct_currency", "result": "PASSED"},
+      {"test": "test_rdc_company_has_ohada_standard", "result": "PASSED"}
+    ],
+    "frontend_tests": [
+      {"test": "RDC Onboarding - 4 steps (no SFEC)", "result": "PASSED"},
+      {"test": "RDC Onboarding - CD country selection", "result": "PASSED"},
+      {"test": "RDC Onboarding - CNSS defaults 13%/5%", "result": "PASSED"},
+      {"test": "RDC Onboarding - Submit without SFEC key", "result": "PASSED"},
+      {"test": "Congo Onboarding - 5 steps with SFEC", "result": "PASSED"},
+      {"test": "Congo Onboarding - CG country pre-selected", "result": "PASSED"},
+      {"test": "Congo Onboarding - CNSS defaults 16%/4%", "result": "PASSED"},
+      {"test": "Congo Onboarding - NIU field present", "result": "PASSED"},
+      {"test": "Congo Onboarding - Skip SFEC button visible", "result": "PASSED"},
+      {"test": "Congo Onboarding - Skip SFEC flow works", "result": "PASSED"},
+      {"test": "Settings - New fields visible", "result": "PASSED"},
+      {"test": "Settings - Field persistence", "result": "PASSED"},
+      {"test": "Mobile (390px) - Sidebar hidden", "result": "PASSED"},
+      {"test": "Mobile (390px) - Hamburger menu works", "result": "PASSED"},
+      {"test": "Mobile (390px) - Onboarding wizard usable", "result": "PASSED"},
+      {"test": "Tablet (768px) - 2-column forms", "result": "PASSED"},
+      {"test": "Desktop (1920px) - Full layout", "result": "PASSED"}
+    ]
+  },
+  "onboarding_wizard_details": {
+    "rdc_flow": {
+      "steps": 4,
+      "step_names": ["Localisation", "Identité", "Contact", "Cotisations"],
+      "sfec_step": "NOT SHOWN (skipped for RDC)",
+      "cnss_defaults": {"employer": "13%", "employee": "5%"},
+      "fields_shown": ["Logo", "Nom", "Forme juridique", "RCCM", "ID NAT", "Capital", "Email", "Téléphone", "Adresse", "Représentant légal", "Qualité du représentant", "CNSS patronale", "CNSS salariale"]
+    },
+    "congo_flow": {
+      "steps": 5,
+      "step_names": ["Localisation", "Identité", "Contact", "Cotisations", "Clé SFEC"],
+      "sfec_step": "SHOWN but OPTIONAL (can skip)",
+      "cnss_defaults": {"employer": "16%", "employee": "4%"},
+      "fields_shown": ["Logo", "Nom", "Forme juridique", "RCCM", "NIU", "ID NAT", "Capital", "Email", "Téléphone", "Adresse", "Représentant légal", "Qualité du représentant", "CNSS patronale", "CNSS salariale", "Clé API SFEC"]
+    }
+  },
+  "responsive_design_details": {
+    "mobile_390px": {
+      "sidebar": "Hidden by default, opens as drawer via hamburger menu",
+      "forms": "1 column layout",
+      "wizard": "Scrollable, buttons accessible at bottom",
+      "padding": "p-4"
+    },
+    "tablet_768px": {
+      "sidebar": "Hidden, hamburger menu",
+      "forms": "2 column layout (md:grid-cols-2)",
+      "padding": "p-6"
+    },
+    "desktop_1920px": {
+      "sidebar": "Visible, sticky",
+      "forms": "2 column layout",
+      "padding": "p-8"
+    }
+  }
+}

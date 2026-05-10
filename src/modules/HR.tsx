@@ -329,7 +329,11 @@ export const HR = ({ user }: { user: any }) => {
    * the 2025 official rates (CNSS 4 % salarié, IRPP barème simplifié).
    */
   const computeCongoPayroll = (base: number) => {
-    const cnss = Math.round(base * 0.04); // salarié 4% (employeur 16%)
+    // Use the company-configured CNSS rate when present, otherwise fall
+    // back to the Congo OHADA default of 4 % employee.
+    const cnssRate = Number((companyInfo as any)?.cnssEmployeeRate);
+    const effectiveRate = Number.isFinite(cnssRate) && cnssRate > 0 ? cnssRate / 100 : 0.04;
+    const cnss = Math.round(base * effectiveRate);
     // IRPP barème mensuel simplifié (République du Congo, 2025)
     let irpp = 0;
     const taxable = Math.max(0, base - cnss);

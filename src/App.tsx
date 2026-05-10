@@ -65,7 +65,7 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
       <Sidebar user={user} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header title={getTitle(location.pathname)} onLogout={onLogout} user={user} onMenuClick={() => setIsSidebarOpen(true)} />
-        <main className="flex-1 overflow-auto p-8">
+        <main className="flex-1 overflow-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto w-full">
             <AnimatePresence mode="wait">
               <motion.div

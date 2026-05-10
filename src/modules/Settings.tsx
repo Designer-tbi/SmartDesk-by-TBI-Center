@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut, Upload, Check, PlayCircle, Star, HelpCircle, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Settings as SettingsIcon, Radar } from 'lucide-react';
+import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut, Upload, Check, PlayCircle, Star, HelpCircle, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Settings as SettingsIcon, Radar, Wallet, Percent } from 'lucide-react';
 import { HelpSection } from '../components/HelpSection';
 import { CompanyInfo, User as UserType } from '../types';
 import { apiFetch } from '../lib/api';
@@ -595,6 +595,124 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                       />
                     </div>
                   </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Forme juridique</label>
+                    <div className="relative">
+                      <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <select
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                        value={(company as any).legalForm || ''}
+                        onChange={(e) => setCompany({ ...company, legalForm: e.target.value } as any)}
+                        data-testid="settings-legal-form"
+                      >
+                        <option value="">— Sélectionner —</option>
+                        <option value="SARL — Société à Responsabilité Limitée">SARL</option>
+                        <option value="SARLU — SARL Unipersonnelle">SARLU</option>
+                        <option value="SA — Société Anonyme">SA</option>
+                        <option value="SAS — Société par Actions Simplifiée">SAS</option>
+                        <option value="SASU — SAS Unipersonnelle">SASU</option>
+                        <option value="SNC — Société en Nom Collectif">SNC</option>
+                        <option value="SCS — Société en Commandite Simple">SCS</option>
+                        <option value="EI — Entreprise Individuelle">EI</option>
+                        <option value="EURL — Entreprise Unipersonnelle à Responsabilité Limitée">EURL</option>
+                        <option value="GIE — Groupement d'Intérêt Économique">GIE</option>
+                        <option value="Coopérative">Coopérative</option>
+                        <option value="Association">Association</option>
+                        <option value="Autre">Autre</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                      Capital social ({company.currency || 'XAF'})
+                    </label>
+                    <div className="relative">
+                      <Wallet className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="number" min="0"
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                        value={(company as any).capital ?? ''}
+                        onChange={(e) => setCompany({ ...company, capital: e.target.value === '' ? undefined : Number(e.target.value) } as any)}
+                        data-testid="settings-capital"
+                        placeholder="1000000"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Représentant légal</label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input
+                        type="text"
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                        value={(company as any).representativeName || ''}
+                        onChange={(e) => setCompany({ ...company, representativeName: e.target.value } as any)}
+                        data-testid="settings-rep-name"
+                        placeholder="Nom complet"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Qualité du représentant</label>
+                    <div className="relative">
+                      <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <select
+                        className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                        value={(company as any).representativeRole || ''}
+                        onChange={(e) => setCompany({ ...company, representativeRole: e.target.value } as any)}
+                        data-testid="settings-rep-role"
+                      >
+                        <option value="">— Sélectionner —</option>
+                        <option value="Gérant">Gérant</option>
+                        <option value="Co-Gérant">Co-Gérant</option>
+                        <option value="Président">Président</option>
+                        <option value="Président-Directeur Général">Président-Directeur Général</option>
+                        <option value="Directeur Général">Directeur Général</option>
+                        <option value="Directeur">Directeur</option>
+                        <option value="Administrateur">Administrateur</option>
+                        <option value="Associé Unique">Associé Unique</option>
+                        <option value="Autre">Autre</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {company.accountingStandard === 'OHADA' && (
+                    <>
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">CNSS — part patronale (%)</label>
+                        <div className="relative">
+                          <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type="number" min="0" max="100" step="0.01"
+                            className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                            value={(company as any).cnssEmployerRate ?? ''}
+                            onChange={(e) => setCompany({ ...company, cnssEmployerRate: e.target.value === '' ? undefined : Number(e.target.value) } as any)}
+                            data-testid="settings-cnss-employer"
+                            placeholder="16"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">CNSS — part salariale (%)</label>
+                        <div className="relative">
+                          <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type="number" min="0" max="100" step="0.01"
+                            className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                            value={(company as any).cnssEmployeeRate ?? ''}
+                            onChange={(e) => setCompany({ ...company, cnssEmployeeRate: e.target.value === '' ? undefined : Number(e.target.value) } as any)}
+                            data-testid="settings-cnss-employee"
+                            placeholder="4"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div className="space-y-1.5 md:col-span-2">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.address')}</label>

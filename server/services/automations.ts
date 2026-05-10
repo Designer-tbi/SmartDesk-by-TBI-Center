@@ -214,8 +214,11 @@ export async function autoPostPaidInvoiceJournal(
 /* 3.  Contract signed  ->  first draft payslip                     */
 /* -------------------------------------------------------------- */
 
-const computeCongoPayrollBreakdown = (base: number) => {
-  const cnss = Math.round(base * 0.04);
+const computeCongoPayrollBreakdown = (base: number, cnssRatePct?: number | null) => {
+  const rate = Number.isFinite(Number(cnssRatePct)) && Number(cnssRatePct) > 0
+    ? Number(cnssRatePct) / 100
+    : 0.04;
+  const cnss = Math.round(base * rate);
   let irpp = 0;
   const taxable = Math.max(0, base - cnss);
   const brackets: Array<[number, number]> = [
@@ -273,13 +276,14 @@ export async function autoCreateFirstPayslip(
   if (dupe.rows.length > 0) return null;
 
   const comp = await db.query(
-    `SELECT country FROM companies WHERE id = $1`,
+    `SELECT country, "cnssEmployeeRate" FROM companies WHERE id = $1`,
     [companyId],
   );
   const country = String(comp.rows[0]?.country || '').toUpperCase();
   const isCG = country === 'CG' || country === 'CONGO';
+  const cnssRate = comp.rows[0]?.cnssEmployeeRate;
   const { deductions, net } = isCG
-    ? computeCongoPayrollBreakdown(base)
+    ? computeCongoPayrollBreakdown(base, cnssRate)
     : { deductions: 0, net: base };
 
   const payslipId = `pay_${contract.employeeId}_${year}${String(month).padStart(2, '0')}_${Date.now()}`;

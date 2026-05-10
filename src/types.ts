@@ -241,10 +241,19 @@ export interface CompanyInfo {
   siren?: string;
   siret?: string;
   country?: string;
+  city?: string;
   logo?: string;
   language?: string;
   currency?: string;
   accountingStandard?: 'OHADA' | 'US_GAAP' | 'FRANCE';
+  // Extended profile (OHADA)
+  legalForm?: string;          // SARL, SA, SAS, EI, EURL, SCS…
+  capital?: number;            // Capital social
+  representativeName?: string; // Représentant légal
+  representativeRole?: string; // Gérant, DG, Président…
+  cnssEmployerRate?: number;   // % patronal CNSS
+  cnssEmployeeRate?: number;   // % salarié CNSS
+  hasFiscalizationKey?: boolean;
 }
 
 export interface User {
