@@ -1286,3 +1286,34 @@ Webhook PayPal réel, persistant. Ne pas supprimer.
 ### Production checklist (Vercel)
 - Mettre à jour `PAYPAL_RETURN_URL_BASE` au domaine prod.
 - Rejouer `POST /api/subscription/bootstrap-webhook` côté super admin.
+
+## Validation Localisation RDC (2026-05-04 — iter 8 testing)
+
+### Contexte
+L'utilisateur (RDC) signalait que les formulaires CRM/HR/Sales restaient en
++242 / XAF (Congo-Brazzaville) au lieu de s'adapter à +243 / CDF/USD.
+
+### Validation (iteration_8.json — frontend testing agent, 100%)
+Comptes testés :
+- `plamedi.fika@tbi-center.fr` / admin (CD/USD, onboarding terminé) — testé
+  sur tous les modules.
+- `ariane.mbombo@tbi-center.fr` / admin (CD/CDF) — testé via le wizard
+  d'onboarding (qui affiche bien RDC/CDF/Kinshasa/OHADA).
+
+Résultats par module (utilisateur RDC USD) :
+- CRM > Nouveau Contact : phone pré-rempli `+243 `, placeholder
+  `+243 XX XXX XXXX`, tax ID label `ID NAT` ✅
+- HR > Nouvel Employé : phone `+243 `, salaire libellé `SALAIRE ANNUEL ($)` ✅
+- Sales / Inventory / Accounting / Dashboard : symbole devise `$` partout ✅
+- Settings : pays "République Démocratique du Congo (RDC)", devise USD, 
+  comptabilité OHADA ✅
+- Aucun affichage `XAF` ou `FCFA` détecté pour les utilisateurs RDC ✅
+
+### Note
+- Le compte `ariane.mbombo` ne peut pas terminer son onboarding car la clé
+  SFEC démo masquée (`97ecc28...943c`) ne passe pas la validation `≥16
+  chars`. Pré-existant, non lié au fix de localisation.
+
+### Crédentiels ajoutés à test_credentials.md
+- `ariane.mbombo@tbi-center.fr` / `admin` (CD/CDF)
+- `plamedi.fika@tbi-center.fr` / `admin` (CD/USD)
