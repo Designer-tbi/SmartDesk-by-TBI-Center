@@ -139,6 +139,8 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
           isDemo: !!userData.isDemo,
         });
         setUser(userData);
+        // Expose to OnboardingWizard so it can pre-select the country.
+        try { (window as any).__SMARTDESK_USER__ = userData; } catch { /* noop */ }
         if (userData.language) setLanguage(userData.language);
         setIsLoading(false);
       })

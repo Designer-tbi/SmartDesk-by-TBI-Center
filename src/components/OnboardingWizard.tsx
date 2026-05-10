@@ -100,8 +100,23 @@ type Step = 1 | 2 | 3 | 4 | 5;
 
 export const OnboardingWizard = ({ onCompleted }: Props) => {
   const [step, setStep] = useState<Step>(1);
-  const [country, setCountry] = useState<Country>(COUNTRIES[1]); // Congo default
-  const [city, setCity] = useState<string>(COUNTRIES[1].cities[0]);
+  // Pre-select the country already stored on the company (set at signup
+  // time from the IP geolocation) so the user doesn't have to re-pick it.
+  const initialCountry = React.useMemo<Country>(() => {
+    if (typeof window === 'undefined') return COUNTRIES[1];
+    // Read from a cached /api/auth/me payload if anything has already
+    // populated it (Login or App's bootstrap effect). Otherwise default
+    // to Congo — historical default for SmartDesk demos.
+    try {
+      const cached = (window as any).__SMARTDESK_USER__;
+      const iso = String(cached?.country || '').toUpperCase();
+      const m = COUNTRIES.find(c => c.code === iso);
+      if (m) return m;
+    } catch { /* noop */ }
+    return COUNTRIES[1];
+  }, []);
+  const [country, setCountry] = useState<Country>(initialCountry);
+  const [city, setCity] = useState<string>(initialCountry.cities[0]);
   const [autoDetecting, setAutoDetecting] = useState(false);
   const [autoMessage, setAutoMessage] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);

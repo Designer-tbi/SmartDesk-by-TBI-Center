@@ -1317,3 +1317,70 @@ Résultats par module (utilisateur RDC USD) :
 ### Crédentiels ajoutés à test_credentials.md
 - `ariane.mbombo@tbi-center.fr` / `admin` (CD/CDF)
 - `plamedi.fika@tbi-center.fr` / `admin` (CD/USD)
+
+## Onboarding étendu + Responsive (2026-05-04 — iter 9)
+
+### Demande utilisateur
+1. Pour la RDC (CD) : ne PLUS demander de clé API SFEC à l'onboarding (la SFEC est congolaise — CG uniquement).
+2. Formulaire de paramétrage complet (Congo + RDC) : logo, RCCM, NIU/ID NAT,
+   forme juridique, capital, représentant légal + qualité, adresse, téléphone,
+   email, taux CNSS patronale/salariale.
+3. Adapter le site à tous les formats (mobile / tablette / desktop).
+
+### Choix utilisateur
+- Clé SFEC pour Congo : OPTIONNELLE (skippable, complétable plus tard depuis Paramètres).
+- Logo : upload fichier (data:URL, max 2 Mo) OU URL externe.
+- Tous les champs proposés inclus, plus les taux CNSS.
+
+### DB — schema_version `2026-05-04-extended-config`
+6 nouvelles colonnes nullables sur `companies` :
+- `legalForm` TEXT (SARL, SA, SAS, EI…)
+- `capital` REAL (capital social en devise société)
+- `representativeName` TEXT
+- `representativeRole` TEXT (Gérant, DG, Président…)
+- `cnssEmployerRate` REAL (% patronal)
+- `cnssEmployeeRate` REAL (% salarié)
+
+### Backend (`/app/server/routes/company.ts`)
+- `POST /api/company/onboarding` : `fiscalizationApiKey` désormais OPTIONNELLE.
+  Validation 16 chars uniquement si fournie ET pays = CG. Accepte les 6 nouveaux
+  champs + name/logo/taxId/rccm/idNat/niu/address/phone/email/website.
+  Réponse : `hasFiscalizationKey` flag (jamais la clé brute).
+- `PUT /api/company` : étendu pour accepter et persister les 6 nouveaux champs.
+
+### Backend automations (`/app/server/services/automations.ts`)
+- `computeCongoPayrollBreakdown(base, cnssRate?)` lit désormais
+  `companies.cnssEmployeeRate` quand disponible, fallback 4 % par défaut.
+
+### Frontend
+- **OnboardingWizard.tsx — réécrit en 5 étapes** :
+  1. Localisation (Pays/Ville + auto-détection IP)
+  2. Identité (Logo upload/URL, Nom, Forme juridique 13 options, RCCM, NIU, ID NAT, Capital)
+  3. Contact + représentant (Email, Téléphone, Site web, Adresse, Nom + Qualité représentant)
+  4. CNSS (taux patronal/salarial avec pré-remplissage selon pays : CG 16%/4%, CD 13%/5%, FR 42%/22%)
+  5. **Clé SFEC — uniquement pour Congo, OPTIONNELLE** avec bouton "Sauter cette étape"
+  Pré-sélection automatique du pays depuis `user.country` (cache `window.__SMARTDESK_USER__`).
+- **Settings.tsx** — 6 nouveaux champs ajoutés au formulaire entreprise :
+  Forme juridique, Capital, Représentant légal, Qualité, CNSS patronale/salariale.
+  Les CNSS ne sont visibles que si `accountingStandard='OHADA'`.
+- **HR.tsx** — `computeCongoPayroll(base)` lit `companyInfo.cnssEmployeeRate`.
+
+### Responsive
+- `App.tsx` PageWrapper : padding main `p-4 sm:p-6 lg:p-8` (mobile→desktop).
+- OnboardingWizard : `max-w-3xl` + `max-h-[70vh] overflow-y-auto` + grilles
+  `sm:grid-cols-2`, stepper bar scrollable horizontalement, footer flex-wrap.
+- Sidebar/Header existants ont déjà mobile drawer (lg:sticky, hamburger).
+
+### Validation (iteration_9.json — 100 % backend + 100 % frontend)
+- 10/10 tests backend (test_onboarding.py) : POST /onboarding accepte clé vide
+  pour CD et CG, rejette <16 chars pour CG, persiste les 6 champs étendus,
+  PUT /company met à jour, GET /company expose seulement le flag.
+- 17/17 tests frontend : RDC = 4 étapes (no SFEC) ; Congo = 5 étapes avec
+  bouton Skip ; CNSS pré-rempli correctement ; Settings affiche tous les
+  nouveaux champs ; mobile (390px) / tablette (768px) / desktop (1920px)
+  tous validés ; régression localisation RDC OK.
+
+### Crédentiels test (test_credentials.md)
+- `designer@tbi-center.fr` / `admin` (CG, onboarding RESET pour test wizard)
+- `ariane.mbombo@tbi-center.fr` / `admin` (CD/CDF, onboarding RESET)
+- `plamedi.fika@tbi-center.fr` / `admin` (CD/USD, déjà onboardé)
