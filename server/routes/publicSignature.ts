@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { autoConvertSignedQuoteToInvoice, autoCreateFirstPayslip } from '../services/automations.js';
+import { autoCreateFirstPayslip } from '../services/automations.js';
 import { broadcast } from '../activity.js';
 
 /**
@@ -95,27 +95,12 @@ publicSignatureRouter.post('/quotes/:id/sign', async (req, res, next) => {
       [signedAt, JSON.stringify({ signerName, signatureDataUrl }), id],
     );
 
-    // Automation: turn the signed quote into a draft invoice ready
-    // to be sent. The signing flow stays successful even if the
-    // automation fails (e.g. RLS edge case) — we just log it.
-    let autoInvoiceId: string | null = null;
-    try {
-      autoInvoiceId = await autoConvertSignedQuoteToInvoice(
-        req.db,
-        id,
-        inv.companyId,
-      );
-      if (autoInvoiceId) {
-        broadcast({
-          type: 'INVOICE_AUTO_CREATED',
-          data: { quoteId: id, invoiceId: autoInvoiceId, companyId: inv.companyId },
-        });
-      }
-    } catch (err) {
-      console.error('auto-convert quote→invoice failed', err);
-    }
-
-    res.json({ ok: true, signedAt, autoInvoiceId });
+    // We no longer auto-convert the signed quote into an invoice — the
+    // user must explicitly mark the quote as Paid (POST /api/invoices/
+    // :id/mark-quote-paid) before conversion happens. This keeps the
+    // workflow auditable and lets the SmartDesk operator validate the
+    // payment before billing.
+    res.json({ ok: true, signedAt });
   } catch (error) {
     next(error);
   }

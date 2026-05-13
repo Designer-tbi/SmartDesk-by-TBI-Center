@@ -8,6 +8,7 @@ import { certifyInvoice } from '../services/fiscalization.js';
 import { getMailerForCompany } from '../services/mailer.js';
 import { computeInvoiceTotals } from '../services/invoiceTotals.js';
 import { autoPostPaidInvoiceJournal, autoConvertSignedQuoteToInvoice, autoCertifyInvoice } from '../services/automations.js';
+import { buildInvoicePdfBuffer } from '../services/invoicePdf.js';
 import { broadcast } from '../activity.js';
 
 export const invoicesRouter = Router();
@@ -872,164 +873,11 @@ invoicesRouter.delete('/:id', async (req, res, next) => {
 invoicesRouter.get('/:id/pdf', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const invRes = await req.db.query('SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
-    const invoice = invRes.rows[0];
-    if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
-    const itemsRes = await req.db.query('SELECT * FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
-    const items = itemsRes.rows;
-    const companyRes = await req.db.query('SELECT * FROM companies WHERE id = $1', [req.user!.companyId]);
-    const company = companyRes.rows[0];
-    let contact: any = null;
-    if (invoice.contactId) {
-      const cRes = await req.db.query('SELECT * FROM contacts WHERE id = $1 AND "companyId" = $2', [invoice.contactId, req.user!.companyId]);
-      contact = cRes.rows[0] || null;
-    }
-
-    const doc = new jsPDF();
-    doc.setFontSize(20);
-    doc.text(invoice.type === 'Quote' ? 'DEVIS' : 'FACTURE', 14, 22);
-    doc.setFontSize(10);
-    doc.text(`N°: ${invoice.id}`, 14, 30);
-    doc.text(`Date: ${invoice.date || '-'}`, 14, 35);
-    if (invoice.dueDate) doc.text(`Échéance: ${invoice.dueDate}`, 14, 40);
-
-    doc.text('Émetteur:', 14, 55);
-    doc.setFont(undefined, 'bold');
-    doc.text(company.name || '', 14, 60);
-    doc.setFont(undefined, 'normal');
-    if (company.address) doc.text(company.address, 14, 65);
-    if (company.email) doc.text(company.email, 14, 70);
-    if (company.phone) doc.text(company.phone, 14, 75);
-    if (company.niu) doc.text(`NIU: ${company.niu}`, 14, 80);
-
-    if (contact) {
-      doc.text('Adressé à:', 120, 55);
-      doc.setFont(undefined, 'bold');
-      doc.text(contact.name || '', 120, 60);
-      doc.setFont(undefined, 'normal');
-      if (contact.email) doc.text(contact.email, 120, 65);
-      if (contact.phone) doc.text(contact.phone, 120, 70);
-      if (contact.niu) doc.text(`NIU: ${contact.niu}`, 120, 75);
-    }
-
-    const tableData = items.map((item: any) => [
-      (item.name || '') + (item.description ? `\n${item.description}` : ''),
-      String(item.quantity ?? 0),
-      `${Number(item.price || 0).toLocaleString()} ${company.currency || ''}`,
-      `${item.tvaRate ?? 0}%`,
-      `${Number((item.quantity || 0) * (item.price || 0)).toLocaleString()} ${company.currency || ''}`,
-    ]);
-
-    autoTable(doc, {
-      startY: 90,
-      head: [['Description', 'Qté', 'Prix Unitaire', 'TVA', 'Total HT']],
-      body: tableData,
-      theme: 'striped',
-      headStyles: { fillColor: [198, 40, 40] },
-    });
-
-    const finalY = (doc as any).lastAutoTable?.finalY || 90;
-    let yCursor = finalY + 10;
-    const cur = company.currency || '';
-    const fmtAmount = (n: number) => `${Math.round(Number(n || 0)).toLocaleString()} ${cur}`;
-    doc.text(`Brut HT: ${fmtAmount(invoice.totalHT)}`, 140, yCursor); yCursor += 5;
-
-    // OHADA reductions — only print rows that are non-zero so the block
-    // stays compact for plain invoices.
-    const reductions: Array<[string, number, string]> = [
-      ['Rabais', invoice.rabais, invoice.rabaisType],
-      ['Remise', invoice.remise || invoice.discount, invoice.remiseType],
-      ['Ristourne', invoice.ristourne, invoice.ristourneType],
-      ['Escompte', invoice.escompte, invoice.escompteType],
-    ];
-    for (const [label, value, type] of reductions) {
-      const v = Number(value) || 0;
-      if (v > 0) {
-        const display = type === 'percent' ? `${v}%` : fmtAmount(v);
-        doc.text(`${label}: -${display}`, 140, yCursor); yCursor += 5;
-      }
-    }
-    if (invoice.netCommercial && invoice.netCommercial !== invoice.totalHT) {
-      doc.text(`Net commercial: ${fmtAmount(invoice.netCommercial)}`, 140, yCursor); yCursor += 5;
-    }
-    if (invoice.netFinancier && invoice.netFinancier !== invoice.netCommercial) {
-      doc.text(`Net financier: ${fmtAmount(invoice.netFinancier)}`, 140, yCursor); yCursor += 5;
-    }
-    doc.text(`TVA: ${fmtAmount(invoice.tvaTotal)}`, 140, yCursor); yCursor += 5;
-    if (Number(invoice.centimesAdditionnels) > 0) {
-      doc.text(`Centimes additionnels (5% TVA): ${fmtAmount(invoice.centimesAdditionnels)}`, 140, yCursor);
-      yCursor += 5;
-    }
-    doc.setFont(undefined, 'bold');
-    doc.text(`Total TTC: ${fmtAmount(invoice.total)}`, 140, yCursor);
-    doc.setFont(undefined, 'normal');
-
-    // Manuscript signature block — only for signed quotes. The signature
-    // artefact is stored in `signatureLink` as JSON (`{signerName, signatureDataUrl}`)
-    // by the public signing endpoint or the in-app "Sign manually" flow.
-    if (invoice.type === 'Quote' && invoice.status === 'Signed' && invoice.signatureLink) {
-      try {
-        let sig: { signerName?: string; signatureDataUrl?: string } | null = null;
-        const raw = String(invoice.signatureLink);
-        if (raw.startsWith('{')) {
-          try { sig = JSON.parse(raw); } catch { sig = null; }
-        } else if (raw.startsWith('data:image/')) {
-          sig = { signatureDataUrl: raw };
-        }
-        if (sig?.signatureDataUrl) {
-          const sigY = finalY + 32;
-          doc.setFont(undefined, 'bold');
-          doc.text('Signature électronique', 14, sigY);
-          doc.setFont(undefined, 'normal');
-          // Detect format from data URL prefix to pass to addImage.
-          const fmt = /image\/png/i.test(raw) ? 'PNG' : /image\/jpeg/i.test(raw) ? 'JPEG' : 'PNG';
-          doc.addImage(sig.signatureDataUrl, fmt, 14, sigY + 3, 50, 22);
-          doc.setFontSize(8);
-          if (sig.signerName) doc.text(`Signé par : ${sig.signerName}`, 70, sigY + 10);
-          if (invoice.signedAt) {
-            doc.text(`Date : ${new Date(invoice.signedAt).toLocaleString('fr-FR')}`, 70, sigY + 16);
-          }
-          doc.text('Signature à valeur juridique (eIDAS / OHADA)', 70, sigY + 22);
-          doc.setFontSize(10);
-        }
-      } catch (err) {
-        console.error('PDF signature embed failed:', err);
-      }
-    }
-
-    // DGID/SFEC QR block
-    if (invoice.certificationNumber) {
-      try {
-        // Prefer the official QR image returned by SFEC; otherwise generate
-        // one locally from the qrPayload string.
-        const officialQr = invoice.certificationPayload?.qrImage as string | undefined;
-        const qrPayload = invoice.certificationPayload?.qrPayload || invoice.certificationNumber;
-        const qrDataUrl = officialQr
-          ? officialQr
-          : await QRCode.toDataURL(String(qrPayload), { margin: 1, width: 140, errorCorrectionLevel: 'M' });
-        const qrY = finalY + 30;
-        doc.setFont(undefined, 'bold');
-        doc.text('Certification SFEC / DGID', 14, qrY);
-        doc.setFont(undefined, 'normal');
-        doc.addImage(qrDataUrl, 'PNG', 14, qrY + 3, 28, 28);
-        doc.setFontSize(8);
-        doc.text(`N°: ${invoice.certificationNumber}`, 46, qrY + 10);
-        if (invoice.certifiedAt) {
-          doc.text(`Certifiée le: ${new Date(invoice.certifiedAt).toLocaleString('fr-FR')}`, 46, qrY + 16);
-        }
-        const src = invoice.certificationPayload?.source;
-        const source = src === 'sfec' ? 'API SFEC (DGID Congo)' : src === 'dgid' ? 'API DGID (Congo)' : 'Signature locale (mode démo)';
-        doc.text(`Source: ${source}`, 46, qrY + 22);
-        doc.setFontSize(10);
-      } catch (err) {
-        console.error('PDF QR embed failed:', err);
-      }
-    }
-
-    const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+    const built = await buildInvoicePdfBuffer(req.db, id, req.user!.companyId);
+    if (!built) return res.status(404).json({ error: 'Invoice not found' });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${invoice.id}.pdf"`);
-    res.end(pdfBuffer);
+    res.setHeader('Content-Disposition', `attachment; filename="${built.invoice.id}.pdf"`);
+    res.end(built.buffer);
   } catch (error) {
     console.error('GET /api/invoices/:id/pdf error', error);
     next(error);
@@ -1153,6 +1001,133 @@ invoicesRouter.post('/:id/send-email', async (req, res, next) => {
     }
     
     res.json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+
+/**
+ * Mark a quote as PAID — orchestrates the full post-payment workflow:
+ *   1. Validates the quote (must not be already converted, contact email
+ *      must be present so we can email the resulting invoice).
+ *   2. Marks the quote `status='Paid'` + `paidAt`.
+ *   3. Auto-converts to a Paid Invoice (status='Paid').
+ *   4. Auto-posts the OHADA journal entry for the new invoice.
+ *   5. Auto-certifies via SFEC/DGID (Congo demo accounts only — no-op
+ *      for others).
+ *   6. Emails the certified PDF to the client.
+ *
+ * Designed to be triggered manually by the SmartDesk operator from the
+ * Sales UI once they've confirmed the payment was received.
+ */
+invoicesRouter.post('/:id/mark-quote-paid', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const companyId = req.user!.companyId;
+
+    // 1. Validate the quote
+    const qRes = await req.db.query(
+      `SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2 AND type = 'Quote'`,
+      [id, companyId],
+    );
+    const quote = qRes.rows[0];
+    if (!quote) return res.status(404).json({ error: 'Devis introuvable.' });
+    if (quote.convertedToInvoiceId) {
+      return res.status(409).json({ error: 'Ce devis a déjà été converti en facture.' });
+    }
+    if (!quote.contactId) {
+      return res.status(400).json({
+        error: 'Ce devis n\'a pas de client rattaché. Ajoutez un client (avec email) avant de marquer comme payé.',
+      });
+    }
+    const cRes = await req.db.query(
+      `SELECT * FROM contacts WHERE id = $1 AND "companyId" = $2`,
+      [quote.contactId, companyId],
+    );
+    const contact = cRes.rows[0];
+    if (!contact || !contact.email) {
+      return res.status(400).json({
+        error: 'Email du client manquant. Renseignez l\'email du client puis réessayez.',
+      });
+    }
+
+    // 2. Mark the quote as Paid
+    await req.db.query(
+      `UPDATE invoices SET status = 'Paid', "paidAt" = NOW() WHERE id = $1 AND "companyId" = $2`,
+      [id, companyId],
+    );
+
+    // 3. Auto-convert → Paid Invoice (helper already handles journal + cert)
+    const newInvoiceId = await autoConvertSignedQuoteToInvoice(req.db, id, companyId);
+    if (!newInvoiceId) {
+      return res.status(500).json({ error: 'La conversion automatique en facture a échoué.' });
+    }
+
+    // 4 + 5 (journal + cert) are run inside autoConvertSignedQuoteToInvoice
+    // — best-effort, won't fail the workflow if they error.
+
+    // 6. Email the certified PDF
+    let emailSent = false;
+    let emailError: string | null = null;
+    try {
+      const built = await buildInvoicePdfBuffer(req.db, newInvoiceId, companyId);
+      if (built) {
+        const compRes = await req.db.query('SELECT * FROM companies WHERE id = $1', [companyId]);
+        const company = compRes.rows[0] || {};
+        const { transporter, from } = getMailerForCompany(company.type, company.name);
+        const cur = company.currency || '';
+        const total = built.invoice.total;
+        const certBadge = built.invoice.certificationNumber
+          ? `<p style="margin: 12px 0; padding: 10px; background:#ecfdf5; border-left:3px solid #10b981; font-size:13px;">
+               <strong>Facture certifiée DGID/SFEC</strong> — N° de certification : <code>${built.invoice.certificationNumber}</code>
+             </p>`
+          : '';
+        await transporter.sendMail({
+          from,
+          to: contact.email,
+          subject: `Facture acquittée ${built.invoice.id} — ${company.name || ''}`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+              <h2 style="color:#7a0e1c;">Votre facture acquittée</h2>
+              <p>Bonjour ${contact.name || ''},</p>
+              <p>Merci pour votre paiement. Veuillez trouver ci-joint votre facture <strong>${built.invoice.id}</strong>, marquée comme payée${built.invoice.certificationNumber ? ' et certifiée par la DGID' : ''}.</p>
+              ${certBadge}
+              <p style="font-size:1.1em;"><strong>Total réglé :</strong> ${Math.round(Number(total || 0)).toLocaleString()} ${cur}</p>
+              <p>Cordialement,<br/>${company.name || ''}</p>
+              <hr style="margin: 30px 0; border:0; border-top:1px solid #eee;" />
+              <p style="font-size: 0.8em; color: #64748b;">
+                ${company.name || ''}<br/>
+                ${company.address || ''}<br/>
+                ${company.phone || ''} | ${company.email || ''}
+              </p>
+            </div>
+          `,
+          attachments: [{
+            filename: `${built.invoice.id}.pdf`,
+            content: built.buffer,
+            contentType: 'application/pdf',
+          }],
+        });
+        emailSent = true;
+      }
+    } catch (err) {
+      emailError = err instanceof Error ? err.message : 'Erreur d\'envoi inconnue.';
+      console.error('mark-quote-paid: email send failed', err);
+    }
+
+    // Return the freshly-built invoice for the client UI
+    const invRes = await req.db.query(
+      `SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2`,
+      [newInvoiceId, companyId],
+    );
+    res.json({
+      success: true,
+      quoteId: id,
+      invoice: invRes.rows[0],
+      emailSent,
+      emailError,
+    });
   } catch (error) {
     next(error);
   }

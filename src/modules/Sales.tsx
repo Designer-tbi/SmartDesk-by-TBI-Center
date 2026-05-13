@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Plus, Download, FileText, CheckCircle, Clock, AlertCircle, Eye, Pencil, Trash2, Mail, X, 
   FileEdit, User, Calendar, Tag, Building2, PlusCircle, Link as LinkIcon, FileSignature, Eraser,
-  Copy, Layout, Send, Check, ShieldCheck, Repeat
+  Copy, Layout, Send, Check, ShieldCheck, Repeat, DollarSign
 } from 'lucide-react';
 import { Invoice, Contact, Product, QuoteTemplate } from '../types';
 import { QRCodeSVG } from 'qrcode.react';
@@ -513,6 +513,49 @@ export const Sales = ({ user }: { user: any }) => {
     }
   };
 
+  /**
+   * Mark a quote as paid → orchestrates conversion → certification →
+   * email of the certified PDF to the client. Backend will refuse if
+   * the contact has no email (clear error message returned).
+   */
+  const [markingPaidId, setMarkingPaidId] = useState<string | null>(null);
+  const handleMarkQuotePaid = async (quote: Invoice) => {
+    if (!confirm(
+      `Marquer le devis ${quote.id} comme PAYÉ ?\n\n`
+      + 'Cette action va :\n'
+      + '  • Convertir le devis en facture acquittée (Payée)\n'
+      + '  • Générer l\'écriture comptable OHADA\n'
+      + '  • Soumettre la facture à la DGID (si applicable)\n'
+      + '  • Envoyer la facture certifiée par email au client',
+    )) return;
+    setMarkingPaidId(quote.id);
+    setError(null);
+    try {
+      const r = await apiFetch(`/api/invoices/${quote.id}/mark-quote-paid`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+      const data = await r.json().catch(() => null);
+      if (!r.ok) {
+        setError(data?.error || `Échec (HTTP ${r.status}).`);
+        return;
+      }
+      await fetchData();
+      if (data?.invoice) setViewInvoice(data.invoice);
+      if (data?.emailSent) {
+        alert('Facture acquittée et envoyée par email au client.');
+      } else if (data?.emailError) {
+        setError(`Facture créée mais l'email n'a pas pu être envoyé : ${data.emailError}`);
+      }
+    } catch (e: any) {
+      console.error('Mark quote paid failed:', e);
+      setError(e?.message || 'Échec de l\'opération.');
+    } finally {
+      setMarkingPaidId(null);
+    }
+  };
+
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const handleDownloadPdf = async (invoice: Invoice) => {
     setDownloadingId(invoice.id);
@@ -783,12 +826,27 @@ export const Sales = ({ user }: { user: any }) => {
                               <FileSignature className="w-4 h-4" />
                             </button>
                           )}
+                          {invoice.type === 'Quote' && !invoice.convertedToInvoiceId && (
+                            <button
+                              onClick={() => handleMarkQuotePaid(invoice)}
+                              disabled={markingPaidId === invoice.id}
+                              className="p-2 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all shadow-sm hover:shadow-md"
+                              title="Marquer comme payé (conversion + certif + email)"
+                              data-testid={`mark-quote-paid-${invoice.id}`}
+                            >
+                              {markingPaidId === invoice.id ? (
+                                <div className="w-4 h-4 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin" />
+                              ) : (
+                                <DollarSign className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
                           {invoice.type === 'Quote' && (invoice.status === 'Accepted' || invoice.status === 'Signed') && !invoice.convertedToInvoiceId && (
                             <button
                               onClick={() => handleConvertToInvoice(invoice)}
                               disabled={convertingId === invoice.id}
                               className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-xl transition-all shadow-sm hover:shadow-md"
-                              title="Convertir en facture"
+                              title="Convertir en facture (sans paiement)"
                               data-testid={`convert-to-invoice-${invoice.id}`}
                             >
                               {convertingId === invoice.id ? (
@@ -938,6 +996,25 @@ export const Sales = ({ user }: { user: any }) => {
                               <Download className="w-4 h-4" />
                             )}
                           </button>
+                          {/* Mark as paid — drives the full
+                              conversion → certification → email
+                              workflow. Available on every
+                              non-converted quote. */}
+                          {!quote.convertedToInvoiceId && (
+                            <button
+                              onClick={() => handleMarkQuotePaid(quote)}
+                              disabled={markingPaidId === quote.id}
+                              className="p-2 text-emerald-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all"
+                              title="Marquer comme payé"
+                              data-testid={`reception-mark-paid-${quote.id}`}
+                            >
+                              {markingPaidId === quote.id ? (
+                                <div className="w-4 h-4 border-2 border-emerald-300 border-t-emerald-600 rounded-full animate-spin" />
+                              ) : (
+                                <DollarSign className="w-4 h-4" />
+                              )}
+                            </button>
+                          )}
                           {/* Convert-to-invoice — available here too so demo
                               users (and everyone) can turn a signed/accepted
                               quote into a draft invoice directly from the
@@ -947,7 +1024,7 @@ export const Sales = ({ user }: { user: any }) => {
                               onClick={() => handleConvertToInvoice(quote)}
                               disabled={convertingId === quote.id}
                               className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition-all"
-                              title="Convertir en facture"
+                              title="Convertir en facture (sans paiement)"
                               data-testid={`reception-convert-${quote.id}`}
                             >
                               {convertingId === quote.id ? (
