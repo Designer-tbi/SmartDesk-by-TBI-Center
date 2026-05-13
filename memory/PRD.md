@@ -1439,3 +1439,55 @@ Résultats par module (utilisateur RDC USD) :
 - Onglet Réception : devis Signed/Accepted/Converted visibles.
 - Message DGID nettoyé.
 - Bug CRM corrigé.
+
+## Workflow « Marquer comme payé » + Email auto facture certifiée (2026-05-13 — iter 11)
+
+### Demande utilisateur
+Le devis doit d'abord être marqué comme PAYÉ avant d'être converti en facture,
+puis la facture certifiée DGID en PDF doit être envoyée automatiquement
+par email au client. Choix : (1a) bloquer si email manquant, (2c) bouton
+visible sur tous les devis non convertis, (3a) envoi email systématique.
+
+### DB — schema_version `2026-05-13-mark-quote-paid`
+- Nouvelle colonne `invoices.paidAt TIMESTAMPTZ`.
+
+### Backend
+- **Nouveau service** `/app/server/services/invoicePdf.ts` :
+  `buildInvoicePdfBuffer(db, invoiceId, companyId)` centralise la
+  génération PDF (en-tête, lignes, totaux, bloc signature électronique,
+  bloc QR DGID/SFEC). Réutilisé par GET /pdf et le nouveau workflow.
+- **Nouveau endpoint** `POST /api/invoices/:id/mark-quote-paid` :
+  1. Valide le devis (404 si introuvable, 409 si déjà converti, 400 si
+     pas de contactId ou pas d'email).
+  2. UPDATE devis SET status='Paid', paidAt=NOW().
+  3. Appelle `autoConvertSignedQuoteToInvoice` qui crée la facture
+     `status='Paid'` + déclenche `autoPostPaidInvoiceJournal` +
+     `autoCertifyInvoice` (best-effort, ne bloque pas le workflow).
+  4. Génère le PDF via `buildInvoicePdfBuffer` et l'envoie en pièce
+     jointe par email au client (template HTML avec badge de
+     certification si applicable).
+  5. Retourne `{ success, invoice, emailSent, emailError }`.
+- **Signature publique** (`POST /api/public/quotes/:id/sign`) : RETIRE
+  l'auto-conversion. Le devis reste à `status='Signed'`. La conversion
+  se fait désormais uniquement via le bouton « Marquer comme payé ».
+- **GET /api/invoices/:id/pdf** refactorisé pour utiliser
+  `buildInvoicePdfBuffer` (réduction ~150 lignes dupliquées).
+
+### Frontend (`/app/src/modules/Sales.tsx`)
+- Nouveau `handleMarkQuotePaid(quote)` : confirm avec les 4 actions
+  (convertir, journal, DGID, email) → POST endpoint → toast succès
+  ou erreur (email manquant, email rejeté, etc.).
+- **Bouton « Marquer comme payé »** (icône DollarSign vert) visible
+  sur tous les devis non encore convertis dans :
+  - La liste principale Sales (data-testid `mark-quote-paid-{id}`).
+  - L'onglet Réception (data-testid `reception-mark-paid-{id}`).
+- Le bouton de conversion classique (Repeat indigo) reste visible
+  pour les cas où l'opérateur souhaite convertir sans paiement.
+
+### Validation (iteration_11.json — 9/9 backend + 100 % frontend)
+- 404 si id inexistant ; 409 si déjà converti ; 400 + message clair si
+  email/contact manquant ; cas nominal : devis Paid + paidAt + facture
+  Paid + journal + cert + email (emailSent/emailError).
+- Signature publique ne convertit plus.
+- GET /pdf renvoie un PDF valide.
+- UI : boutons visibles selon les bons états, confirm content vérifié.
