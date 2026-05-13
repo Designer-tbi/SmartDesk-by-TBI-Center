@@ -1384,3 +1384,58 @@ Résultats par module (utilisateur RDC USD) :
 - `designer@tbi-center.fr` / `admin` (CG, onboarding RESET pour test wizard)
 - `ariane.mbombo@tbi-center.fr` / `admin` (CD/CDF, onboarding RESET)
 - `plamedi.fika@tbi-center.fr` / `admin` (CD/USD, déjà onboardé)
+
+## Sales : conversion auto-payée + visibilité devis signés + auto-refresh (2026-05-13 — iter 10)
+
+### Demande utilisateur (6 points)
+1. Bug : après conversion devis→facture, banner « réservée aux sociétés démo » s'affiche à tort.
+2. Les factures auto-générées (depuis devis signé) doivent passer en **Payé** direct (choix `a`).
+3. Devis envoyés pour signature → libellé « **En attente** ».
+4. Les devis signés sont invisibles dans « Devis Signés / Réception ».
+5. Auto-refresh global toutes les 10 s.
+6. Vérifier module Utilisateurs & Rôles.
+
+### Modifications
+
+**Backend — `/app/server/services/automations.ts`**
+- `autoConvertSignedQuoteToInvoice` : nouvelle facture créée avec `status='Paid'`
+  (au lieu de `Draft`). Le devis source garde son statut (`Signed`), seul
+  `convertedToInvoiceId` + `convertedAt` sont remplis → devis toujours
+  visible dans l'onglet Réception.
+- Post-commit : déclenche `autoPostPaidInvoiceJournal` (écriture comptable
+  OHADA) + `autoCertifyInvoice` (DGID SFEC pour CG démo).
+- Nouvelle fonction `autoCertifyInvoice(db, invoiceId, companyId)` :
+  réutilise la logique SFEC du `POST /api/invoices`, lazy-import de
+  `fiscalization.js` pour éviter une dépendance circulaire.
+
+**Backend — `/app/server/routes/invoices.ts`**
+- `POST /:id/convert-to-invoice` : même comportement (Paid, conserve
+  statut devis, journal + cert auto).
+
+**Frontend — `/app/src/modules/Sales.tsx`**
+- `getStatusText(status, type)` accepte le type : si `Quote+Sent`,
+  affiche « En attente » ; si `Invoice+Sent`, garde « Envoyé ».
+- Filtre onglet « Devis Signés / Réception » : inclut `Converted` en
+  plus de `Signed`/`Accepted` (legacy data).
+- Message DGID neutralisé : retire « réservée aux sociétés démo pour
+  l'instant ». Affiche un message clair selon `companyType`.
+
+**Frontend — `/app/src/lib/useLiveSync.ts`**
+- Ajout d'un **polling fallback toutes les 10 s** (en plus du
+  WebSocket temps réel). Pause si l'onglet n'est pas visible
+  (`document.visibilityState !== 'visible'`), refresh immédiat sur
+  retour focus. Couvre les déploiements Vercel serverless où le WS
+  est indisponible.
+
+**Frontend — `/app/src/modules/CRM.tsx`**
+- Fix bug HIGH détecté par testing agent : `contact.status.toLowerCase()`
+  crashait quand status nullable. Fallback `'Lead'` ajouté.
+
+### Validation (iteration_10.json — 10/12 backend + frontend OK)
+- Conversion devis→facture : status='Paid', devis conserve Accepted/Signed,
+  `convertedToInvoiceId` rempli, journal auto, 409 sur double conversion.
+- Polling 10 s confirmé via Network (2 requêtes /api/contacts en 25 s).
+- Module Utilisateurs/Rôles fonctionnel (list+CRUD users+roles).
+- Onglet Réception : devis Signed/Accepted/Converted visibles.
+- Message DGID nettoyé.
+- Bug CRM corrigé.

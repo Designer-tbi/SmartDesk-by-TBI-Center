@@ -441,7 +441,7 @@ export const CRM = ({ user }: { user?: any }) => {
                         contact.status === 'Lead' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 
                         'bg-red-50 text-red-600 border border-red-100'
                       }`}>
-                        {t(`crm.status.${contact.status.toLowerCase()}`)}
+                        {t(`crm.status.${(contact.status || 'Lead').toLowerCase()}`)}
                       </span>
                     </td>
                     <td className="px-6 py-6">
