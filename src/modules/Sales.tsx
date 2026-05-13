@@ -140,10 +140,12 @@ export const Sales = ({ user }: { user: any }) => {
     }
   };
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: string, type?: string) => {
     switch (status) {
       case 'Paid': return t('sales.paid');
-      case 'Sent': return t('sales.sent');
+      // For quotes sent for signature, surface a clearer
+      // "En attente de signature" label.
+      case 'Sent': return type === 'Quote' ? 'En attente' : t('sales.sent');
       case 'Overdue': return t('sales.overdue');
       case 'Draft': return t('sales.draft');
       case 'Accepted': return t('sales.accepted');
@@ -760,7 +762,7 @@ export const Sales = ({ user }: { user: any }) => {
                             invoice.status === 'Sent' ? 'bg-soft-red text-accent-red' : 'bg-slate-100 text-slate-500'
                           }`}>
                             {getStatusIcon(invoice.status)}
-                            {invoice.status === 'Converted' ? 'Converti' : getStatusText(invoice.status)}
+                            {invoice.status === 'Converted' ? 'Converti' : getStatusText(invoice.status, invoice.type)}
                           </span>
                           {invoice.convertedFromQuoteId && (
                             <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider" title={`Issu du devis ${invoice.convertedFromQuoteId}`}>
@@ -901,7 +903,7 @@ export const Sales = ({ user }: { user: any }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {invoices.filter(i => i.type === 'Quote' && (i.status === 'Signed' || i.status === 'Accepted')).map((quote) => (
+                  {invoices.filter(i => i.type === 'Quote' && (i.status === 'Signed' || i.status === 'Accepted' || i.status === 'Converted')).map((quote) => (
                     <tr key={quote.id} className="hover:bg-slate-50 transition-colors" data-testid={`reception-row-${quote.id}`}>
                       <td className="px-6 py-4">
                         <div className="text-sm font-bold text-slate-900">{quote.id}</div>
@@ -1499,7 +1501,7 @@ export const Sales = ({ user }: { user: any }) => {
                   <h3 className="text-lg font-bold text-slate-900">{viewInvoice.type === 'Invoice' ? 'Facture' : 'Devis'} {viewInvoice.id}</h3>
                   <div className="flex items-center gap-2 mt-1">
                     {getStatusIcon(viewInvoice.status)}
-                    <span className="text-xs font-medium text-slate-600">{getStatusText(viewInvoice.status)}</span>
+                    <span className="text-xs font-medium text-slate-600">{getStatusText(viewInvoice.status, viewInvoice.type)}</span>
                   </div>
                 </div>
               </div>
@@ -1776,9 +1778,9 @@ export const Sales = ({ user }: { user: any }) => {
                       </div>
                     ) : (
                       <div className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-lg border border-slate-100">
-                        Facture non certifiée. {user?.companyType === 'demo'
-                          ? 'Cliquez « Certifier maintenant » pour la soumettre à la DGID.'
-                          : 'La certification DGID est réservée aux sociétés démo pour l’instant.'}
+                        {user?.companyType === 'demo'
+                          ? 'Facture non certifiée — cliquez « Certifier maintenant » pour la soumettre à la DGID.'
+                          : 'Facture non certifiée. La certification SFEC/DGID sera disponible dès que votre clé API aura été configurée.'}
                       </div>
                     )}
                   </div>

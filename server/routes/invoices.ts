@@ -7,7 +7,7 @@ import QRCode from 'qrcode';
 import { certifyInvoice } from '../services/fiscalization.js';
 import { getMailerForCompany } from '../services/mailer.js';
 import { computeInvoiceTotals } from '../services/invoiceTotals.js';
-import { autoPostPaidInvoiceJournal, autoConvertSignedQuoteToInvoice } from '../services/automations.js';
+import { autoPostPaidInvoiceJournal, autoConvertSignedQuoteToInvoice, autoCertifyInvoice } from '../services/automations.js';
 import { broadcast } from '../activity.js';
 
 export const invoicesRouter = Router();
@@ -769,7 +769,7 @@ invoicesRouter.post('/:id/convert-to-invoice', async (req, res, next) => {
            "convertedFromQuoteId"
          ) VALUES (
            $1, $2, 'Invoice', $3, $4, $5,
-           $6, $7, $8, 'Draft', $9,
+           $6, $7, $8, 'Paid', $9,
            $10, $11, $12, $13,
            $14, $15, $16, $17,
            $18, $19, $20,
@@ -778,7 +778,8 @@ invoicesRouter.post('/:id/convert-to-invoice', async (req, res, next) => {
         [
           newInvoiceId, req.user!.companyId, quote.contactId, today, dueDate,
           totals.brutHT, totals.tvaTotal, totals.total,
-          `Issu du devis ${id}` + (quote.notes ? `\n\n${quote.notes}` : ''),
+          `Issu du devis ${id} — facture marquée payée automatiquement.`
+            + (quote.notes ? `\n\n${quote.notes}` : ''),
           quote.remise || 0, quote.remiseType || 'amount',
           quote.rabais || 0, quote.rabaisType || 'amount',
           quote.ristourne || 0, quote.ristourneType || 'amount',
@@ -796,13 +797,27 @@ invoicesRouter.post('/:id/convert-to-invoice', async (req, res, next) => {
         );
       }
 
-      // Lock the source quote.
+      // Track the conversion link without changing the quote's status,
+      // so it remains visible in the "Devis signés / Réception" tab.
       await req.db.query(
-        `UPDATE invoices SET status = 'Converted', "convertedToInvoiceId" = $1, "convertedAt" = NOW()
+        `UPDATE invoices SET "convertedToInvoiceId" = $1, "convertedAt" = NOW()
          WHERE id = $2 AND "companyId" = $3`,
         [newInvoiceId, id, req.user!.companyId],
       );
       await req.db.query('COMMIT');
+
+      // Best-effort post-commit automations: journal entry (the invoice
+      // is 'Paid') + DGID certification when applicable.
+      try {
+        await autoPostPaidInvoiceJournal(req.db, newInvoiceId, req.user!.companyId);
+      } catch (err) {
+        console.error('auto-post journal for converted invoice failed', err);
+      }
+      try {
+        await autoCertifyInvoice(req.db, newInvoiceId, req.user!.companyId);
+      } catch (err) {
+        console.error('auto-certify converted invoice failed', err);
+      }
 
       const newInvRes = await req.db.query(
         `SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2`,

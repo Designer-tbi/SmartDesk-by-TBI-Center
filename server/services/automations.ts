@@ -29,6 +29,14 @@ type DB = { query: (...args: any[]) => Promise<any> };
  *
  * Returns the new invoice id on success, or `null` if the quote
  * was already converted / could not be converted.
+ *
+ * Behaviour notes (2026-05-04):
+ *  - The new invoice is created with `status='Paid'` (per user
+ *    request: signed quotes pay through automatically) so the
+ *    journal entry is posted by `autoPostPaidInvoiceJournal`.
+ *  - The source quote is left in `status='Signed'` (NOT 'Converted')
+ *    so it stays visible in the "Devis signés / Réception" tab.
+ *    The `convertedToInvoiceId` column still tracks the link.
  */
 export async function autoConvertSignedQuoteToInvoice(
   db: DB,
@@ -83,7 +91,7 @@ export async function autoConvertSignedQuoteToInvoice(
          "convertedFromQuoteId"
        ) VALUES (
          $1, $2, 'Invoice', $3, $4, $5,
-         $6, $7, $8, 'Draft', $9,
+         $6, $7, $8, 'Paid', $9,
          $10, $11, $12, $13,
          $14, $15, $16, $17,
          $18, $19, $20,
@@ -92,7 +100,7 @@ export async function autoConvertSignedQuoteToInvoice(
       [
         newInvoiceId, companyId, quote.contactId, today, dueDate,
         totals.brutHT, totals.tvaTotal, totals.total,
-        `Généré automatiquement à la signature du devis ${quoteId}`
+        `Générée et payée automatiquement à la signature du devis ${quoteId}`
           + (quote.notes ? `\n\n${quote.notes}` : ''),
         quote.remise || 0, quote.remiseType || 'amount',
         quote.rabais || 0, quote.rabaisType || 'amount',
@@ -111,17 +119,115 @@ export async function autoConvertSignedQuoteToInvoice(
       );
     }
 
+    // Keep the quote in 'Signed' so it remains visible in the
+    // "Devis Signés / Réception" tab. Track the relation only.
     await db.query(
-      `UPDATE invoices SET status = 'Converted', "convertedToInvoiceId" = $1, "convertedAt" = NOW()
+      `UPDATE invoices SET "convertedToInvoiceId" = $1, "convertedAt" = NOW()
          WHERE id = $2 AND "companyId" = $3`,
       [newInvoiceId, quoteId, companyId],
     );
     await db.query('COMMIT');
+
+    // Post-commit side-effects (journal entry + DGID certification) —
+    // best-effort, won't block on failure.
+    try {
+      await autoPostPaidInvoiceJournal(db, newInvoiceId, companyId);
+    } catch (err) {
+      console.error('auto-post paid invoice journal failed', err);
+    }
+    try {
+      await autoCertifyInvoice(db, newInvoiceId, companyId);
+    } catch (err) {
+      console.error('auto-certify invoice failed', err);
+    }
+
     return newInvoiceId;
   } catch (err) {
     await db.query('ROLLBACK');
     throw err;
   }
+}
+
+/* -------------------------------------------------------------- */
+/* 1b. Auto-certify a newly created invoice (DGID Congo)            */
+/* -------------------------------------------------------------- */
+
+/**
+ * Submit a freshly created invoice to the SFEC/DGID certification
+ * service for demo Congo companies. Mirrors the inline certification
+ * block in `POST /api/invoices` so converted/auto-generated invoices
+ * also receive an authentic certification number + QR code.
+ *
+ * No-op when the company is not demo, has no API key, or the invoice
+ * has already been certified.
+ */
+export async function autoCertifyInvoice(
+  db: DB,
+  invoiceId: string,
+  companyId: string,
+): Promise<boolean> {
+  const compRes = await db.query(
+    `SELECT id, name, niu, "taxId", currency, type, "fiscalizationApiKey"
+       FROM companies WHERE id = $1`,
+    [companyId],
+  );
+  const company = compRes.rows[0];
+  if (!company || company.type !== 'demo' || !company.fiscalizationApiKey) return false;
+
+  const invRes = await db.query(
+    `SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2 AND type = 'Invoice'`,
+    [invoiceId, companyId],
+  );
+  const inv = invRes.rows[0];
+  if (!inv || inv.certificationNumber) return false;
+
+  const itemsRes = await db.query(
+    `SELECT * FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2`,
+    [invoiceId, companyId],
+  );
+
+  let buyer: any = { name: null, niu: null, address: null, email: null, phone: null, contactType: 'individual' };
+  if (inv.contactId) {
+    const cRes = await db.query(
+      `SELECT name, niu, address, email, phone, "contactType", "foreignCountry"
+         FROM contacts WHERE id = $1 AND "companyId" = $2`,
+      [inv.contactId, companyId],
+    );
+    buyer = cRes.rows[0] || buyer;
+  }
+
+  // Lazy import the fiscalization service to avoid a circular dep
+  // at module load time.
+  const { certifyInvoice } = await import('./fiscalization.js');
+  const result = await certifyInvoice({
+    invoice: { ...inv, items: itemsRes.rows },
+    company,
+    buyer,
+  });
+
+  await db.query(
+    `UPDATE invoices SET
+       "certificationNumber" = $1,
+       "certifiedAt" = $2,
+       "certificationStatus" = $3,
+       "certificationPayload" = $4::jsonb
+     WHERE id = $5 AND "companyId" = $6`,
+    [
+      result.certificationNumber,
+      result.certifiedAt,
+      result.status,
+      JSON.stringify({
+        source: result.source,
+        qrPayload: result.qrPayload,
+        qrImage: result.qrImage,
+        signature: result.signature,
+        shortSignature: result.shortSignature,
+      }),
+      invoiceId,
+      companyId,
+    ],
+  );
+  return true;
 }
 
 /* -------------------------------------------------------------- */
