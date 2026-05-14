@@ -1491,3 +1491,45 @@ visible sur tous les devis non convertis, (3a) envoi email systématique.
 - Signature publique ne convertit plus.
 - GET /pdf renvoie un PDF valide.
 - UI : boutons visibles selon les bons états, confirm content vérifié.
+
+## API de provisioning externe + badge super-admin (2026-05-14 — iter 12)
+
+### Demande utilisateur
+Permettre à une plateforme externe de créer des comptes entreprises sur
+SmartDesk et de les voir dans le tableau de bord super-admin. Choix :
+1a (X-API-Key), 2c (name+adminEmail+country+city requis + tous les
+autres optionnels), 3a (admin auto-créé, password renvoyé une fois),
+4b (abonnement déjà actif, pas de trial), 5a (badge dans la liste
+super-admin existante).
+
+### Implementation
+**DB — schema_version `2026-05-13-external-origin`**
+- `companies.origin TEXT NOT NULL DEFAULT 'self_signup'` ('external' pour les comptes provisionnés par l'API).
+- `companies.externalRef TEXT` (référence opaque côté partenaire, pour audit).
+
+**Backend**
+- `EXTERNAL_API_KEY` env var (générée 64 chars hex, stockée dans `/app/.env`).
+- `server/middleware/requireExternalApiKey.ts` : valide `X-API-Key` ou `Authorization: Bearer`. Retourne 503 si l'env var n'est pas configurée, 401 si clé absente/invalide.
+- `server/routes/external.ts` :
+  - `POST /api/external/companies` : validation (404/400/409), création société avec `origin='external'`, `subscriptionStatus='active'`, `onboardingCompleted=true`, inférence devise selon pays (CG→XAF, CD→CDF, FR→EUR), inférence comptabilité (FR→FRANCE, sinon OHADA), création user admin avec password 16 chars retourné UNE seule fois.
+  - `GET /api/external/companies` : liste les sociétés `origin='external'` pour réconciliation partenaire.
+- `enforceSubscription` : `ALLOW_PREFIX` étendu avec `/api/external` (l'endpoint n'a pas de tenant context).
+- Routage : `app.use('/api/external', externalRouter)` mont dans `app.ts` avant les autres routes.
+
+**Frontend**
+- `SuperAdmin.tsx` : badge violet **« ORIGINE : EXTERNE »** (data-testid `external-origin-badge-{id}`) à côté du badge type pour les sociétés `origin='external'`. Tooltip affiche `externalRef` si présent.
+
+### Validation (iteration_12.json — 17/17 backend + UI OK)
+- 401 sans/avec mauvaise clé ; 400 si champs requis manquants ; 400 si email invalide ; 409 si email déjà utilisé ; 201 cas nominal.
+- Tous les champs optionnels (rccm, legalForm, capital, CNSS, etc.) bien persistés.
+- Login fonctionnel avec password auto-généré.
+- Société externe peut accéder aux routes protégées (subscriptionStatus='active' contourne le gate).
+- GET /api/external/companies retourne uniquement origin='external'.
+- /api/admin/companies expose `origin` et le badge violet s'affiche.
+- Bearer token alternative au X-API-Key fonctionne.
+
+### Doc partenaire
+- `/app/memory/external_api.md` : exemple curl, key courante.
+
+### Note pré-existante (non bloquante, hors scope)
+- Bug pré-existant détecté : `POST /api/admin/companies` (création depuis le super-admin UI) échoue avec "relation invoices does not exist" dans `initializeTenantSchema`. Ce bug ne concerne pas la nouvelle API externe (qui n'utilise plus cette fonction, l'app étant en RLS pur sur le schéma public).
