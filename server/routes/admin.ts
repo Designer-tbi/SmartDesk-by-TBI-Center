@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
 import bcrypt from 'bcryptjs';
-import { initializeTenantSchema, seedDefaultRoles } from '../../db.js';
+import { seedDefaultRoles } from '../../db.js';
 
 export const adminRouter = Router();
 
@@ -139,8 +139,12 @@ adminRouter.post('/companies', async (req, res, next) => {
     await req.db.query('INSERT INTO public.companies (id, name, type, status, phone, email, "createdAt", "schemaName", "fiscalizationApiKey") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
       [id, name, type, status || 'active', adminPhone || null, adminEmail || null, new Date().toISOString(), schemaName, dgidKey]);
     
-    // Initialize schema
-    await initializeTenantSchema(schemaName);
+    // NB: we intentionally do NOT call initializeTenantSchema here.
+    // SmartDesk uses RLS-based multi-tenancy on the `public` schema —
+    // every table is already provisioned, isolation is enforced via
+    // `set_config('app.current_company_id', ...)`. The per-tenant
+    // PostgreSQL schema referenced by `companies.schemaName` is a
+    // vestigial column kept for legacy compatibility.
 
     // Seed default roles (set RLS session so INSERTs pass WITH CHECK)
     await req.db.query(

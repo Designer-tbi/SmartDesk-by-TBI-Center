@@ -1533,3 +1533,30 @@ super-admin existante).
 
 ### Note pré-existante (non bloquante, hors scope)
 - Bug pré-existant détecté : `POST /api/admin/companies` (création depuis le super-admin UI) échoue avec "relation invoices does not exist" dans `initializeTenantSchema`. Ce bug ne concerne pas la nouvelle API externe (qui n'utilise plus cette fonction, l'app étant en RLS pur sur le schéma public).
+
+## Fix bug pré-existant `POST /api/admin/companies` (2026-05-14 — P2.a)
+
+### Problème
+La création d'une société depuis l'UI super-admin échouait avec
+`relation "invoices" does not exist` (code Postgres 42P01).
+
+### Cause
+`POST /api/admin/companies` appelait `initializeTenantSchema(schemaName)`
+qui tente de créer une table `invoice_items` avec un FK vers
+`invoices(id)` dans le schéma tenant. Or les tables (`invoices`,
+`contacts`, `products`, etc.) vivent toutes dans le schéma `public` —
+SmartDesk utilise un multi-tenancy par **RLS sur public**, pas par
+schéma. La colonne `companies.schemaName` est vestigiale.
+
+### Fix
+- Retrait de l'appel `initializeTenantSchema` dans
+  `/app/server/routes/admin.ts` POST /companies.
+- Retrait de l'import inutile.
+- Commentaire explicatif laissé en place pour les futurs lecteurs.
+
+### Validation (smoke test curl)
+- `POST /api/admin/companies` (real) → 201 ✅
+- `POST /api/admin/companies` (demo) → 201 ✅
+- Login avec l'admin auto-créé → OK ✅
+- Aucune régression côté `/api/external/companies` (qui n'utilisait
+  déjà plus cette fonction).
