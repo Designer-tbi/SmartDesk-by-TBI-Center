@@ -517,6 +517,11 @@ export async function initializeDatabase() {
         await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "convertedToInvoiceId" TEXT`);
         await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "convertedAt" TIMESTAMPTZ`);
         await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "paidAt" TIMESTAMPTZ`);
+        // External-origin SaaS provisioning: when a partner platform
+        // creates a company via /api/external/companies we record the
+        // origin + an opaque partner reference for audit.
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS origin TEXT NOT NULL DEFAULT 'self_signup'`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "externalRef" TEXT`);
         // Automation trace — links a journal entry back to the source
         // invoice (for the Paid→auto-journal rule) or future refs.
         await db.query(`ALTER TABLE journal_entries ADD COLUMN IF NOT EXISTS "sourceRef" TEXT`);
@@ -565,7 +570,7 @@ export async function initializeDatabase() {
       // Bumped to 2026-05-02-ohada so existing deploys (which were marked
       // up-to-date with 2026-04-29-onboarding) re-run the incremental
       // migrations exactly once and pick up the OHADA columns.
-      const TARGET_SCHEMA = '2026-05-13-mark-quote-paid';
+      const TARGET_SCHEMA = '2026-05-13-external-origin';
       if (flag.rows[0]?.value === TARGET_SCHEMA) {
         console.log('Database schema already up-to-date, skipping init.');
         return;

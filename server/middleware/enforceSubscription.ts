@@ -18,6 +18,7 @@ const ALLOW_PREFIX = [
   '/api/auth',
   '/api/subscription',
   '/api/public',
+  '/api/external',
 ];
 
 const ALLOW_EXACT_GET = new Set([

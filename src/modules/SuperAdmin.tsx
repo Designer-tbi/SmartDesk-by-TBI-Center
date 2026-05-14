@@ -429,11 +429,22 @@ export const SuperAdmin = () => {
                     <tr key={company.id} className="hover:bg-slate-50">
                       <td className="px-6 py-4 font-medium text-slate-900">{company.name}</td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          company.type === 'real' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
-                        }`}>
-                          {company.type === 'real' ? t('admin.real') : t('admin.demo')}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                            company.type === 'real' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {company.type === 'real' ? t('admin.real') : t('admin.demo')}
+                          </span>
+                          {company.origin === 'external' && (
+                            <span
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wider uppercase bg-violet-100 text-violet-700 border border-violet-200"
+                              title={company.externalRef ? `Réf partenaire : ${company.externalRef}` : 'Société provisionnée par la plateforme externe'}
+                              data-testid={`external-origin-badge-${company.id}`}
+                            >
+                              Origine : externe
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium ${

@@ -1,0 +1,128 @@
+{
+  "summary": "External Partner API Provisioning Feature Testing - Iteration 12. Backend: 17/17 tests passed. Frontend: External origin badge ('ORIGINE : EXTERNE') correctly displayed for companies created via /api/external/companies. All features working as expected.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "/api/admin/companies (POST)",
+        "issue": "Pre-existing bug: Creating company via super admin UI fails with 'relation invoices does not exist' error in initializeTenantSchema. This is NOT related to the external API feature.",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_external_api.py",
+    "/app/test_reports/pytest/pytest_external_api.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "VERIFIED: POST /api/external/companies WITHOUT API key returns 401 'Invalid or missing API key.'",
+    "VERIFIED: POST /api/external/companies WITH wrong API key returns 401",
+    "VERIFIED: POST /api/external/companies WITH valid key but empty payload returns 400 with missing fields list (name, adminEmail, country, city)",
+    "VERIFIED: POST /api/external/companies WITH invalid adminEmail returns 400 'adminEmail is not a valid email'",
+    "VERIFIED: POST /api/external/companies WITH existing adminEmail returns 409 'A user with this email already exists.'",
+    "VERIFIED: POST /api/external/companies WITH minimum valid payload returns 201 with company and admin objects",
+    "VERIFIED: Company created has origin='external', subscriptionStatus='active', onboardingCompleted=true, type='real'",
+    "VERIFIED: Admin password is exactly 16 characters (alphanumeric, unambiguous alphabet)",
+    "VERIFIED: POST /api/external/companies WITH full payload persists all optional fields (rccm, legalForm, capital, representant, CNSS rates, etc.)",
+    "VERIFIED: Login with auto-created admin credentials works via /api/auth/login",
+    "VERIFIED: External company can access protected routes (/api/contacts, /api/products) - NOT blocked by enforceSubscription",
+    "VERIFIED: GET /api/external/companies WITHOUT key returns 401",
+    "VERIFIED: GET /api/external/companies WITH valid key returns only companies with origin='external'",
+    "VERIFIED: Super admin /api/admin/companies returns 'origin' field for all companies",
+    "VERIFIED: Frontend Super Admin dashboard shows violet 'ORIGINE : EXTERNE' badge for external companies",
+    "VERIFIED: Badge has correct data-testid='external-origin-badge-{id}' attribute",
+    "VERIFIED: Currency inference works: CG→XAF, CD→CDF, FR→EUR",
+    "VERIFIED: Bearer token authentication works as alternative to X-API-Key header"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_external_api.py"
+  ],
+  "success_rate": {
+    "backend": "100% (17/17 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "super_admin": "eden@tbi-center.fr / loub@ki2014D",
+    "external_api_key": "6c9fcb634abe477d1e8643c51517f6e59ac7ebde1d1d05945c57e959c25ac998"
+  },
+  "seed_data_creation": "Created multiple TEST_ prefixed external companies during testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "External Partner API Provisioning feature fully tested and working. All 17 backend tests pass. Frontend badge 'ORIGINE : EXTERNE' displays correctly for external companies in Super Admin dashboard. The EXTERNAL_API_KEY is stored in /app/.env. Companies created via this API have origin='external', subscriptionStatus='active', and are NOT blocked by enforceSubscription middleware.",
+  "features_tested": {
+    "api_key_authentication": {
+      "status": "PASS",
+      "details": "X-API-Key header and Bearer token both work. Missing/wrong key returns 401."
+    },
+    "required_field_validation": {
+      "status": "PASS",
+      "details": "Missing name/adminEmail/country/city returns 400 with fields list"
+    },
+    "email_validation": {
+      "status": "PASS",
+      "details": "Invalid email format returns 400, existing email returns 409"
+    },
+    "company_creation_minimum_payload": {
+      "status": "PASS",
+      "details": "Creates company with correct defaults: origin='external', subscriptionStatus='active', onboardingCompleted=true"
+    },
+    "company_creation_full_payload": {
+      "status": "PASS",
+      "details": "All optional fields (rccm, legalForm, capital, CNSS rates, etc.) persisted correctly"
+    },
+    "admin_user_auto_creation": {
+      "status": "PASS",
+      "details": "Admin user created with 16-char password, can login immediately"
+    },
+    "subscription_bypass": {
+      "status": "PASS",
+      "details": "External companies can access /api/contacts, /api/products without subscription block"
+    },
+    "external_companies_listing": {
+      "status": "PASS",
+      "details": "GET /api/external/companies returns only origin='external' companies"
+    },
+    "super_admin_visibility": {
+      "status": "PASS",
+      "details": "/api/admin/companies includes 'origin' field, external companies visible"
+    },
+    "frontend_external_badge": {
+      "status": "PASS",
+      "details": "Violet 'ORIGINE : EXTERNE' badge displayed with correct data-testid"
+    }
+  },
+  "tests_executed": {
+    "backend_tests": [
+      {"test": "test_post_without_api_key_returns_401", "result": "PASSED"},
+      {"test": "test_post_with_wrong_api_key_returns_401", "result": "PASSED"},
+      {"test": "test_get_without_api_key_returns_401", "result": "PASSED"},
+      {"test": "test_bearer_token_authentication_works", "result": "PASSED"},
+      {"test": "test_empty_payload_returns_400_with_missing_fields", "result": "PASSED"},
+      {"test": "test_partial_payload_returns_400_with_remaining_fields", "result": "PASSED"},
+      {"test": "test_invalid_email_returns_400", "result": "PASSED"},
+      {"test": "test_existing_email_returns_409", "result": "PASSED"},
+      {"test": "test_minimum_payload_creates_company_with_correct_attributes", "result": "PASSED"},
+      {"test": "test_full_payload_persists_all_optional_fields", "result": "PASSED"},
+      {"test": "test_cd_country_infers_cdf_currency", "result": "PASSED"},
+      {"test": "test_login_with_auto_created_credentials", "result": "PASSED"},
+      {"test": "test_external_company_can_access_protected_routes", "result": "PASSED"},
+      {"test": "test_list_returns_only_external_companies", "result": "PASSED"},
+      {"test": "test_list_includes_recently_created_company", "result": "PASSED"},
+      {"test": "test_admin_companies_endpoint_returns_origin_field", "result": "PASSED"},
+      {"test": "test_external_companies_visible_to_super_admin", "result": "PASSED"}
+    ],
+    "frontend_tests": [
+      {"test": "Super Admin dashboard loads", "result": "PASSED"},
+      {"test": "External origin badges visible", "result": "PASSED - 10 badges found"},
+      {"test": "Badge text is 'ORIGINE : EXTERNE'", "result": "PASSED"},
+      {"test": "Badge has correct data-testid", "result": "PASSED - data-testid='external-origin-badge-{id}'"},
+      {"test": "External companies listed with 'Réelle' type", "result": "PASSED"}
+    ]
+  }
+}

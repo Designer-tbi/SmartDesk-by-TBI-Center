@@ -34,6 +34,7 @@ import { eventsRouter } from './server/routes/events.js';
 import { schedulesRouter } from './server/routes/schedules.js';
 import { publicSignatureRouter } from './server/routes/publicSignature.js';
 import { subscriptionRouter } from './server/routes/subscription.js';
+import { externalRouter } from './server/routes/external.js';
 import { enforceSubscription } from './server/middleware/enforceSubscription.js';
 
 const app = express();
@@ -69,6 +70,11 @@ app.use(resourceChangeBroadcaster);
 // and no active PayPal subscription is in place. MUST run after
 // dbMiddleware (to have req.db) but can sit before the routes.
 app.use(enforceSubscription);
+
+// External partner-platform provisioning API. Authenticated by static
+// API key (X-API-Key header / Bearer token) — has no tenant context,
+// so it sits before the regular routers that rely on dbMiddleware.
+app.use('/api/external', externalRouter);
 
 // API Routes
 app.use('/api/subscription', subscriptionRouter);
