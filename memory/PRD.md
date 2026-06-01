@@ -1614,3 +1614,48 @@ modal d'abonnement.
 - Screenshot après login eden : `subscription-blocker` count = 0,
   `subscription-trial-banner` count = 0.
 - GET /api/contacts en tant que super-admin : 200 OK (régression).
+
+## Fix flow paiement compte suspendu (2026-06-01 — iter 14)
+
+### Demande utilisateur
+« Vérifie les paiements quand le compte est suspendu car ça ne fonctionne pas. »
+
+### Bugs identifiés et corrigés
+
+**1. Orphelins PayPal lors d'un re-subscribe**
+- `/app/server/routes/subscription.ts` POST /create : si la société a déjà
+  un `paypalSubscriptionId`, on appelle d'abord `cancelSubscription`
+  côté PayPal pour annuler l'ancien billing agreement avant d'en créer
+  un nouveau. Évite les doubles débits et les conflits côté PayPal.
+  L'échec d'annulation est non-fatal (l'ancien sub peut déjà être
+  expiré/inexistant) : on log et on continue.
+
+**2. APPROVED bloquait l'accès indéfiniment**
+- POST /activate : mapping PayPal → SmartDesk : `APPROVED → 'active'`
+  (avant : `APPROVED → 'pending'`). Quand l'utilisateur revient de
+  PayPal après avoir approuvé, PayPal peut prendre quelques minutes
+  pour activer le sub (statut intermédiaire = APPROVED). On donne
+  accès immédiatement ; si le premier paiement échoue,
+  `BILLING.SUBSCRIPTION.PAYMENT.FAILED` webhook nous remet à
+  `suspended`.
+
+**3. `landing_page=BILLING` était inefficace sur /webapps/billing/subscriptions**
+- `/app/src/components/SubscriptionGate.tsx` startSubscribe : retire
+  l'ajout du param `landing_page=BILLING` (ce param ne marche QUE sur
+  les URLs `/checkoutnow`, pas sur les URLs de Subscription PayPal).
+  Le lien « Payer par carte » reste disponible sur l'écran PayPal en
+  guest checkout.
+
+### Validation (iteration_14.json — 14/15 backend + 9/9 frontend)
+- Re-subscribe d'un compte suspended : OK, annule l'ancien sub, crée
+  le nouveau, retourne approveUrl ✅
+- Cancel échec non-fatal (404 sur ancien sub fictif) ✅
+- APPROVED → active vérifié dans le code ✅
+- Régressions OK (super-admin bypass, comptes active, etc.) ✅
+
+### Note prod
+- PayPal est en mode `live`. Pour un test réel, l'utilisateur doit
+  avoir un compte PayPal sandbox ou cliquer sur « Payer par carte »
+  sur l'écran PayPal (guest checkout). La carte sera facturée en USD
+  équivalent à 45 000 XAF (CG) ou 40 USD (autres pays) selon le taux
+  de change PayPal du jour.
