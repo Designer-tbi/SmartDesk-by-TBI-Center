@@ -122,11 +122,26 @@ subscriptionRouter.post('/create', requireAuth, requireCompany, async (req, res,
   try {
     const cid = req.user!.companyId;
     const r = await req.db.query(
-      `SELECT id, country FROM companies WHERE id = $1`,
+      `SELECT id, country, "paypalSubscriptionId", "subscriptionStatus"
+         FROM companies WHERE id = $1`,
       [cid],
     );
     const company = r.rows[0];
     if (!company) return res.status(404).json({ error: 'Company not found' });
+
+    // If the company has a previous PayPal subscription (typical for
+    // a `suspended` re-subscribe), cancel it FIRST so we don't end up
+    // with two parallel billing agreements on PayPal's side. Failure
+    // is non-fatal — PayPal may already have marked it cancelled or
+    // expired, in which case we just continue.
+    if (company.paypalSubscriptionId) {
+      try {
+        await cancelSubscription(company.paypalSubscriptionId, 'Resubscribe from SmartDesk');
+        console.log(`Cancelled stale PayPal subscription ${company.paypalSubscriptionId} for ${cid}`);
+      } catch (err) {
+        console.log(`Stale PayPal subscription ${company.paypalSubscriptionId} cancel failed (continuing):`, err instanceof Error ? err.message : err);
+      }
+    }
 
     const plans = await ensureProductAndPlans(req.db);
     const spec = resolvePlanForCountry(company.country);
@@ -180,7 +195,13 @@ subscriptionRouter.post('/activate', requireAuth, requireCompany, async (req, re
 
     let localStatus: string;
     if (paypalStatus === 'ACTIVE') localStatus = 'active';
-    else if (paypalStatus === 'APPROVAL_PENDING' || paypalStatus === 'APPROVED') localStatus = 'pending';
+    // APPROVED means the buyer has committed to the agreement on PayPal
+    // — payment collection may take a few minutes but we should grant
+    // access immediately so the user isn't stuck on the gate. If the
+    // first payment later fails, the BILLING.SUBSCRIPTION.PAYMENT.FAILED
+    // webhook will set status to 'suspended' and re-block.
+    else if (paypalStatus === 'APPROVED') localStatus = 'active';
+    else if (paypalStatus === 'APPROVAL_PENDING') localStatus = 'pending';
     else if (paypalStatus === 'SUSPENDED') localStatus = 'suspended';
     else if (paypalStatus === 'CANCELLED' || paypalStatus === 'EXPIRED') localStatus = 'expired';
     else localStatus = paypalStatus.toLowerCase();

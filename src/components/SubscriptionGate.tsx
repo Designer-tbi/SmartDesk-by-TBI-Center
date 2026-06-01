@@ -82,14 +82,13 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
       const r = await apiFetch('/api/subscription/create', { method: 'POST' });
       const data = await r.json();
       if (r.ok && data.approveUrl) {
-        // Append landing_page=BILLING so PayPal Checkout opens directly
-        // on the credit-card form (guest payment) instead of the
-        // PayPal login screen. The button copy in the UI reflects this.
-        const target = new URL(data.approveUrl);
-        if (!target.searchParams.has('landing_page')) {
-          target.searchParams.set('landing_page', 'BILLING');
-        }
-        window.location.href = target.toString();
+        // Note: `landing_page=BILLING` only works on the legacy
+        // /checkoutnow endpoint, NOT on /webapps/billing/subscriptions.
+        // PayPal ignores it on the subscriptions URL — so we just
+        // redirect to the official approveUrl untouched. The "Payer
+        // par carte" link is available on PayPal's screen for guest
+        // checkout.
+        window.location.href = data.approveUrl;
       } else {
         toast.error(data?.error || 'Impossible de démarrer l\'abonnement.');
         setSubscribing(false);
