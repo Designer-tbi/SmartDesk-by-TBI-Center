@@ -1560,3 +1560,35 @@ schéma. La colonne `companies.schemaName` est vestigiale.
 - Login avec l'admin auto-créé → OK ✅
 - Aucune régression côté `/api/external/companies` (qui n'utilisait
   déjà plus cette fonction).
+
+## 3 bugs super-admin / subscription gate (2026-06-01 — iter 13)
+
+### Demandes utilisateur
+1. Super admin → atterrir directement sur l'entreprise **TBI Center** (réel).
+2. Période d'essai terminée mais bouton « S'abonner avec PayPal » ne fonctionne pas → **remplacer par « S'abonner par carte bancaire »**.
+3. Bouton « Se déconnecter » de la modal d'abonnement ne fonctionne pas.
+
+### Fixes
+**1. Super-admin landing**
+- `/app/server/routes/auth.ts` POST /login : pour `role='super_admin'`, si `preferences.selectedCompanyId` est vide OU pointe vers une société supprimée, auto-cherche la société `LOWER(name) LIKE '%tbi center%' AND type='real'` et persiste le résultat.
+- DB seed : tous les super-admins existants ont eu leur `preferences.selectedCompanyId` mis à `comp_default` (TBI Center).
+
+**2. Relabel PayPal → carte bancaire**
+- `/app/src/components/SubscriptionGate.tsx` :
+  - Bouton : « S'abonner par carte bancaire » (au lieu de « S'abonner avec PayPal »).
+  - Sous-texte : « Paiement sécurisé par carte bancaire (Visa, Mastercard). »
+  - URL PayPal : ajout du paramètre `?landing_page=BILLING` qui ouvre directement le formulaire CB invité de PayPal Checkout (pas l'écran de login PayPal).
+
+**3. Bouton logout dans la modal**
+- Cause : `useAuth()` n'exposait pas de fonction `logout` — `useAuth() as any` masquait l'erreur, le bouton appelait `undefined()`.
+- Fix : `AuthContext.tsx` : `AuthProvider` accepte désormais une prop `logout` et l'expose dans le `value` du contexte. `App.tsx` lui passe le `logout()` local (qui appelle `/api/auth/logout` + `clearApiSession()` + `setUser(null)`).
+- `SubscriptionGate.tsx` : `const { user, logout } = useAuth();` (typé proprement).
+
+### Validation (iteration_13.json — 7/7 backend + 7/7 frontend)
+- Super admin login → `selectedCompanyId=comp_default` ✅
+- POST /api/auth/logout → 200 + session purgée ✅
+- POST /api/subscription/create → approveUrl PayPal valide ✅
+- Modal affiche « S'abonner par carte bancaire » + texte CB ✅
+- Aucun texte « PayPal » résiduel ✅
+- Logout modal → retour à l'écran de login ✅
+- Régression : Header logout toujours OK ✅
