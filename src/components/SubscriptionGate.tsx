@@ -44,6 +44,8 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
+    // Super admins are never gated — skip the status fetch entirely.
+    if (user.role === 'super_admin') { setLoading(false); return; }
     // Stamp trial on the first request (idempotent).
     apiFetch('/api/subscription/start-trial', { method: 'POST' })
       .catch(() => {})
@@ -100,6 +102,11 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
   };
 
   if (!user) return <>{children}</>;
+  // Super admins are never gated — they manage other tenants and must
+  // remain operational regardless of any individual company's trial /
+  // subscription state. The backend already bypasses enforceSubscription
+  // for super_admin tokens; this short-circuit keeps the UI consistent.
+  if (user.role === 'super_admin') return <>{children}</>;
   if (loading) return <>{children}</>;
   if (!status) return <>{children}</>;
 

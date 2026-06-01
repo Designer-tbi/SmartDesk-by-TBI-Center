@@ -1592,3 +1592,25 @@ schéma. La colonne `companies.schemaName` est vestigiale.
 - Aucun texte « PayPal » résiduel ✅
 - Logout modal → retour à l'écran de login ✅
 - Régression : Header logout toujours OK ✅
+
+## Bypass SubscriptionGate pour super-admin (2026-06-01)
+
+### Demande
+Ne plus demander de paiement pour `eden@tbi-center.fr` (et tout super-admin).
+
+### Fix
+`/app/src/components/SubscriptionGate.tsx` :
+- Short-circuit `if (user.role === 'super_admin') return <>{children}</>`
+  AVANT toute logique de loading/blocker.
+- `useEffect` qui fetch status : skip pour super_admin (ne fait pas
+  POST /start-trial ni GET /status).
+
+Le backend (`enforceSubscription` middleware) bypassait déjà via
+`isSuperAdmin` ; ce fix aligne le frontend. Les super-admins peuvent
+maintenant impersonner n'importe quelle société sans jamais voir la
+modal d'abonnement.
+
+### Validation
+- Screenshot après login eden : `subscription-blocker` count = 0,
+  `subscription-trial-banner` count = 0.
+- GET /api/contacts en tant que super-admin : 200 OK (régression).
