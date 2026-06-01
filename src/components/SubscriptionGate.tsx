@@ -29,7 +29,7 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
-  const { user, logout } = useAuth() as any;
+  const { user, logout } = useAuth();
 
   const fetchStatus = async () => {
     try {
@@ -80,7 +80,14 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
       const r = await apiFetch('/api/subscription/create', { method: 'POST' });
       const data = await r.json();
       if (r.ok && data.approveUrl) {
-        window.location.href = data.approveUrl;
+        // Append landing_page=BILLING so PayPal Checkout opens directly
+        // on the credit-card form (guest payment) instead of the
+        // PayPal login screen. The button copy in the UI reflects this.
+        const target = new URL(data.approveUrl);
+        if (!target.searchParams.has('landing_page')) {
+          target.searchParams.set('landing_page', 'BILLING');
+        }
+        window.location.href = target.toString();
       } else {
         toast.error(data?.error || 'Impossible de démarrer l\'abonnement.');
         setSubscribing(false);
@@ -106,14 +113,13 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
       </div>
       {isCG ? (
         <p className="text-xs opacity-90 mt-3 leading-relaxed">
-          Vous êtes facturé l'équivalent en dollars par PayPal
-          (<strong>{status.plan.amountUSD} USD</strong>), mais votre
-          carte sera débitée en XAF selon le taux de change du jour
-          appliqué par votre banque — le coût final reste
-          <strong> {status.plan.displayLocal} </strong>.
+          Votre carte sera débitée en XAF
+          (équivalent <strong>{status.plan.amountUSD} USD</strong>) selon
+          le taux de change du jour appliqué par votre banque — le coût
+          final reste <strong> {status.plan.displayLocal} </strong>.
         </p>
       ) : (
-        <p className="text-xs opacity-90 mt-3">Renouvellement mensuel automatique.</p>
+        <p className="text-xs opacity-90 mt-3">Renouvellement mensuel automatique par carte.</p>
       )}
     </div>
   );
@@ -152,7 +158,7 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
                 data-testid="subscription-pay-btn"
               >
                 {subscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
-                {subscribing ? 'Redirection PayPal…' : 'S\'abonner avec PayPal'}
+                {subscribing ? 'Redirection sécurisée…' : 'S\'abonner par carte bancaire'}
               </button>
               <button
                 onClick={logout}
@@ -163,7 +169,7 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
               </button>
             </div>
             <p className="text-[11px] text-center text-slate-400">
-              Paiement sécurisé via PayPal. Vous pouvez annuler à tout moment depuis les paramètres.
+              Paiement sécurisé par carte bancaire (Visa, Mastercard). Vous pouvez annuler à tout moment depuis les paramètres.
             </p>
           </div>
         </div>

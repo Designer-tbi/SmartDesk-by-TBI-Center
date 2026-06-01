@@ -277,6 +277,34 @@ authRouter.post('/login', async (req, res, next) => {
     // Load persisted user preferences (language, sidebar state, ...).
     const prefs = user.preferences || {};
 
+    // Super-admin landing: when no impersonation target is set (or it
+    // points to a deleted company), default to TBI Center — the real
+    // production tenant — so the dashboard greets them on the right
+    // company instead of an empty stub.
+    if (user.role === 'super_admin') {
+      const wantId = prefs.selectedCompanyId;
+      let needsUpdate = !wantId;
+      if (wantId) {
+        const exists = await req.db.query('SELECT 1 FROM companies WHERE id = $1', [wantId]);
+        if (!exists.rowCount) needsUpdate = true;
+      }
+      if (needsUpdate) {
+        const tbi = await req.db.query(
+          `SELECT id FROM companies
+             WHERE LOWER(name) LIKE '%tbi center%' AND type = 'real'
+             ORDER BY "createdAt" ASC NULLS LAST LIMIT 1`,
+        );
+        const tbiId = tbi.rows[0]?.id;
+        if (tbiId) {
+          prefs.selectedCompanyId = tbiId;
+          await req.db.query(
+            `UPDATE users SET preferences = $1::jsonb WHERE id = $2`,
+            [JSON.stringify(prefs), user.id],
+          );
+        }
+      }
+    }
+
     res.json({
       user: {
         id: user.id,

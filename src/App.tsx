@@ -183,7 +183,7 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
   }
 
   return (
-    <AuthProvider user={user} setUser={setUser}>
+    <AuthProvider user={user} setUser={setUser} logout={logout}>
       {/* Listen to automation events on the tenant WebSocket so the
           user sees cross-module ripples (signed quote → invoice,
           paid invoice → journal, …) without refreshing the page. */}

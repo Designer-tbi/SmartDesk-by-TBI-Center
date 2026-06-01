@@ -45,6 +45,7 @@ type AuthContextValue = {
   company: CompanyInfo;
   refreshUser: () => Promise<void>;
   refreshCompany: () => Promise<void>;
+  logout: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -52,10 +53,11 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 type ProviderProps = {
   user: AuthUser;
   setUser: (u: AuthUser | ((prev: AuthUser) => AuthUser)) => void;
+  logout: () => Promise<void>;
   children: React.ReactNode;
 };
 
-export const AuthProvider = ({ user, setUser, children }: ProviderProps) => {
+export const AuthProvider = ({ user, setUser, logout, children }: ProviderProps) => {
   const [company, setCompany] = useState<CompanyInfo>(null);
 
   const refreshCompany = useCallback(async () => {
@@ -89,8 +91,8 @@ export const AuthProvider = ({ user, setUser, children }: ProviderProps) => {
   }, [refreshCompany]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, setUser, company, refreshUser, refreshCompany }),
-    [user, setUser, company, refreshUser, refreshCompany],
+    () => ({ user, setUser, company, refreshUser, refreshCompany, logout }),
+    [user, setUser, company, refreshUser, refreshCompany, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
