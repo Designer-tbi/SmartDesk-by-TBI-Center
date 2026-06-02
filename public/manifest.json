@@ -1,16 +1,27 @@
 {
   "name": "SmartDesk by TBI Center",
   "short_name": "SmartDesk",
-  "description": "Solution CRM & ERP Tout-en-un pour PME",
+  "description": "Solution CRM & ERP tout-en-un pour PME et grandes entreprises africaines",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#ffffff",
-  "theme_color": "#4f46e5",
+  "theme_color": "#7a0e1c",
+  "lang": "fr",
+  "dir": "ltr",
+  "categories": ["business", "productivity", "finance"],
   "icons": [
-    {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml"
-    }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-256.png", "sizes": "256x256", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-384.png", "sizes": "384x384", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-192-maskable.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Tableau de bord", "url": "/", "description": "Vue d'ensemble de l'activité" },
+    { "name": "CRM Clients", "url": "/?module=crm" },
+    { "name": "Ventes & Factures", "url": "/?module=sales" }
   ]
 }

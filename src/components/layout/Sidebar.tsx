@@ -26,6 +26,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 import { I18nProvider, useTranslation } from '../../lib/i18n';
+import { InstallAppButton } from '../InstallAppButton';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -258,7 +259,12 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
         </nav>
       </div>
       
-      <div className={cn("mt-auto p-6 border-t border-white/5", isCollapsed ? "lg:flex lg:justify-center lg:px-2" : "")}>
+      <div className={cn("mt-auto p-6 border-t border-white/5", isCollapsed ? "lg:flex lg:flex-col lg:items-center lg:px-2 lg:gap-3" : "space-y-3")}>
+        {/* PWA install entry — hidden when the app is already running
+            in standalone mode (display-mode: standalone or iOS
+            navigator.standalone). */}
+        <InstallAppButton collapsed={isCollapsed && !isOpen} />
+
         <div className={cn("flex items-center", isCollapsed ? "lg:justify-center" : "gap-3")}>
           <div className="w-10 h-10 shrink-0 rounded-full bg-white/10 flex items-center justify-center text-white font-bold border border-white/10" title={isCollapsed ? (user?.name || 'Admin') : undefined}>
             {user?.name?.charAt(0) || 'A'}

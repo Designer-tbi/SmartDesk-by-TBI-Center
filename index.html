@@ -8,7 +8,11 @@
     <meta name="keywords" content="SmartDesk, TBI Center, CRM, ERP, Logiciel de gestion d'entreprise, PME, Afrique, Congo, Brazzaville, Automatisation, Gestion RH, Facturation, Suivi client, Productivité, Solution Cloud" />
     <meta name="author" content="TBI Center" />
     <meta name="robots" content="index, follow" />
-    <meta name="theme-color" content="#4f46e5" />
+    <meta name="theme-color" content="#7a0e1c" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="SmartDesk" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
@@ -27,7 +31,7 @@
     <meta property="twitter:image" content="https://smartdesk.cg/og-image.png" />
 
     <link rel="canonical" href="https://smartdesk.cg/" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
     <link rel="manifest" href="/manifest.json" />
 
     <!-- Structured Data (JSON-LD) -->
@@ -55,6 +59,19 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Register the SmartDesk PWA service worker so the browser
+      // surfaces the install prompt (`beforeinstallprompt` event) on
+      // mobile/tablet/desktop. The SW itself is online-first and
+      // never caches API responses (multi-tenant safe).
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js').catch((err) =>
+            console.log('SW register failed:', err),
+          );
+        });
+      }
+    </script>
   </body>
 </html>
 

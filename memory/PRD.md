@@ -1659,3 +1659,42 @@ modal d'abonnement.
   sur l'écran PayPal (guest checkout). La carte sera facturée en USD
   équivalent à 45 000 XAF (CG) ou 40 USD (autres pays) selon le taux
   de change PayPal du jour.
+
+## PWA installable mobile/tablette/PC (2026-06-02)
+
+### Demande
+Permettre d'installer SmartDesk depuis le menu (sidebar) sur mobile, tablette et PC. Choix : 1a (sidebar), 2a (masquer si installé + instructions iOS).
+
+### Implementation
+
+**Assets PWA**
+- `/app/public/manifest.json` enrichi : name, short_name, description,
+  display=standalone, theme_color=#7a0e1c, scope, shortcuts, et 6 icônes
+  PNG (192/256/384/512 + maskable 192/512).
+- `/app/public/icons/` : 6 PNG générés (TBI rouge + monogramme "S" blanc).
+- `/app/public/sw.js` : service worker minimal, online-first (NEVER cache
+  /api/* — risque multi-tenant), cache statique pour shell offline.
+- `/app/index.html` : refs manifest, theme-color #7a0e1c, apple-touch-icon,
+  apple-mobile-web-app-capable, enregistrement SW au load.
+
+**Frontend**
+- `/app/src/lib/useInstallPrompt.ts` : hook React qui capture
+  `beforeinstallprompt` (Chrome/Edge/Android), détecte iOS (pas de prompt
+  natif), détecte standalone (display-mode + navigator.standalone), expose
+  `{ canInstall, isInstalled, isIOS, install() }`.
+- `/app/src/components/InstallAppButton.tsx` : bouton rouge dans la sidebar.
+  Comportement :
+  - Si `isInstalled` → bouton masqué.
+  - Si `canInstall` → bouton déclenche `prompt()` natif.
+  - Si iOS → ouvre modal avec instructions « Share → Sur l'écran d'accueil ».
+  - Sinon → ouvre modal avec instructions génériques (Chrome/Edge/Brave).
+  - Modal portailée vers `document.body` (`createPortal`) pour éviter le
+    bug visuel quand la sidebar utilise un `transform` parent.
+- `/app/src/components/layout/Sidebar.tsx` : `<InstallAppButton collapsed={...}>`
+  inséré dans le footer juste au-dessus du profil utilisateur. Réagit au
+  mode collapsed (icône seule) et au drawer mobile.
+
+### Vérification visuelle
+- `manifest.json`, `sw.js`, icônes → HTTP 200 ✅
+- Bouton « INSTALLER L'APPLICATION » visible dans la sidebar ✅
+- Modal instructions centrée et lisible (3 étapes + note de bas) ✅
