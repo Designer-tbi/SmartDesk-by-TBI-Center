@@ -14,6 +14,7 @@
  */
 
 import { computeInvoiceTotals } from './invoiceTotals.js';
+import { broadcast } from '../activity.js';
 
 type DB = { query: (...args: any[]) => Promise<any> };
 
@@ -309,6 +310,25 @@ export async function autoPostPaidInvoiceJournal(
     }
 
     await db.query('COMMIT');
+
+    // Surface the newly-posted journal entry to live-sync subscribers
+    // (Accounting module) — it was created by a side-effect, not by a
+    // route, so the global resourceChangeBroadcaster middleware would
+    // miss it.
+    try {
+      broadcast({
+        type: 'RESOURCE_CHANGED',
+        data: {
+          resource: 'journalEntries',
+          method: 'POST',
+          url: '/api/journal-entries (auto)',
+          id: entryId,
+          companyId,
+          at: new Date().toISOString(),
+        },
+      });
+    } catch { /* noop */ }
+
     return entryId;
   } catch (err) {
     await db.query('ROLLBACK');

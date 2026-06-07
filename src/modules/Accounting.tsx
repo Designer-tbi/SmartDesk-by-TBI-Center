@@ -516,31 +516,47 @@ export const Accounting = ({ user }: { user?: any }) => {
               <thead className="bg-soft-red/30 border-b border-red-50">
                 <tr>
                   <th className="p-4 text-sm font-bold text-accent-red">{t('accounting.date')}</th>
+                  <th className="p-4 text-sm font-bold text-accent-red">Compte</th>
                   <th className="p-4 text-sm font-bold text-accent-red">{t('accounting.description')}</th>
-                  <th className="p-4 text-sm font-bold text-accent-red">{t('accounting.debit')}</th>
-                  <th className="p-4 text-sm font-bold text-accent-red">{t('accounting.credit')}</th>
+                  <th className="p-4 text-sm font-bold text-accent-red text-right">{t('accounting.debit')}</th>
+                  <th className="p-4 text-sm font-bold text-accent-red text-right">{t('accounting.credit')}</th>
                   <th className="p-4 text-sm font-bold text-accent-red text-right">{t('accounting.actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-red-50">
                 {journalEntries.map(entry => (
                   <React.Fragment key={entry.id}>
-                    {entry.items.map((item, idx) => (
-                      <tr key={`${entry.id}-${idx}`} className="hover:bg-soft-red/10 transition-colors group">
-                        <td className="p-4 text-sm font-medium text-slate-600">{idx === 0 ? entry.date : ''}</td>
-                        <td className="p-4 text-sm font-medium text-slate-900">{idx === 0 ? entry.description : ''}</td>
-                        <td className="p-4 text-sm font-semibold text-slate-700">{item.debit > 0 ? item.debit.toLocaleString() : '-'}</td>
-                        <td className="p-4 text-sm font-semibold text-slate-700">{item.credit > 0 ? item.credit.toLocaleString() : '-'}</td>
-                        <td className="p-4 text-sm text-right">
-                          {idx === 0 && (
-                            <div className="flex justify-end gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                              <button onClick={() => openEdit(entry)} className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-red-100" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
-                              <button onClick={() => setDeleteConfirmId(entry.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-rose-100" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
+                    {entry.items.map((item, idx) => {
+                      // Resolve the account name (when stored as a PCG code)
+                      // so the OHADA "compte du grand livre" reading remains
+                      // explicit: every leg shows its account number AND label.
+                      const ac = OHADA_PCG.find(a => a.code === item.accountId);
+                      const accountLabel = ac ? ac.name : '';
+                      return (
+                        <tr key={`${entry.id}-${idx}`} className="hover:bg-soft-red/10 transition-colors group">
+                          <td className="p-4 text-sm font-medium text-slate-600">{idx === 0 ? entry.date : ''}</td>
+                          <td className="p-4 text-sm">
+                            <div className="font-mono font-bold text-slate-900" data-testid={`journal-account-code-${entry.id}-${idx}`}>
+                              {item.accountId || '—'}
                             </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                            {accountLabel && (
+                              <div className="text-[11px] text-slate-500 truncate max-w-[200px]">{accountLabel}</div>
+                            )}
+                          </td>
+                          <td className="p-4 text-sm font-medium text-slate-900">{idx === 0 ? entry.description : ''}</td>
+                          <td className="p-4 text-sm font-semibold text-slate-700 text-right tabular-nums">{item.debit > 0 ? item.debit.toLocaleString() : '—'}</td>
+                          <td className="p-4 text-sm font-semibold text-slate-700 text-right tabular-nums">{item.credit > 0 ? item.credit.toLocaleString() : '—'}</td>
+                          <td className="p-4 text-sm text-right">
+                            {idx === 0 && (
+                              <div className="flex justify-end gap-2 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
+                                <button onClick={() => openEdit(entry)} className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-red-100" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
+                                <button onClick={() => setDeleteConfirmId(entry.id)} className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-white rounded-lg transition-all shadow-sm border border-transparent hover:border-rose-100" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </React.Fragment>
                 ))}
               </tbody>

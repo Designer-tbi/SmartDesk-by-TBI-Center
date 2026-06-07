@@ -246,6 +246,24 @@ invoicesRouter.post('/', async (req, res, next) => {
         ...totals,
         ...(certified || {}),
       });
+
+      // Automation: when an invoice is CREATED already in 'Paid' state
+      // (e.g. via the "mark quote paid" endpoint or a direct entry by
+      // the operator), post the OHADA journal entry right away so the
+      // accounting module stays synchronised. Fire-and-forget after
+      // the response so the API stays snappy.
+      if (inv.type === 'Invoice' && inv.status === 'Paid') {
+        autoPostPaidInvoiceJournal(req.db, inv.id, req.user.companyId)
+          .then((entryId) => {
+            if (entryId) {
+              broadcast({
+                type: 'JOURNAL_AUTO_CREATED',
+                data: { invoiceId: inv.id, entryId, companyId: req.user!.companyId },
+              });
+            }
+          })
+          .catch((err) => console.error('POST /api/invoices - auto-journal failed', err));
+      }
     } catch (dbError) {
       await req.db.query('ROLLBACK');
       console.error('POST /api/invoices - Database Error:', dbError);

@@ -1,0 +1,137 @@
+{
+  "summary": "Iteration 15: Tested Accounting Module synchronization features. All backend tests pass (8/8). All frontend tests pass. POST /api/invoices with status='Paid' correctly triggers auto journal entry with accounts 521/701/445. Live sync (useLiveSync) working via polling fallback.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {
+        "endpoint": "WebSocket",
+        "issue": "WebSocket connections failing with 'WebSocket is closed before the connection is established' - polling fallback working correctly",
+        "priority": "LOW"
+      }
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Accounting Dashboard",
+        "issues": ["Chart warning: 'The width(-1) and height(-1) of chart should be greater than 0' - cosmetic issue, chart still renders"]
+      }
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_accounting_sync.py",
+    "/app/test_reports/pytest/pytest_accounting_sync.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "VERIFIED: POST /api/invoices with status='Paid' triggers autoPostPaidInvoiceJournal (fire-and-forget after res.status(201).json())",
+    "VERIFIED: Journal entry contains 3 items: 521 (Banques) debit=total, 701 (Ventes) credit=totalHT, 445 (TVA) credit=tvaTotal+centimes",
+    "VERIFIED: Journal entry has sourceRef = invoice.id for traceability",
+    "VERIFIED: autoPostPaidInvoiceJournal broadcasts RESOURCE_CHANGED with resource='journalEntries' via broadcast() WebSocket",
+    "VERIFIED: PUT /api/invoices/:id with Draft→Paid transition triggers auto-journal (regression test passed)",
+    "VERIFIED: Idempotence - calling 2x the same Paid case doesn't create 2 journal entries (guard 'already' exists)",
+    "VERIFIED: Manual journal entry creation (POST /api/journal-entries) remains possible",
+    "VERIFIED: Frontend Journal table displays 'Compte' column with OHADA account codes (521, 701, 445) in font-mono bold",
+    "VERIFIED: Frontend Journal table shows account names as subtitles (Banques, Ventes de produits finis, État - TVA facturée)",
+    "VERIFIED: data-testid='journal-account-code-{entryId}-{idx}' attributes present on all account code elements",
+    "VERIFIED: useLiveSync on ['journalEntries', 'transactions', 'invoices'] working - TVA declaration auto-updates within 12 seconds",
+    "VERIFIED: TVA sur factures payées card updates automatically when invoice is paid (22,614,000 FC → 22,630,000 FC)",
+    "VERIFIED: TVA à payer card updates automatically (22,614,000 FC → 22,630,000 FC)"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_accounting_sync.py"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 tests passed)",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "demo_rdc": "ariane.mbombo@tbi-center.fr / admin (company: demo-company-1777919795902, CD/CDF)"
+  },
+  "seed_data_creation": "Created multiple test invoices with status='Paid' for testing auto-journal functionality",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Accounting module synchronization is fully working. Key features tested: (1) POST /api/invoices with status='Paid' triggers auto journal entry with OHADA accounts 521/701/445, (2) Journal table displays account codes with data-testid attributes, (3) useLiveSync polling fallback (10s) working for Dashboard/TVA updates. WebSocket connections are failing but polling fallback compensates.",
+  "features_tested": {
+    "post_invoice_paid_auto_journal": {
+      "status": "PASS",
+      "details": "POST /api/invoices with status='Paid' triggers autoPostPaidInvoiceJournal - journal entry created with sourceRef=invoice.id"
+    },
+    "journal_entry_accounts_521_701_445": {
+      "status": "PASS",
+      "details": "Journal entry contains accounts 521 (Banques debit), 701 (Ventes credit), 445 (TVA credit)"
+    },
+    "journal_entry_source_ref": {
+      "status": "PASS",
+      "details": "Journal entry has sourceRef = invoice.id for traceability"
+    },
+    "resource_changed_broadcast": {
+      "status": "PASS (code review)",
+      "details": "autoPostPaidInvoiceJournal broadcasts RESOURCE_CHANGED with resource='journalEntries' after COMMIT"
+    },
+    "put_draft_to_paid_auto_journal": {
+      "status": "PASS",
+      "details": "PUT /api/invoices/:id with Draft→Paid transition triggers auto-journal (regression test)"
+    },
+    "idempotence_no_duplicate": {
+      "status": "PASS",
+      "details": "Calling 2x the same Paid case doesn't create 2 journal entries - guard 'already' exists"
+    },
+    "manual_journal_entry_creation": {
+      "status": "PASS",
+      "details": "POST /api/journal-entries for manual entry creation works correctly"
+    },
+    "frontend_journal_compte_column": {
+      "status": "PASS",
+      "details": "Journal table displays 'Compte' column with OHADA codes (521, 701, 445) in font-mono bold + account names as subtitles"
+    },
+    "frontend_journal_data_testid": {
+      "status": "PASS",
+      "details": "data-testid='journal-account-code-{entryId}-{idx}' attributes present on 49 account code elements"
+    },
+    "frontend_dashboard_live_sync": {
+      "status": "PASS",
+      "details": "useLiveSync on ['journalEntries', 'transactions', 'invoices'] - Dashboard cards present (Revenus, Dépenses, Bénéfice Net)"
+    },
+    "frontend_tva_live_sync": {
+      "status": "PASS",
+      "details": "TVA declaration cards auto-update within 12 seconds when invoice is paid (22,614,000 FC → 22,630,000 FC)"
+    },
+    "use_live_sync_polling_fallback": {
+      "status": "PASS",
+      "details": "Polling fallback (10s interval) working correctly - WebSocket failing but data still syncs"
+    }
+  },
+  "tests_executed": {
+    "backend_tests": [
+      {"test": "test_01_post_invoice_paid_creates_auto_journal", "result": "PASSED"},
+      {"test": "test_02_journal_entry_has_correct_accounts", "result": "PASSED"},
+      {"test": "test_03_journal_entry_amounts_match_invoice", "result": "PASSED"},
+      {"test": "test_04_idempotence_no_duplicate_journal", "result": "PASSED"},
+      {"test": "test_05_put_draft_to_paid_triggers_journal", "result": "PASSED"},
+      {"test": "test_06_manual_journal_entry_creation", "result": "PASSED"},
+      {"test": "test_07_journal_entry_has_source_ref", "result": "PASSED"},
+      {"test": "test_journal_entries_have_account_ids", "result": "PASSED"}
+    ],
+    "frontend_tests": [
+      {"test": "Login and navigate to Accounting", "result": "PASSED"},
+      {"test": "Journal tab loads with table", "result": "PASSED"},
+      {"test": "Compte column header present", "result": "PASSED"},
+      {"test": "Account codes 521/701/445 displayed", "result": "PASSED"},
+      {"test": "Account names displayed as subtitles", "result": "PASSED"},
+      {"test": "data-testid attributes present (49 elements)", "result": "PASSED"},
+      {"test": "TVA tab cards present", "result": "PASSED"},
+      {"test": "Dashboard cards present", "result": "PASSED"},
+      {"test": "Live sync - TVA value updates after invoice creation", "result": "PASSED - 22,614,000 FC → 22,630,000 FC"},
+      {"test": "Live sync - Journal entry appears after invoice creation", "result": "PASSED - INV-SYNC-1780837806801 found"}
+    ]
+  },
+  "websocket_status": {
+    "status": "FAILING",
+    "error": "WebSocket is closed before the connection is established",
+    "impact": "LOW - polling fallback (10s) compensates",
+    "note": "This is a known issue in preview environments - production may have different behavior"
+  }
+}
