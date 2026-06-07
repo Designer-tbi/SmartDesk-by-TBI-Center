@@ -1698,3 +1698,34 @@ Permettre d'installer SmartDesk depuis le menu (sidebar) sur mobile, tablette et
 - `manifest.json`, `sw.js`, icônes → HTTP 200 ✅
 - Bouton « INSTALLER L'APPLICATION » visible dans la sidebar ✅
 - Modal instructions centrée et lisible (3 étapes + note de bas) ✅
+
+## Sync module Comptabilité + Numéros de comptes (2026-06-07 — iter 15)
+
+### Demande utilisateur
+1. Tableau de bord Comptabilité pas synchronisé
+2. Voir les numéros de comptes débités/crédités dans les écritures
+3. Déclaration TVA pas synchronisée
+4. Vérifier que tout le module comptable est bien synchronisé
+
+### Causes
+- **POST /api/invoices avec status='Paid'** ne déclenchait PAS `autoPostPaidInvoiceJournal` (uniquement la PUT transition Draft→Paid le faisait). Conséquence : factures créées directement payées (cas `mark-quote-paid`) → pas d'écriture journal automatique.
+- **autoPostPaidInvoiceJournal** créait l'écriture sans broadcaster `RESOURCE_CHANGED` (il est appelé depuis un service, pas une route → middleware `resourceChangeBroadcaster` non déclenché).
+- **Journal UI** ne montrait pas les numéros de comptes (juste la description + débit/crédit).
+
+### Fixes
+**Backend**
+- `/app/server/routes/invoices.ts` POST `/` : ajout d'un appel fire-and-forget à `autoPostPaidInvoiceJournal` après `res.status(201).json()` quand `inv.type='Invoice' && inv.status='Paid'`. Avec broadcast `JOURNAL_AUTO_CREATED` en cas de succès.
+- `/app/server/services/automations.ts autoPostPaidInvoiceJournal` : import `broadcast` from `../activity.js`, et émet `RESOURCE_CHANGED { resource: 'journalEntries' }` après le COMMIT pour notifier le frontend en temps réel.
+
+**Frontend**
+- `/app/src/modules/Accounting.tsx` Journal tab : nouvelle colonne **« Compte »** (placée entre Date et Description) affichant le numéro OHADA en `font-mono font-bold` + le nom du compte (résolu via `OHADA_PCG.find`) en sous-titre 11px. data-testid `journal-account-code-{entryId}-{idx}` sur chaque cellule.
+- `useLiveSync(['journalEntries','transactions','invoices'])` déjà câblé sur le module → Dashboard, Journal et TVA se rafraîchissent automatiquement (WebSocket immédiat + polling 10s fallback).
+
+### Validation (iteration_15.json — 8/8 backend + 100% frontend)
+- POST /invoices Paid → journal auto avec comptes 521 (Banques), 701 (Ventes), 445 (TVA) ✅
+- sourceRef = invoice.id ✅
+- Idempotence (pas de doublons) ✅
+- PUT Draft→Paid régression OK ✅
+- UI Journal affiche les codes OHADA (49 testids vérifiés) ✅
+- Sync TVA observée en temps réel : 22 614 000 FC → 22 630 000 FC après création facture ✅
+- WebSocket fail en preview, polling 10s compense (cas connu non bloquant) ✅
