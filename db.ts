@@ -738,6 +738,22 @@ export async function initializeDatabase() {
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "resetTokenHash" TEXT`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "resetTokenExpires" TIMESTAMPTZ`);
 
+    // Per-tenant completion tracking for the Declarations calendar
+    // (DGID/CNSS/INS/Greffe deadlines) — the calendar itself is generated
+    // client-side from the Finance Law, but which obligations a given
+    // company has actually filed is per-tenant state.
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS declaration_status (
+        id TEXT PRIMARY KEY,
+        "companyId" TEXT NOT NULL,
+        "declarationId" TEXT NOT NULL,
+        "doneAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        "doneBy" TEXT,
+        note TEXT,
+        UNIQUE ("companyId", "declarationId")
+      )
+    `);
+
     // Mobile Money payment requests (Airtel Money / MTN Mobile Money) —
     // manual confirmation workflow since neither operator offers a
     // self-serve subscription API for CG/CD merchants.
