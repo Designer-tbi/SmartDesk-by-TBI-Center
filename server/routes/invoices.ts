@@ -36,26 +36,33 @@ invoicesRouter.get('/quote-templates', async (req, res, next) => {
 invoicesRouter.post('/quote-templates', async (req, res, next) => {
   try {
     const tmpl = req.body;
-    
+    if (!tmpl.name) {
+      return res.status(400).json({ error: 'Le nom du modèle est requis.' });
+    }
+    // Generated server-side — the client never sent one, which meant
+    // every save hit invoice_templates.id's NOT NULL constraint and
+    // failed with an unhandled 500.
+    const id = tmpl.id || `tmpl_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+
     await req.db.query('BEGIN');
-    
+
     await req.db.query(
       'INSERT INTO quote_templates (id, "companyId", name, notes) VALUES ($1, $2, $3, $4)',
-      [tmpl.id, req.user!.companyId, tmpl.name, tmpl.notes || null]
+      [id, req.user!.companyId, tmpl.name, tmpl.notes || null]
     );
-    
+
     if (Array.isArray(tmpl.items)) {
       for (const item of tmpl.items) {
         const productId = item.productId && item.productId !== '' ? item.productId : null;
         await req.db.query(
           'INSERT INTO quote_template_items ("companyId", "templateId", "productId", name, description, quantity, price, "tvaRate", "tvaAmount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-          [req.user!.companyId, tmpl.id, productId, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount]
+          [req.user!.companyId, id, productId, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount]
         );
       }
     }
-    
+
     await req.db.query('COMMIT');
-    res.status(201).json(tmpl);
+    res.status(201).json({ ...tmpl, id });
   } catch (error) {
     await req.db.query('ROLLBACK');
     next(error);
@@ -104,6 +111,23 @@ invoicesRouter.post('/', async (req, res, next) => {
       return res.status(400).json({ error: 'Missing company context' });
     }
 
+    // Generate the document number server-side instead of trusting the
+    // client's `Math.random() * 1000` id (only 1000 possible suffixes per
+    // type+year — collisions were common past ~30 documents/year and
+    // surfaced only as a generic "creation failed"). Sequential per
+    // company/type/year is both collision-resistant and a more sensible
+    // invoice numbering scheme.
+    if (!inv.id) {
+      const prefix = inv.type === 'Invoice' ? 'INV' : 'DEV';
+      const year = new Date(inv.date || Date.now()).getFullYear();
+      const countRes = await req.db.query(
+        `SELECT COUNT(*) as count FROM invoices WHERE "companyId" = $1 AND type = $2 AND date_part('year', date::date) = $3`,
+        [req.user.companyId, inv.type, year],
+      );
+      const seq = Number(countRes.rows[0]?.count || 0) + 1;
+      inv.id = `${prefix}-${year}-${String(seq).padStart(3, '0')}`;
+    }
+
     // Re-compute the totals server-side using the authoritative OHADA
     // formula. This protects against any drift in the client (e.g. an
     // older browser cache submitting stale numbers) and centralises the
@@ -142,7 +166,7 @@ invoicesRouter.post('/', async (req, res, next) => {
            "remise", "remiseType", "rabais", "rabaisType",
            "ristourne", "ristourneType", "escompte", "escompteType",
            "centimesAdditionnels", "netCommercial", "netFinancier",
-           "convertedFromQuoteId"
+           "convertedFromQuoteId", deposit
          ) VALUES (
            $1, $2, $3, $4, $5, $6,
            $7, $8, $9, $10, $11,
@@ -150,7 +174,7 @@ invoicesRouter.post('/', async (req, res, next) => {
            $14, $15, $16, $17,
            $18, $19, $20, $21,
            $22, $23, $24,
-           $25
+           $25, $26
          )`,
         [
           inv.id, req.user.companyId, inv.type, contactId, inv.date, inv.dueDate,
@@ -161,7 +185,7 @@ invoicesRouter.post('/', async (req, res, next) => {
           inv.ristourne ?? 0, inv.ristourneType || 'amount',
           inv.escompte ?? 0, inv.escompteType || 'percent',
           totals.centimesAdditionnels, totals.netCommercial, totals.netFinancier,
-          inv.convertedFromQuoteId || null,
+          inv.convertedFromQuoteId || null, Number(inv.deposit) || 0,
         ],
       );
       
@@ -485,7 +509,7 @@ invoicesRouter.put('/:id', async (req, res, next) => {
            "rabais" = $14, "rabaisType" = $15,
            "ristourne" = $16, "ristourneType" = $17,
            "escompte" = $18, "escompteType" = $19,
-           "centimesAdditionnels" = $20, "netCommercial" = $21, "netFinancier" = $22
+           "centimesAdditionnels" = $20, "netCommercial" = $21, "netFinancier" = $22, deposit = $25
          WHERE id = $23 AND "companyId" = $24`,
         [
           inv.type, contactId, inv.date, inv.dueDate,
@@ -496,7 +520,7 @@ invoicesRouter.put('/:id', async (req, res, next) => {
           inv.ristourne ?? 0, inv.ristourneType || 'amount',
           inv.escompte ?? 0, inv.escompteType || 'percent',
           totals.centimesAdditionnels, totals.netCommercial, totals.netFinancier,
-          id, req.user.companyId,
+          id, req.user.companyId, Number(inv.deposit) || 0,
         ],
       );
       
@@ -622,7 +646,7 @@ invoicesRouter.put('/:id', async (req, res, next) => {
               item.name + (item.description ? `\n${item.description}` : ''),
               String(qty),
               `${price.toLocaleString()} ${company.currency}`,
-              `${item.tvaRate ?? 0}%`,
+              `${Math.round(Number(item.tvaRate ?? 0) * 100)}%`,
               `${(qty * price).toLocaleString()} ${company.currency}`,
             ];
           });

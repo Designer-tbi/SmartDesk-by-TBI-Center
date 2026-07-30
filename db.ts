@@ -716,6 +716,10 @@ export async function initializeDatabase() {
     // be sufficient to read or forge a signature on another tenant's doc.
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "signingToken" TEXT`);
     await db.query(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS "signingToken" TEXT`);
+    // "Acompte" (deposit/partial payment) — the Sales.tsx form has always
+    // had a deposit input and a "reste à payer" display, but nothing
+    // persisted it: it silently reset on every reload.
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS deposit REAL DEFAULT 0`);
     // Extended SFEC recipient types: business/individual/government/foreign.
     // Foreign contacts also store their country of origin.
     await db.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "foreignCountry" TEXT`);

@@ -318,12 +318,12 @@ export const Sales = ({ user }: { user: any }) => {
           setError(t('sales.errorUpdate'));
         }
       } else {
-        const prefix = newInvoice.type === 'Invoice' ? 'INV' : 'DEV';
-        const id = `${prefix}-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`;
+        // The id is now generated server-side (sequential per
+        // company/type/year) — a client-random one could collide.
         const response = await apiFetch('/api/invoices', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...newInvoice, id }),
+          body: JSON.stringify(newInvoice),
         });
         if (response.ok) {
           fetchData();
@@ -419,11 +419,23 @@ export const Sales = ({ user }: { user: any }) => {
     try {
       const invoice = invoices.find(inv => inv.id === id);
       if (!invoice) return;
+      if (!hasSignature) {
+        setError(t('sales.errorSignature'));
+        return;
+      }
+      // Capture the drawn signature the same way the public sign page does
+      // (JSON blob of signer name + PNG data URL in signatureLink) — this
+      // was previously discarded entirely, so "signing" a quote in-app
+      // never actually recorded a signature.
+      const signatureDataUrl = canvasRef.current?.toDataURL('image/png');
+      const signatureLink = signatureDataUrl
+        ? JSON.stringify({ signerName: getContactName(invoice.contactId), signatureDataUrl })
+        : invoice.signatureLink;
 
       const response = await apiFetch(`/api/invoices/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...invoice, status: 'Signed', signedAt: new Date().toISOString().split('T')[0] }),
+        body: JSON.stringify({ ...invoice, status: 'Signed', signedAt: new Date().toISOString().split('T')[0], signatureLink }),
       });
 
       if (response.ok) {
@@ -677,15 +689,6 @@ export const Sales = ({ user }: { user: any }) => {
               <Plus className="w-5 h-5" />
               {t('sales.newTemplate')}
             </button>
-          ) : filter === 'Quote' && quoteSubTab === 'signed' ? (
-            <label className="flex items-center justify-center gap-2 px-6 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-200 active:scale-95 cursor-pointer">
-              <Plus className="w-5 h-5" />
-              {t('sales.receiveQuote')}
-              <input type="file" className="hidden" onChange={() => {
-                setSuccessMessage(t('sales.quoteReceived'));
-                setTimeout(() => setSuccessMessage(null), 3000);
-              }} />
-            </label>
           ) : (
             <button 
               onClick={() => { resetForm(); setIsModalOpen(true); }}
@@ -909,7 +912,6 @@ export const Sales = ({ user }: { user: any }) => {
                   <Layout className="w-5 h-5" />
                 </div>
                 <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                  <button className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
                   {deletingTemplateId === template.id ? (
                     <div className="flex items-center gap-1">
                       <button onClick={() => handleDeleteTemplate(template.id)} className="p-1.5 text-white bg-red-500 hover:bg-red-600 rounded-lg transition-all text-[10px] font-bold">Oui</button>
@@ -1472,9 +1474,13 @@ export const Sales = ({ user }: { user: any }) => {
                     fetchData();
                     setIsTemplateModalOpen(false);
                     resetForm();
+                  } else {
+                    const data = await response.json().catch(() => null);
+                    setError(data?.error || t('sales.errorConnection'));
                   }
                 } catch (error) {
                   console.error('Failed to save template', error);
+                  setError(t('sales.errorConnection'));
                 }
               }} className="space-y-6">
                 <div className="space-y-1.5">
