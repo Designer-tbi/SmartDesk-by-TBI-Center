@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireTenant } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/permissions.js';
 import { logActivity } from '../activity.js';
 
 export const productsRouter = Router();
@@ -15,7 +16,7 @@ productsRouter.get('/', async (req, res, next) => {
   }
 });
 
-productsRouter.post('/', async (req, res, next) => {
+productsRouter.post('/', requirePermission('inventory.edit'), async (req, res, next) => {
   try {
     const { id, name, sku, price, stock, category, description, type, tvaRate } = req.body;
     if (!name) return res.status(400).json({ error: 'Le nom du produit est requis.' });
@@ -31,7 +32,7 @@ productsRouter.post('/', async (req, res, next) => {
   }
 });
 
-productsRouter.put('/:id', async (req, res, next) => {
+productsRouter.put('/:id', requirePermission('inventory.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, sku, price, stock, category, description, type, tvaRate } = req.body;
@@ -49,7 +50,7 @@ productsRouter.put('/:id', async (req, res, next) => {
   }
 });
 
-productsRouter.delete('/:id', async (req, res, next) => {
+productsRouter.delete('/:id', requirePermission('inventory.delete'), async (req, res, next) => {
   try {
     const { id } = req.params;
     await req.db.query('DELETE FROM products WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);

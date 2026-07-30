@@ -8,6 +8,7 @@ import { seedDefaultRoles } from '../../db.js';
 import { getMailerForCompany } from '../services/mailer.js';
 import { JWT_SECRET } from '../utils/jwtSecret.js';
 import { loginRateLimiter, demoSignupRateLimiter } from '../middleware/rateLimit.js';
+import { resolvePermissionsList } from '../middleware/permissions.js';
 
 /**
  * Derive sensible accounting defaults (currency, standard, language) from
@@ -73,10 +74,15 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
     // Return persisted user preferences so the SPA can rehydrate its UI
     // state (language, sidebar, ...) without touching localStorage.
     const prefs = user.preferences || {};
+    // Resolved permission ids (or 'all') so the sidebar can hide modules
+    // the role has zero access to — mirrors what requirePermission()
+    // checks server-side on the write routes themselves.
+    const permissions = await resolvePermissionsList(req.db, user.role);
     res.json({
       ...req.user,
       preferences: prefs,
       language: prefs.language || req.user!.language || 'fr',
+      permissions,
     });
   } catch (error) {
     next(error);
@@ -403,6 +409,7 @@ authRouter.post('/login', loginRateLimiter, async (req, res, next) => {
       }
     }
 
+    const permissions = await resolvePermissionsList(req.db, user.role);
     res.json({
       user: {
         id: user.id,
@@ -420,6 +427,7 @@ authRouter.post('/login', loginRateLimiter, async (req, res, next) => {
         hasFiscalizationKey: !!company?.fiscalizationApiKey,
         isDemo,
         preferences: prefs,
+        permissions,
       }
     });
   } catch (error) {

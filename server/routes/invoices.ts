@@ -12,6 +12,7 @@ import { autoPostPaidInvoiceJournal, autoConvertSignedQuoteToInvoice, autoCertif
 import { buildInvoicePdfBuffer } from '../services/invoicePdf.js';
 import { broadcast } from '../activity.js';
 import { decrementStockForItems, restoreStockForItems, adjustStockForItemChange } from '../services/stock.js';
+import { requirePermission } from '../middleware/permissions.js';
 
 export const invoicesRouter = Router();
 
@@ -33,7 +34,7 @@ invoicesRouter.get('/quote-templates', async (req, res, next) => {
   }
 });
 
-invoicesRouter.post('/quote-templates', async (req, res, next) => {
+invoicesRouter.post('/quote-templates', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const tmpl = req.body;
     if (!tmpl.name) {
@@ -69,7 +70,7 @@ invoicesRouter.post('/quote-templates', async (req, res, next) => {
   }
 });
 
-invoicesRouter.delete('/quote-templates/:id', async (req, res, next) => {
+invoicesRouter.delete('/quote-templates/:id', requirePermission('sales.delete'), async (req, res, next) => {
   try {
     const { id } = req.params;
     
@@ -101,7 +102,7 @@ invoicesRouter.get('/', async (req, res, next) => {
   }
 });
 
-invoicesRouter.post('/', async (req, res, next) => {
+invoicesRouter.post('/', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const inv = req.body;
     console.log('POST /api/invoices - Request body:', JSON.stringify(inv, null, 2));
@@ -312,7 +313,7 @@ invoicesRouter.post('/', async (req, res, next) => {
  * demo or real — that has configured a `fiscalizationApiKey` (Settings,
  * for real accounts; auto-seeded for demo ones).
  */
-invoicesRouter.post('/:id/certify', async (req, res, next) => {
+invoicesRouter.post('/:id/certify', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     if (!req.user?.companyId) {
@@ -401,7 +402,7 @@ invoicesRouter.post('/:id/certify', async (req, res, next) => {
 });
 
 
-invoicesRouter.put('/:id', async (req, res, next) => {
+invoicesRouter.put('/:id', requirePermission('sales.edit'), async (req, res, next) => {
   const { id } = req.params;
   const inv = req.body;
   try {
@@ -771,7 +772,7 @@ invoicesRouter.put('/:id', async (req, res, next) => {
  *   - The Congo CAC is recomputed because the Net Financier may match
  *     between the two but the totals helper guarantees consistency.
  */
-invoicesRouter.post('/:id/convert-to-invoice', async (req, res, next) => {
+invoicesRouter.post('/:id/convert-to-invoice', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const quoteRes = await req.db.query(
@@ -904,7 +905,7 @@ invoicesRouter.post('/:id/convert-to-invoice', async (req, res, next) => {
   }
 });
 
-invoicesRouter.delete('/:id', async (req, res, next) => {
+invoicesRouter.delete('/:id', requirePermission('sales.delete'), async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -959,7 +960,7 @@ invoicesRouter.get('/:id/pdf', async (req, res, next) => {
 
 
 
-invoicesRouter.post('/:id/send-email', async (req, res, next) => {
+invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     
@@ -1112,7 +1113,7 @@ invoicesRouter.post('/:id/send-email', async (req, res, next) => {
  * Designed to be triggered manually by the SmartDesk operator from the
  * Sales UI once they've confirmed the payment was received.
  */
-invoicesRouter.post('/:id/mark-quote-paid', async (req, res, next) => {
+invoicesRouter.post('/:id/mark-quote-paid', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const companyId = req.user!.companyId;

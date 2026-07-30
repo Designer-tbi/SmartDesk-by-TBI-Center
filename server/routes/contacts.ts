@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireTenant } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/permissions.js';
 import { logActivity } from '../activity.js';
 
 export const contactsRouter = Router();
@@ -30,7 +31,7 @@ contactsRouter.get('/', async (req, res, next) => {
   }
 });
 
-contactsRouter.post('/', async (req, res, next) => {
+contactsRouter.post('/', requirePermission('crm.edit'), async (req, res, next) => {
   try {
     const {
       id, name, email, phone, company, role, notes, status, lastContact,
@@ -61,7 +62,7 @@ contactsRouter.post('/', async (req, res, next) => {
   }
 });
 
-contactsRouter.put('/:id', async (req, res, next) => {
+contactsRouter.put('/:id', requirePermission('crm.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -94,7 +95,7 @@ contactsRouter.put('/:id', async (req, res, next) => {
   }
 });
 
-contactsRouter.delete('/:id', async (req, res, next) => {
+contactsRouter.delete('/:id', requirePermission('crm.delete'), async (req, res, next) => {
   try {
     const { id } = req.params;
     let deleted = 0;
