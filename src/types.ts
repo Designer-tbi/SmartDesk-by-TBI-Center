@@ -265,7 +265,12 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  roleId: string;
+  // GET /api/company/users actually returns `role` (the roles table id),
+  // not `roleId` — kept both to avoid breaking existing local form state
+  // that uses `roleId`, but code reading the fetched user list should
+  // use `role`.
+  role?: string;
+  roleId?: string;
   status: 'Active' | 'Inactive';
   lastLogin?: string;
 }

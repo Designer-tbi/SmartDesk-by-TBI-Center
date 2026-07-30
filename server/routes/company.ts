@@ -311,6 +311,12 @@ companyRouter.get('/users', async (req, res, next) => {
 companyRouter.post('/users', requireManager, async (req, res, next) => {
   try {
     const { id, email, password, role, name, status } = req.body;
+    if (!email || !name) {
+      return res.status(400).json({ error: 'Email et nom sont requis.' });
+    }
+    if (!password || String(password).length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
+    }
     const hashedPassword = await bcrypt.hash(password, 10);
     await req.db.query('INSERT INTO public.users (id, "companyId", email, password, role, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [id, req.user!.companyId, email, hashedPassword, role, name, status || 'Active']);
@@ -324,8 +330,12 @@ companyRouter.put('/users/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { email, role, name, status } = req.body;
-    await req.db.query('UPDATE public.users SET email = $1, role = $2, name = $3, status = $4 WHERE id = $5 AND "companyId" = $6',
+    if (!email || !name) {
+      return res.status(400).json({ error: 'Email et nom sont requis.' });
+    }
+    const result = await req.db.query('UPDATE public.users SET email = $1, role = $2, name = $3, status = $4 WHERE id = $5 AND "companyId" = $6',
       [email, role, name, status, id, req.user!.companyId]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Utilisateur introuvable.' });
     res.json({ id, companyId: req.user!.companyId, email, role, name, status });
   } catch (error) {
     next(error);

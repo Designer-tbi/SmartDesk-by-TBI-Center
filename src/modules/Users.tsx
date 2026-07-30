@@ -5,6 +5,7 @@ import { Users as UsersIcon, Shield, Lock, Plus, Search, MoreVertical, Mail, Shi
 import { apiFetch } from '../lib/api';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useTranslation } from '../lib/i18n';
+import { toast } from '../lib/toast';
 
 export const Users = ({ user }: { user?: any }) => {
   const { t } = useTranslation();
@@ -14,13 +15,24 @@ export const Users = ({ user }: { user?: any }) => {
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteConfirmType, setDeleteConfirmType] = useState<'user' | 'role' | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const [newUser, setNewUser] = useState({ name: '', email: '', roleId: '', password: '' });
+  const [newUser, setNewUser] = useState({ name: '', email: '', roleId: '', password: '', status: 'Active' });
   const [newRole, setNewRole] = useState({ name: '', permissions: [] as string[] });
+
+  const closeUserModal = () => {
+    setIsUserModalOpen(false);
+    setEditingUser(null);
+    setNewUser({ name: '', email: '', roleId: roles[0]?.id || '', password: '', status: 'Active' });
+  };
+
+  const closeRoleModal = () => {
+    setIsRoleModalOpen(false);
+    setEditingRole(null);
+    setNewRole({ name: '', permissions: [] });
+  };
 
   const fetchData = useCallback(async () => {
     try {
@@ -47,19 +59,31 @@ export const Users = ({ user }: { user?: any }) => {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const id = Math.random().toString(36).substr(2, 9);
-      const response = await apiFetch('/api/company/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newUser, id, role: newUser.roleId })
-      });
+      let response: Response;
+      if (editingUser) {
+        response = await apiFetch(`/api/company/users/${editingUser.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: newUser.email, name: newUser.name, role: newUser.roleId, status: newUser.status }),
+        });
+      } else {
+        const id = Math.random().toString(36).substr(2, 9);
+        response = await apiFetch('/api/company/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...newUser, id, role: newUser.roleId })
+        });
+      }
       if (response.ok) {
-        fetchData();
-        setIsUserModalOpen(false);
-        setNewUser({ name: '', email: '', roleId: roles[0]?.id || '', password: '' });
+        await fetchData();
+        closeUserModal();
+      } else {
+        const data = await response.json().catch(() => null);
+        toast.error(data?.error || 'Échec de l\'enregistrement de l\'utilisateur.');
       }
     } catch (error) {
-      console.error('Failed to add user:', error);
+      console.error('Failed to save user:', error);
+      toast.error('Erreur de connexion.');
     }
   };
 
@@ -70,42 +94,40 @@ export const Users = ({ user }: { user?: any }) => {
         fetchData();
         setDeleteConfirmId(null);
         setDeleteConfirmType(null);
+      } else {
+        const data = await response.json().catch(() => null);
+        toast.error(data?.error || 'Échec de la suppression de l\'utilisateur.');
       }
     } catch (error) {
       console.error('Failed to delete user:', error);
+      toast.error('Erreur de connexion.');
     }
   };
 
   const handleAddRole = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (editingRole) {
-        const response = await apiFetch(`/api/company/roles/${editingRole.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newRole)
-        });
-        if (response.ok) {
-          fetchData();
-          setIsRoleModalOpen(false);
-          setEditingRole(null);
-          setNewRole({ name: '', permissions: [] });
-        }
+      const response = editingRole
+        ? await apiFetch(`/api/company/roles/${editingRole.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newRole)
+          })
+        : await apiFetch('/api/company/roles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...newRole, id: `role-${Math.random().toString(36).substr(2, 9)}` })
+          });
+      if (response.ok) {
+        await fetchData();
+        closeRoleModal();
       } else {
-        const id = `role-${Math.random().toString(36).substr(2, 9)}`;
-        const response = await apiFetch('/api/company/roles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...newRole, id })
-        });
-        if (response.ok) {
-          fetchData();
-          setIsRoleModalOpen(false);
-          setNewRole({ name: '', permissions: [] });
-        }
+        const data = await response.json().catch(() => null);
+        toast.error(data?.error || 'Échec de l\'enregistrement du rôle.');
       }
     } catch (error) {
       console.error('Failed to save role:', error);
+      toast.error('Erreur de connexion.');
     }
   };
 
@@ -116,9 +138,13 @@ export const Users = ({ user }: { user?: any }) => {
         fetchData();
         setDeleteConfirmId(null);
         setDeleteConfirmType(null);
+      } else {
+        const data = await response.json().catch(() => null);
+        toast.error(data?.error || 'Échec de la suppression du rôle.');
       }
     } catch (error) {
       console.error('Failed to delete role:', error);
+      toast.error('Erreur de connexion.');
     }
   };
 
@@ -161,9 +187,11 @@ export const Users = ({ user }: { user?: any }) => {
           </button>
         </div>
         
-        <button 
+        <button
           onClick={() => {
             if (activeTab === 'users') {
+              setEditingUser(null);
+              setNewUser({ name: '', email: '', roleId: roles[0]?.id || '', password: '', status: 'Active' });
               setIsUserModalOpen(true);
             } else {
               setEditingRole(null);
@@ -207,7 +235,7 @@ export const Users = ({ user }: { user?: any }) => {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">
-                        {getRoleName(user.roleId)}
+                        {getRoleName((user as any).role || user.roleId)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -222,7 +250,21 @@ export const Users = ({ user }: { user?: any }) => {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                        <button className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm" title={t('common.edit')}>
+                        <button
+                          onClick={() => {
+                            setEditingUser(user);
+                            setNewUser({
+                              name: user.name,
+                              email: user.email,
+                              roleId: (user as any).role || user.roleId || '',
+                              password: '',
+                              status: user.status,
+                            });
+                            setIsUserModalOpen(true);
+                          }}
+                          className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm"
+                          title={t('common.edit')}
+                        >
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button onClick={() => { setDeleteConfirmId(user.id); setDeleteConfirmType('user'); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm" title={t('common.delete')}>
@@ -282,7 +324,7 @@ export const Users = ({ user }: { user?: any }) => {
             </div>
           ))}
           <button 
-            onClick={() => setIsRoleModalOpen(true)}
+            onClick={() => { setEditingRole(null); setNewRole({ name: '', permissions: [] }); setIsRoleModalOpen(true); }}
             className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-accent-red hover:border-accent-red/20 hover:bg-soft-red/30 transition-all group"
           >
             <div className="p-3 bg-slate-50 rounded-xl group-hover:bg-white transition-all">
@@ -298,8 +340,8 @@ export const Users = ({ user }: { user?: any }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <form onSubmit={handleAddUser} className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold">{t('users.newUser')}</h3>
-              <button type="button" onClick={() => setIsUserModalOpen(false)}><X className="w-6 h-6 text-slate-400" /></button>
+              <h3 className="text-xl font-bold">{editingUser ? t('common.edit') : t('users.newUser')}</h3>
+              <button type="button" onClick={closeUserModal}><X className="w-6 h-6 text-slate-400" /></button>
             </div>
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -310,17 +352,30 @@ export const Users = ({ user }: { user?: any }) => {
                 <label className="text-xs font-bold text-slate-400 uppercase">{t('users.email')}</label>
                 <input type="email" required value={newUser.email || ''} onChange={e => setNewUser({...newUser, email: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder={t('users.placeholder.email')} />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-400 uppercase">{t('users.password')}</label>
-                <input type="password" required value={newUser.password || ''} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="••••••••" />
-              </div>
+              {!editingUser && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase">{t('users.password')}</label>
+                  <input type="password" required minLength={8} value={newUser.password || ''} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="••••••••" />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-400 uppercase">{t('users.role')}</label>
                 <select value={newUser.roleId || ''} onChange={e => setNewUser({...newUser, roleId: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
                   {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
-              <button type="submit" className="w-full py-3 bg-accent-red text-white rounded-xl font-bold mt-4 shadow-lg shadow-accent-red/20 active:scale-95 transition-all">{t('users.newUser')}</button>
+              {editingUser && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase">{t('users.status')}</label>
+                  <select value={newUser.status || 'Active'} onChange={e => setNewUser({...newUser, status: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                    <option value="Active">{t('users.active')}</option>
+                    <option value="Inactive">{t('users.inactive')}</option>
+                  </select>
+                </div>
+              )}
+              <button type="submit" className="w-full py-3 bg-accent-red text-white rounded-xl font-bold mt-4 shadow-lg shadow-accent-red/20 active:scale-95 transition-all">
+                {editingUser ? t('users.saveChanges') : t('users.newUser')}
+              </button>
             </div>
           </form>
         </div>
@@ -331,7 +386,7 @@ export const Users = ({ user }: { user?: any }) => {
           <form onSubmit={handleAddRole} className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-6">
             <div className="flex justify-between items-center mb-6">
               <h3 className="text-xl font-bold">{editingRole ? t('users.editRole') : t('users.newRole')}</h3>
-              <button type="button" onClick={() => setIsRoleModalOpen(false)}><X className="w-6 h-6 text-slate-400" /></button>
+              <button type="button" onClick={closeRoleModal}><X className="w-6 h-6 text-slate-400" /></button>
             </div>
             <div className="space-y-6">
               <div className="space-y-1.5">
@@ -383,9 +438,9 @@ export const Users = ({ user }: { user?: any }) => {
               </div>
               
               <div className="flex gap-3 pt-4">
-                <button 
-                  type="button" 
-                  onClick={() => setIsRoleModalOpen(false)}
+                <button
+                  type="button"
+                  onClick={closeRoleModal}
                   className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all"
                 >
                   {t('common.cancel')}
