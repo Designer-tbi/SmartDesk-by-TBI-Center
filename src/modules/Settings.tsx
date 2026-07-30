@@ -47,6 +47,14 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isDetectingGeo, setIsDetectingGeo] = useState(false);
   const [geoMessage, setGeoMessage] = useState<string | null>(null);
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    emailReports: true,
+    newLead: true,
+    invoicePaid: true,
+    projectUpdate: true,
+    ...(globalUser?.preferences?.notifications || {}),
+  });
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false);
   // Write-only: never pre-filled from the server (the real key is never
   // echoed back). Left empty, the backend keeps whatever key is already
   // stored — only a non-empty value here rotates it.
@@ -227,6 +235,32 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       setError(t('settings.error.connection'));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveNotificationPrefs = async () => {
+    setIsSavingPrefs(true);
+    try {
+      const response = await apiFetch('/api/auth/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notifications: notificationPrefs }),
+      });
+      if (response.ok) {
+        setGlobalUser((prev: any) => prev ? {
+          ...prev,
+          preferences: { ...prev.preferences, notifications: notificationPrefs },
+        } : prev);
+        setSuccessMessage(t('settings.success.preferencesSaved'));
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError(t('settings.error.save'));
+      }
+    } catch (error) {
+      console.error('Failed to save notification preferences:', error);
+      setError(t('settings.error.connection'));
+    } finally {
+      setIsSavingPrefs(false);
     }
   };
 
@@ -1019,7 +1053,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <p className="text-xs text-slate-500">{t('settings.emailReportsDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={notificationPrefs.emailReports}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, emailReports: e.target.checked })}
+                    />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
@@ -1030,7 +1069,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <p className="text-xs text-slate-500">{t('settings.newLeadDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={notificationPrefs.newLead}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, newLead: e.target.checked })}
+                    />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
@@ -1041,7 +1085,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <p className="text-xs text-slate-500">{t('settings.invoicePaidDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={notificationPrefs.invoicePaid}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, invoicePaid: e.target.checked })}
+                    />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
@@ -1052,7 +1101,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <p className="text-xs text-slate-500">{t('settings.projectUpdateDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={notificationPrefs.projectUpdate}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, projectUpdate: e.target.checked })}
+                    />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
@@ -1061,13 +1115,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
               <div className="flex items-center justify-end pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSuccessMessage(t('settings.success.preferencesSaved'));
-                    setTimeout(() => setSuccessMessage(null), 3000);
-                  }}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95"
+                  disabled={isSavingPrefs}
+                  onClick={handleSaveNotificationPrefs}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95 disabled:opacity-50"
                 >
-                  <Save className="w-4 h-4" />
+                  {isSavingPrefs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {t('settings.savePreferences')}
                 </button>
               </div>
