@@ -9,6 +9,7 @@
  *   POST /api/subscription/webhook       — PayPal webhook sink
  */
 import { Router } from 'express';
+import crypto from 'crypto';
 import { requireAuth, requireCompany } from '../middleware/auth.js';
 import {
   ensureProductAndPlans,
@@ -239,6 +240,77 @@ subscriptionRouter.post('/cancel', requireAuth, requireCompany, async (req, res,
       [cid],
     );
     res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+/* -------------------------------------------------------------- */
+/* Mobile Money (Airtel Money / MTN Mobile Money) — CG & CD         */
+/* -------------------------------------------------------------- */
+/**
+ * Neither Airtel nor MTN offer a self-serve recurring-billing API for
+ * SmartDesk-sized merchants in Congo-Brazzaville / RDC — collection is a
+ * manual USSD transfer confirmed by a human. This is the standard
+ * mobile-money billing pattern used by local SaaS: the tenant initiates a
+ * payment request (gets a reference code + the number to pay), sends the
+ * money via USSD, and a SmartDesk operator confirms receipt from the
+ * super-admin panel, which activates the subscription for 30 days.
+ */
+
+const MOBILE_MONEY_NUMBERS: Record<string, string | undefined> = {
+  airtel: process.env.MOBILE_MONEY_AIRTEL_NUMBER,
+  mtn: process.env.MOBILE_MONEY_MTN_NUMBER,
+};
+
+subscriptionRouter.post('/mobile-money/request', requireAuth, requireCompany, async (req, res, next) => {
+  try {
+    const { provider, phoneNumber } = req.body || {};
+    if (!['airtel', 'mtn'].includes(provider)) {
+      return res.status(400).json({ error: 'Opérateur invalide (airtel ou mtn).' });
+    }
+    if (!phoneNumber || String(phoneNumber).trim().length < 8) {
+      return res.status(400).json({ error: 'Numéro de téléphone requis.' });
+    }
+    const payNumber = MOBILE_MONEY_NUMBERS[provider];
+    if (!payNumber) {
+      return res.status(503).json({
+        error: `Paiement ${provider === 'airtel' ? 'Airtel Money' : 'MTN Mobile Money'} indisponible pour le moment. Contactez le support.`,
+      });
+    }
+
+    const cid = req.user!.companyId;
+    const r = await req.db.query('SELECT country FROM companies WHERE id = $1', [cid]);
+    const company = r.rows[0];
+    const plan = resolvePlanForCountry(company?.country);
+
+    const referenceCode = `SD-${cid.slice(-6).toUpperCase()}-${crypto.randomBytes(2).toString('hex').toUpperCase()}`;
+    const id = `mmp_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+    await req.db.query(
+      `INSERT INTO mobile_money_payments (id, "companyId", provider, "phoneNumber", "referenceCode", "amountLocal", status)
+       VALUES ($1, $2, $3, $4, $5, $6, 'pending')`,
+      [id, cid, provider, String(phoneNumber).trim(), referenceCode, plan.displayLocal],
+    );
+
+    res.status(201).json({
+      id,
+      referenceCode,
+      payNumber,
+      amountLocal: plan.displayLocal,
+      provider,
+      instructions: `Envoyez ${plan.displayLocal} au ${payNumber} (${provider === 'airtel' ? 'Airtel Money' : 'MTN Mobile Money'}) en indiquant la référence ${referenceCode} dans le motif du transfert. Votre abonnement sera activé dès confirmation de réception (généralement sous quelques heures ouvrées).`,
+    });
+  } catch (err) { next(err); }
+});
+
+subscriptionRouter.get('/mobile-money/pending', requireAuth, requireCompany, async (req, res, next) => {
+  try {
+    const r = await req.db.query(
+      `SELECT id, provider, "referenceCode", "amountLocal", status, "createdAt"
+         FROM mobile_money_payments
+        WHERE "companyId" = $1 AND status = 'pending'
+        ORDER BY "createdAt" DESC LIMIT 1`,
+      [req.user!.companyId],
+    );
+    res.json({ pending: r.rows[0] || null });
   } catch (err) { next(err); }
 });
 

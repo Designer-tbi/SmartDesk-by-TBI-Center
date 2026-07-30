@@ -8,6 +8,7 @@ import { I18nProvider, useTranslation } from './lib/i18n';
 import { AuthProvider } from './lib/AuthContext';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import SignQuotePage from './pages/SignQuotePage';
+import ResetPasswordPage from './pages/ResetPasswordPage';
 import { ToastHost } from './lib/toast';
 import { useAutomationNotifications } from './lib/useAutomationNotifications';
 import { SubscriptionGate } from './components/SubscriptionGate';
@@ -97,7 +98,8 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
   const isPublicRoute =
     location.pathname.startsWith('/sign-quote/') ||
     location.pathname.startsWith('/sign-contract/') ||
-    location.pathname.startsWith('/sign/');
+    location.pathname.startsWith('/sign/') ||
+    location.pathname.startsWith('/reset-password/');
 
   const logout = useCallback(async () => {
     try {
@@ -158,6 +160,7 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
           <Route path="/sign-quote/:id" element={<SignQuotePage />} />
           <Route path="/sign-contract/:id" element={<SignQuotePage />} />
           <Route path="/sign/:id" element={<SignQuotePage />} />
+          <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         </Routes>
       </Suspense>
     );

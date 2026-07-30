@@ -37,8 +37,8 @@ const CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
  * PayPal charges in USD.
  */
 export interface PlanSpec {
-  id: 'CG_XAF' | 'WORLD';
-  country: 'CG' | 'DEFAULT';
+  id: 'CG_XAF' | 'CD_USD' | 'WORLD';
+  country: 'CG' | 'CD' | 'DEFAULT';
   amountUSD: string;   // what PayPal actually bills
   displayLocal: string; // what we display to the customer
   description: string;
@@ -53,6 +53,16 @@ export const PLAN_SPECS: PlanSpec[] = [
     description: 'Abonnement mensuel SmartDesk — République du Congo',
   },
   {
+    id: 'CD_USD',
+    country: 'CD',
+    // CDF is highly volatile against the USD, so RDC is billed directly
+    // in USD (like most SaaS operating in DRC) rather than displaying a
+    // local-currency figure that would drift from the real charge.
+    amountUSD: '60.00',
+    displayLocal: '$60 USD',
+    description: 'Abonnement mensuel SmartDesk — RDC',
+  },
+  {
     id: 'WORLD',
     country: 'DEFAULT',
     amountUSD: '40.00',
@@ -63,7 +73,7 @@ export const PLAN_SPECS: PlanSpec[] = [
 
 export const resolvePlanForCountry = (country?: string | null): PlanSpec => {
   const c = String(country || '').toUpperCase();
-  return PLAN_SPECS.find((p) => p.country === c) || PLAN_SPECS[1];
+  return PLAN_SPECS.find((p) => p.country === c) || PLAN_SPECS[PLAN_SPECS.length - 1];
 };
 
 /* ------------------------------------------------------------------ */

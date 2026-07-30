@@ -733,7 +733,29 @@ export async function initializeDatabase() {
     // Per-user preferences (language, sidebar state, etc.) stored in DB so
     // that the frontend can get rid of localStorage entirely.
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'::jsonb`);
-    
+
+    // "Mot de passe oublié" flow: hashed reset token + expiry.
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "resetTokenHash" TEXT`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "resetTokenExpires" TIMESTAMPTZ`);
+
+    // Mobile Money payment requests (Airtel Money / MTN Mobile Money) —
+    // manual confirmation workflow since neither operator offers a
+    // self-serve subscription API for CG/CD merchants.
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS mobile_money_payments (
+        id TEXT PRIMARY KEY,
+        "companyId" TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        "phoneNumber" TEXT NOT NULL,
+        "referenceCode" TEXT NOT NULL UNIQUE,
+        "amountLocal" TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        "createdAt" TIMESTAMPTZ DEFAULT NOW(),
+        "confirmedAt" TIMESTAMPTZ,
+        "confirmedBy" TEXT
+      )
+    `);
+
     // Ensure companies.type has the check constraint
     try {
       await db.query("ALTER TABLE companies ADD CONSTRAINT check_company_type CHECK (type IN ('real', 'demo'))");
