@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from '../lib/i18n';
 import { apiFetch } from '../lib/api';
-import { Plus, Calendar, CheckCircle2, Circle, Clock, MoreHorizontal, X, Pencil, Trash2, Eye, Loader2, DollarSign, Flag, Briefcase, User, AlertCircle, Users, Check } from 'lucide-react';
-import { Project, Contact, Employee } from '../types';
+import { Plus, Calendar, CheckCircle2, Circle, Clock, MoreHorizontal, X, Pencil, Trash2, Eye, Loader2, DollarSign, Flag, Briefcase, User, AlertCircle, Users, Check, Truck, TrendingUp, TrendingDown } from 'lucide-react';
+import { Project, ProjectExpenseItem, Contact, Employee } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useLiveSync } from '../lib/useLiveSync';
 import { currencySymbolFromCode } from '../lib/locale';
@@ -32,7 +32,8 @@ export const Projects = ({ user }: { user?: any }) => {
     details: '',
     priority: 'Medium',
     budget: 0,
-    teamIds: []
+    teamIds: [],
+    expenseItems: []
   });
 
   const isUS = user?.country === 'USA' || user?.country === 'US';
@@ -176,7 +177,8 @@ export const Projects = ({ user }: { user?: any }) => {
         details: '',
         priority: 'Medium',
         budget: 0,
-        teamIds: []
+        teamIds: [],
+    expenseItems: []
       });
     } catch (error) {
       console.error('Failed to save project:', error);
@@ -185,6 +187,31 @@ export const Projects = ({ user }: { user?: any }) => {
   };
 
   const canManage = isManagerRole(user?.role);
+
+  const handleAddExpense = () => {
+    const item: ProjectExpenseItem = {
+      id: `exp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      description: '',
+      amount: 0,
+      supplier: '',
+      date: new Date().toISOString().split('T')[0],
+    };
+    setNewProject({ ...newProject, expenseItems: [...(newProject.expenseItems || []), item] });
+  };
+
+  const handleUpdateExpense = (index: number, field: keyof ProjectExpenseItem, value: string | number) => {
+    const items = [...(newProject.expenseItems || [])];
+    items[index] = { ...items[index], [field]: value };
+    setNewProject({ ...newProject, expenseItems: items });
+  };
+
+  const handleRemoveExpense = (index: number) => {
+    const items = (newProject.expenseItems || []).filter((_, i) => i !== index);
+    setNewProject({ ...newProject, expenseItems: items });
+  };
+
+  const getTotalExpenses = (items?: ProjectExpenseItem[]) =>
+    (items || []).reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
   const handleDelete = async (id: string) => {
     try {
@@ -222,7 +249,8 @@ export const Projects = ({ user }: { user?: any }) => {
             details: '',
             priority: 'Medium',
             budget: 0,
-            teamIds: []
+            teamIds: [],
+    expenseItems: []
           }); 
           setIsModalOpen(true); 
           setFormError(null);
@@ -533,6 +561,82 @@ export const Projects = ({ user }: { user?: any }) => {
                   </div>
                 </div>
 
+                {/* Expenses & Suppliers */}
+                <div className="md:col-span-2 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black text-accent-red uppercase tracking-widest flex items-center gap-2">
+                      <Truck className="w-3 h-3" />
+                      {t('projects.expenses')}
+                    </h4>
+                    <button type="button" onClick={handleAddExpense} className="text-xs font-bold text-accent-red hover:text-primary-red flex items-center gap-1">
+                      <Plus className="w-3 h-3" /> {t('projects.addExpense')}
+                    </button>
+                  </div>
+
+                  {(newProject.expenseItems || []).length === 0 ? (
+                    <p className="text-xs text-slate-400 italic px-1">{t('projects.noExpenses')}</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {(newProject.expenseItems || []).map((item, index) => (
+                        <div key={item.id} className="grid grid-cols-1 sm:grid-cols-[2fr_2fr_1fr_1fr_auto] gap-2 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                          <input
+                            type="text"
+                            placeholder={t('projects.expenseDescriptionPlaceholder')}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
+                            value={item.description}
+                            onChange={e => handleUpdateExpense(index, 'description', e.target.value)}
+                          />
+                          <input
+                            type="text"
+                            placeholder={t('projects.expenseSupplierPlaceholder')}
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
+                            value={item.supplier || ''}
+                            onChange={e => handleUpdateExpense(index, 'supplier', e.target.value)}
+                          />
+                          <input
+                            type="date"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
+                            value={item.date || ''}
+                            onChange={e => handleUpdateExpense(index, 'date', e.target.value)}
+                          />
+                          <input
+                            type="number"
+                            placeholder="0"
+                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
+                            value={item.amount || 0}
+                            onChange={e => handleUpdateExpense(index, 'amount', parseFloat(e.target.value) || 0)}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveExpense(index)}
+                            title={t('projects.removeExpense')}
+                            className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all self-center justify-self-end"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4 pt-2">
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2">
+                      <TrendingDown className="w-4 h-4 text-rose-500 shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('projects.totalExpenses')}</p>
+                        <p className="text-sm font-black text-slate-700">{formatCurrency(getTotalExpenses(newProject.expenseItems))}</p>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <div>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest" title={t('projects.benefitHint')}>{t('projects.estimatedBenefit')}</p>
+                        <p className="text-sm font-black text-slate-700">{formatCurrency((newProject.budget || 0) - getTotalExpenses(newProject.expenseItems))}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Progress */}
                 <div className="md:col-span-2 space-y-4">
                   <div className="flex items-center justify-between">
@@ -651,7 +755,46 @@ export const Projects = ({ user }: { user?: any }) => {
                       </p>
                     </div>
                   </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="w-8 h-8 rounded-lg bg-rose-50 flex items-center justify-center text-rose-600">
+                      <TrendingDown className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('projects.totalExpenses')}</p>
+                      <p className="font-bold text-slate-700">
+                        {formatCurrency(getTotalExpenses(viewProject.expenseItems))}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
+                      <TrendingUp className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t('projects.estimatedBenefit')}</p>
+                      <p className="font-bold text-slate-700">
+                        {formatCurrency((viewProject.budget || 0) - getTotalExpenses(viewProject.expenseItems))}
+                      </p>
+                    </div>
+                  </div>
                 </div>
+
+                {viewProject.expenseItems && viewProject.expenseItems.length > 0 && (
+                  <div className="space-y-3 pt-4">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t('projects.expenses')}</p>
+                    <div className="space-y-2">
+                      {viewProject.expenseItems.map(item => (
+                        <div key={item.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100 text-xs">
+                          <div className="min-w-0">
+                            <p className="font-bold text-slate-700 truncate">{item.description || t('projects.expenseDescription')}</p>
+                            {item.supplier && <p className="text-slate-400 truncate">{item.supplier}</p>}
+                          </div>
+                          <span className="font-black text-rose-600 shrink-0 ml-3">{formatCurrency(item.amount || 0)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {viewProject.teamIds && viewProject.teamIds.length > 0 && (
                   <div className="space-y-3 pt-4">

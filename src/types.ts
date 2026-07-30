@@ -99,6 +99,14 @@ export interface QuoteTemplate {
   lastModified: string;
 }
 
+export interface ProjectExpenseItem {
+  id: string;
+  description: string;
+  amount: number;
+  supplier?: string;
+  date?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -113,6 +121,7 @@ export interface Project {
   priority?: 'Low' | 'Medium' | 'High';
   budget?: number;
   teamIds?: string[];
+  expenseItems?: ProjectExpenseItem[];
 }
 
 export interface Employee {

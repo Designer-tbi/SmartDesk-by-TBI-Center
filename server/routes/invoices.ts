@@ -207,9 +207,10 @@ invoicesRouter.post('/', async (req, res, next) => {
       await req.db.query('COMMIT');
       console.log('POST /api/invoices - Success');
 
-      // Auto-certify via SFEC for demo companies only. The per-company API
-      // key is stored in `companies.fiscalizationApiKey` (seeded on demo
-      // creation). Failures are non-fatal — the invoice still saves.
+      // Auto-certify via SFEC for any company (demo or real) that has a
+      // DGID key configured (`companies.fiscalizationApiKey` — seeded on
+      // demo creation, or entered by the tenant in Settings for a real
+      // account). Failures are non-fatal — the invoice still saves.
       let certified: any = null;
       try {
         const companyRes = await req.db.query(
@@ -217,7 +218,7 @@ invoicesRouter.post('/', async (req, res, next) => {
           [req.user.companyId],
         );
         const company = companyRes.rows[0];
-        if (company?.type === 'demo' && inv.type === 'Invoice' && company.fiscalizationApiKey) {
+        if (inv.type === 'Invoice' && company?.fiscalizationApiKey) {
           let buyer: any = { name: null, niu: null, address: null, email: null, phone: null, contactType: 'individual' };
           if (contactId) {
             const cRes = await req.db.query(
@@ -307,8 +308,9 @@ invoicesRouter.post('/', async (req, res, next) => {
 });
 
 /**
- * Manually (re)certify an invoice via DGID. Restricted to demo companies —
- * this is a demo-only feature until the real API is wired.
+ * Manually (re)certify an invoice via DGID. Available to any company —
+ * demo or real — that has configured a `fiscalizationApiKey` (Settings,
+ * for real accounts; auto-seeded for demo ones).
  */
 invoicesRouter.post('/:id/certify', async (req, res, next) => {
   try {
@@ -322,9 +324,6 @@ invoicesRouter.post('/:id/certify', async (req, res, next) => {
     );
     const company = companyRes.rows[0];
     if (!company) return res.status(404).json({ error: 'Company not found' });
-    if (company.type !== 'demo') {
-      return res.status(403).json({ error: 'Certification SFEC réservée aux sociétés démo pour l\'instant.' });
-    }
     if (!company.fiscalizationApiKey) {
       return res.status(400).json({ error: "Clé API SFEC absente pour cette entreprise." });
     }

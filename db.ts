@@ -175,6 +175,7 @@ const initSql = `
     priority TEXT DEFAULT 'Medium',
     budget REAL DEFAULT 0,
     "teamIds" TEXT,
+    "expenseItems" TEXT,
     "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     FOREIGN KEY ("companyId") REFERENCES companies(id) ON DELETE CASCADE,
@@ -687,6 +688,7 @@ export async function initializeDatabase() {
     await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "budget" REAL DEFAULT 0');
     await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "contactId" TEXT');
     await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "teamIds" TEXT');
+    await db.query('ALTER TABLE projects ADD COLUMN IF NOT EXISTS "expenseItems" TEXT');
     await db.query('ALTER TABLE invoice_items ADD COLUMN IF NOT EXISTS "companyId" TEXT');
     await db.query('ALTER TABLE quote_template_items ADD COLUMN IF NOT EXISTS "companyId" TEXT');
     await db.query('ALTER TABLE contacts ADD COLUMN IF NOT EXISTS niu TEXT');
