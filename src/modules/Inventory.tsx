@@ -8,6 +8,7 @@ import { useTranslation } from '../lib/i18n';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useLiveSync } from '../lib/useLiveSync';
 import { currencySymbolFromCode } from '../lib/locale';
+import { toast } from '../lib/toast';
 
 export const Inventory = ({ user }: { user: any }) => {
   const { t } = useTranslation();
@@ -29,7 +30,6 @@ export const Inventory = ({ user }: { user: any }) => {
   const [movement, setMovement] = useState({ productId: '', quantity: 0, type: 'IN' as 'IN' | 'OUT' });
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteCategoryConfirm, setDeleteCategoryConfirm] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const currentTvaRate = newProduct.tvaRate ?? 0.18;
@@ -63,28 +63,33 @@ export const Inventory = ({ user }: { user: any }) => {
     e.preventDefault();
     setIsSubmitting(true);
     try {
+      let response: Response;
       if (editingProduct) {
-        // Update logic (not implemented in server yet, but let's assume PUT)
-        const response = await apiFetch(`/api/products/${editingProduct.id}`, {
+        response = await apiFetch(`/api/products/${editingProduct.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newProduct),
         });
-        if (response.ok) fetchProducts();
-        setEditingProduct(null);
       } else {
         const id = Math.random().toString(36).substr(2, 9);
-        const response = await apiFetch('/api/products', {
+        response = await apiFetch('/api/products', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...newProduct, id }),
         });
-        if (response.ok) fetchProducts();
       }
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        toast.error(data?.error || t('inventory.error.save'));
+        return;
+      }
+      await fetchProducts();
+      setEditingProduct(null);
       setIsAddProductOpen(false);
       setNewProduct({ name: '', sku: '', price: 0, stock: 0, category: '', description: '', type: 'product', tvaRate: 0.18 });
     } catch (error) {
       console.error('Failed to save product:', error);
+      toast.error('Erreur de connexion.');
     } finally {
       setIsSubmitting(false);
     }
@@ -100,11 +105,11 @@ export const Inventory = ({ user }: { user: any }) => {
         if (viewProduct?.id === id) setViewProduct(null);
         setDeleteConfirmId(null);
       } else {
-        setError(t('inventory.error.delete'));
+        toast.error(t('inventory.error.delete'));
       }
     } catch (error) {
       console.error('Failed to delete product:', error);
-      setError('Erreur de connexion.');
+      toast.error('Erreur de connexion.');
     }
   };
 
@@ -122,13 +127,17 @@ export const Inventory = ({ user }: { user: any }) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedProduct),
       });
-      if (response.ok) {
-        fetchProducts();
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        toast.error(data?.error || 'Échec de la mise à jour du stock.');
+        return;
       }
+      await fetchProducts();
       setIsStockMovementOpen(false);
       setMovement({ productId: '', quantity: 0, type: 'IN' });
     } catch (error) {
       console.error('Failed to update stock:', error);
+      toast.error('Erreur de connexion.');
     }
   };
 

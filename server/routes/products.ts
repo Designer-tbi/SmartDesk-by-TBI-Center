@@ -18,12 +18,14 @@ productsRouter.get('/', async (req, res, next) => {
 productsRouter.post('/', async (req, res, next) => {
   try {
     const { id, name, sku, price, stock, category, description, type, tvaRate } = req.body;
+    if (!name) return res.status(400).json({ error: 'Le nom du produit est requis.' });
+    const safeStock = Math.max(0, Number(stock) || 0);
     await req.db.query('INSERT INTO products (id, "companyId", name, sku, price, stock, category, description, type, "tvaRate") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-      [id, req.user!.companyId, name, sku, price, stock, category, description, type, tvaRate]);
-    
+      [id, req.user!.companyId, name, sku, price, safeStock, category, description, type, tvaRate]);
+
     await logActivity(req.db, req.user!.id, req.user!.companyId, 'CREATE_PRODUCT', `Nouveau produit ajouté: ${name} (SKU: ${sku})`);
-    
-    res.status(201).json({ id, name, sku, price, stock, category, description, type, tvaRate });
+
+    res.status(201).json({ id, name, sku, price, stock: safeStock, category, description, type, tvaRate });
   } catch (error) {
     next(error);
   }
@@ -33,12 +35,15 @@ productsRouter.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, sku, price, stock, category, description, type, tvaRate } = req.body;
-    await req.db.query('UPDATE products SET name = $1, sku = $2, price = $3, stock = $4, category = $5, description = $6, type = $7, "tvaRate" = $8 WHERE id = $9 AND "companyId" = $10',
-      [name, sku, price, stock, category, description, type, tvaRate, id, req.user!.companyId]);
-    
+    if (!name) return res.status(400).json({ error: 'Le nom du produit est requis.' });
+    const safeStock = Math.max(0, Number(stock) || 0);
+    const result = await req.db.query('UPDATE products SET name = $1, sku = $2, price = $3, stock = $4, category = $5, description = $6, type = $7, "tvaRate" = $8 WHERE id = $9 AND "companyId" = $10',
+      [name, sku, price, safeStock, category, description, type, tvaRate, id, req.user!.companyId]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Produit introuvable.' });
+
     await logActivity(req.db, req.user!.id, req.user!.companyId, 'UPDATE_PRODUCT', `Produit mis à jour: ${name}`);
-    
-    res.json({ id, name, sku, price, stock, category, description, type, tvaRate });
+
+    res.json({ id, name, sku, price, stock: safeStock, category, description, type, tvaRate });
   } catch (error) {
     next(error);
   }

@@ -15,6 +15,7 @@
 
 import { computeInvoiceTotals } from './invoiceTotals.js';
 import { broadcast } from '../activity.js';
+import { decrementStockForItems } from './stock.js';
 
 type DB = { query: (...args: any[]) => Promise<any> };
 
@@ -127,6 +128,7 @@ export async function autoConvertSignedQuoteToInvoice(
          WHERE id = $2 AND "companyId" = $3`,
       [newInvoiceId, quoteId, companyId],
     );
+    await decrementStockForItems(db, companyId, items);
     await db.query('COMMIT');
 
     // Post-commit side-effects (journal entry + DGID certification) —

@@ -11,6 +11,7 @@ import { computeInvoiceTotals } from '../services/invoiceTotals.js';
 import { autoPostPaidInvoiceJournal, autoConvertSignedQuoteToInvoice, autoCertifyInvoice } from '../services/automations.js';
 import { buildInvoicePdfBuffer } from '../services/invoicePdf.js';
 import { broadcast } from '../activity.js';
+import { decrementStockForItems, restoreStockForItems, adjustStockForItemChange } from '../services/stock.js';
 
 export const invoicesRouter = Router();
 
@@ -173,7 +174,12 @@ invoicesRouter.post('/', async (req, res, next) => {
           );
         }
       }
-      
+
+      // A Quote doesn't consume stock — only a real Invoice does.
+      if (inv.type === 'Invoice' && Array.isArray(inv.items)) {
+        await decrementStockForItems(req.db, req.user.companyId, inv.items);
+      }
+
       await req.db.query('COMMIT');
       console.log('POST /api/invoices - Success');
 
@@ -390,10 +396,15 @@ invoicesRouter.put('/:id', async (req, res, next) => {
       // Certified invoices are frozen: editing them would break the DGID
       // signature. Only a small set of status transitions is allowed.
       const prevInvoiceRes = await req.db.query(
-        'SELECT status, "certificationNumber", "certificationStatus" FROM invoices WHERE id = $1 AND "companyId" = $2',
+        'SELECT type, status, "certificationNumber", "certificationStatus" FROM invoices WHERE id = $1 AND "companyId" = $2',
         [id, req.user.companyId],
       );
       const prevInvoice = prevInvoiceRes.rows[0];
+      // Needed to compute the stock delta below (items are replaced
+      // wholesale further down) — only fetched when it'll actually be used.
+      const prevItemsRes = prevInvoice?.type === 'Invoice'
+        ? await req.db.query('SELECT "productId", quantity FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2', [id, req.user.companyId])
+        : { rows: [] };
       const isLocked = !!prevInvoice?.certificationNumber;
       if (isLocked) {
         const allowedNextStatus = new Set(['Paid', 'Overdue', 'Sent', prevInvoice.status]);
@@ -500,7 +511,19 @@ invoicesRouter.put('/:id', async (req, res, next) => {
           );
         }
       }
-      
+
+      // Reconcile stock against whichever side of the edit is (still) an
+      // Invoice — Quotes never held stock in the first place.
+      const wasInvoice = prevInvoice?.type === 'Invoice';
+      const isInvoice = inv.type === 'Invoice';
+      if (wasInvoice && isInvoice) {
+        await adjustStockForItemChange(req.db, req.user.companyId, prevItemsRes.rows, inv.items || []);
+      } else if (wasInvoice && !isInvoice) {
+        await restoreStockForItems(req.db, req.user.companyId, prevItemsRes.rows);
+      } else if (!wasInvoice && isInvoice) {
+        await decrementStockForItems(req.db, req.user.companyId, inv.items || []);
+      }
+
       await req.db.query('COMMIT');
       console.log(`PUT /api/invoices/${id} - Success`);
 
@@ -824,6 +847,7 @@ invoicesRouter.post('/:id/convert-to-invoice', async (req, res, next) => {
          WHERE id = $2 AND "companyId" = $3`,
         [newInvoiceId, id, req.user!.companyId],
       );
+      await decrementStockForItems(req.db, req.user!.companyId, items);
       await req.db.query('COMMIT');
 
       // Best-effort post-commit automations: journal entry (the invoice
@@ -864,7 +888,7 @@ invoicesRouter.delete('/:id', async (req, res, next) => {
     // Block deletion of certified invoices — same fiscal-consistency rule
     // as the PUT handler above.
     const check = await req.db.query(
-      'SELECT "certificationNumber" FROM invoices WHERE id = $1 AND "companyId" = $2',
+      'SELECT type, "certificationNumber" FROM invoices WHERE id = $1 AND "companyId" = $2',
       [id, req.user!.companyId],
     );
     if (check.rows[0]?.certificationNumber) {
@@ -874,6 +898,13 @@ invoicesRouter.delete('/:id', async (req, res, next) => {
     }
 
     await req.db.query('BEGIN');
+    if (check.rows[0]?.type === 'Invoice') {
+      const itemsRes = await req.db.query(
+        'SELECT "productId", quantity FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2',
+        [id, req.user!.companyId],
+      );
+      await restoreStockForItems(req.db, req.user!.companyId, itemsRes.rows);
+    }
     await req.db.query('DELETE FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     await req.db.query('DELETE FROM invoices WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     await req.db.query('COMMIT');
