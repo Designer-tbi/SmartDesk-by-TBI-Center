@@ -319,6 +319,12 @@ employeesRouter.post('/contracts/:id/send-email', requireManager, async (req, re
     );
     const contract = cRes.rows[0];
     if (!contract) return res.status(404).json({ error: 'Contrat introuvable' });
+    if (contract.status === 'Signed' || contract.status === 'Active') {
+      // Re-sending would flip the contract back to 'Sent', silently
+      // dropping it out of the payroll module's active-contract filter
+      // (which only considers Signed/Active contracts).
+      return res.status(409).json({ error: 'Ce contrat est déjà signé et ne peut plus être renvoyé.' });
+    }
 
     const eRes = await req.db.query(
       'SELECT * FROM employees WHERE id = $1 AND "companyId" = $2',

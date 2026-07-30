@@ -51,7 +51,14 @@ export const EmployeeDetailModal: React.FC<Props> = ({
   const [tab, setTab] = useState<Tab>('info');
   const [ready, setReady] = useState(false);
   const navigate = useNavigate();
-  useEffect(() => { setReady(true); }, []);
+  // Mount at opacity-0/scale-95 then flip on the next frame so the CSS
+  // `transition-all` actually animates in, instead of both states
+  // landing in the same paint. rAF (not a bare effect) keeps the update
+  // out of the initial render's commit phase.
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   const empContracts = contracts.filter((c) => c.employeeId === employee.id);
   const empPayslips = payslips.filter((p) => p.employeeId === employee.id);
@@ -126,7 +133,7 @@ export const EmployeeDetailModal: React.FC<Props> = ({
               <div className="space-y-3">
                 <Row icon={Calendar} text={`Arrivée : ${employee.joinDate}`} />
                 <Row icon={Briefcase} text={`Contrat : ${employee.contractType}`} />
-                <Row icon={DollarSign} text={`${Number(employee.salary || 0).toLocaleString()} ${currencySymbol} / an`} emphasis />
+                <Row icon={DollarSign} text={`${Number(employee.salary || 0).toLocaleString()} ${currencySymbol} / mois`} emphasis />
               </div>
               {employee.documents && employee.documents.length > 0 && (
                 <div className="md:col-span-2 pt-4 border-t border-slate-100">

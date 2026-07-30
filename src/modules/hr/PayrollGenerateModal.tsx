@@ -87,7 +87,7 @@ export const PayrollGenerateModal: React.FC<Props> = ({
             Employés éligibles : <strong className="text-slate-900">{employees.length}</strong>
             {' • '}Déjà traités pour cette période :{' '}
             <strong className="text-slate-900">
-              {payslips.filter((p) => p.month === payrollMonth && p.year === payrollYear).length}
+              {payslips.filter((p) => Number(p.month) === Number(payrollMonth) && Number(p.year) === Number(payrollYear)).length}
             </strong>
           </div>
         </div>

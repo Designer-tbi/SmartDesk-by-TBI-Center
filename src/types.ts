@@ -134,7 +134,12 @@ export interface Employee {
 export interface LeaveRequest {
   id: string;
   employeeId: string;
-  type: 'Annual' | 'Sick' | 'Maternity' | 'Other';
+  // Free text from a fixed set of options (see LeaveRequestModal.tsx):
+  // 'Congé annuel' | 'Congé maladie' | 'Congé maternité' | 'Congé sans
+  // solde' | 'Permission exceptionnelle'. Not a strict union — the old
+  // English union here ('Annual' | 'Sick' | ...) never matched what the
+  // UI actually writes.
+  type: string;
   startDate: string;
   endDate: string;
   status: 'Pending' | 'Approved' | 'Rejected';

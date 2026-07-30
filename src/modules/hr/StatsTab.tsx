@@ -11,7 +11,10 @@ interface Props {
 
 export const StatsTab: React.FC<Props> = ({ employees, leaves, currencySymbol, t }) => {
   const activeLeaves = leaves.filter((l) => l.status === 'Approved').length;
-  const monthlyPayroll = employees.reduce((acc, curr) => acc + curr.salary, 0) / 12;
+  // employee.salary is a monthly figure (it's used unconverted as one
+  // month's payslip base in HR.tsx's payroll generator) — summing it
+  // directly gives the monthly payroll mass, no /12 needed.
+  const monthlyPayroll = employees.reduce((acc, curr) => acc + curr.salary, 0);
   const departments = new Set(employees.map((e) => e.department)).size;
 
   return (
@@ -31,7 +34,7 @@ export const StatsTab: React.FC<Props> = ({ employees, leaves, currencySymbol, t
           <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
             <Coffee className="w-5 h-5" />
           </div>
-          <span className="text-xs font-bold text-amber-600">3 {t('hr.status.active').toLowerCase()}s</span>
+          <span className="text-xs font-bold text-amber-600">{activeLeaves} {t('hr.status.active').toLowerCase()}{activeLeaves > 1 ? 's' : ''}</span>
         </div>
         <div className="text-2xl font-black text-slate-900">{activeLeaves}</div>
         <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.currentLeaves')}</div>

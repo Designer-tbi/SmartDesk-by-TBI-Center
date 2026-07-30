@@ -946,21 +946,20 @@ export const HR = ({ user }: { user: any }) => {
                                 <FileSignature className="w-4 h-4" />
                               </button>
                             )}
-                            <button 
-                              onClick={() => handleSendContract(contract.id)}
-                              disabled={isSending === contract.id}
-                              className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"
-                              title={t('hr.sendEmail')}
-                            >
-                              {isSending === contract.id ? (
-                                <div className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
-                              ) : (
-                                <Send className="w-4 h-4" />
-                              )}
-                            </button>
-                            <button className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-all" title={t('hr.download')}>
-                              <Download className="w-4 h-4" />
-                            </button>
+                            {contract.status !== 'Signed' && contract.status !== 'Active' && (
+                              <button
+                                onClick={() => handleSendContract(contract.id)}
+                                disabled={isSending === contract.id}
+                                className="p-2 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"
+                                title={t('hr.sendEmail')}
+                              >
+                                {isSending === contract.id ? (
+                                  <div className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
+                                ) : (
+                                  <Send className="w-4 h-4" />
+                                )}
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1616,7 +1615,11 @@ export const HR = ({ user }: { user: any }) => {
                         </select>
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.annualSalary')} ({currencySymbol})</label>
+                        {/* Labeled "monthly" (not annual) — this value flows unconverted into
+                            payroll generation (handleGeneratePayroll) and into the
+                            auto-created contract's monthly salary (autoCreateDefaultContract),
+                            both of which treat it as a single month's base pay. */}
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('hr.monthlySalary')} ({currencySymbol})</label>
                         <input type="number" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-accent-red/20 outline-none font-bold" value={newEmployee.salary || 0} onChange={e => setNewEmployee({...newEmployee, salary: parseInt(e.target.value) || 0})} required />
                       </div>
                       <div className="space-y-1.5">
