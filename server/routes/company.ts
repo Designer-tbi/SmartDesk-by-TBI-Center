@@ -126,9 +126,18 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
       name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address,
       country, state, city, logo, accountingStandard, language, currency,
       legalForm, capital, representativeName, representativeRole,
-      cnssEmployerRate, cnssEmployeeRate,
+      cnssEmployerRate, cnssEmployeeRate, fiscalizationApiKey: newFiscalizationApiKey,
     } = req.body;
     console.log('Updating company for user:', req.user!.id, 'companyId:', req.user!.companyId);
+    // The SFEC/DGID key is write-only (never echoed back to the client —
+    // see the strip below) and only settable once at onboarding time
+    // otherwise, with no way to rotate a compromised key or set one that
+    // was skipped. Accept it here too, but only overwrite when a new
+    // non-empty value is actually submitted.
+    const trimmedKey = newFiscalizationApiKey ? String(newFiscalizationApiKey).trim() : '';
+    if (trimmedKey && trimmedKey.length < 16) {
+      return res.status(400).json({ error: 'Clé API SFEC invalide (16+ caractères requis).' });
+    }
     const result = await req.db.query(
       `UPDATE public.companies SET
         name = $1, "taxId" = $2, rccm = $3, "idNat" = $4, niu = $5, siren = $6, siret = $7,
@@ -136,7 +145,8 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
         logo = $14, "accountingStandard" = $15, language = $16, currency = $17, city = $18,
         "legalForm" = $19, capital = $20,
         "representativeName" = $21, "representativeRole" = $22,
-        "cnssEmployerRate" = $23, "cnssEmployeeRate" = $24
+        "cnssEmployerRate" = $23, "cnssEmployeeRate" = $24,
+        "fiscalizationApiKey" = CASE WHEN $26 = '' THEN "fiscalizationApiKey" ELSE $26 END
       WHERE id = $25`,
       [
         name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address,
@@ -148,6 +158,7 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
         Number.isFinite(Number(cnssEmployerRate)) && cnssEmployerRate !== '' && cnssEmployerRate !== null ? Number(cnssEmployerRate) : null,
         Number.isFinite(Number(cnssEmployeeRate)) && cnssEmployeeRate !== '' && cnssEmployeeRate !== null ? Number(cnssEmployeeRate) : null,
         req.user!.companyId,
+        trimmedKey,
       ],
     );
     

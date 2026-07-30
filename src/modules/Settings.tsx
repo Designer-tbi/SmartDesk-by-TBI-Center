@@ -45,20 +45,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   const [isAccountingResetConfirmOpen, setIsAccountingResetConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState(false);
   const [isDetectingGeo, setIsDetectingGeo] = useState(false);
   const [geoMessage, setGeoMessage] = useState<string | null>(null);
-
-  // Generate a stable API key for demo purposes based on company name or just once
-  const apiKey = React.useMemo(() => {
-    return `sk_live_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
-  }, []);
-
-  const handleCopyApiKey = () => {
-    navigator.clipboard.writeText(apiKey);
-    setCopiedKey(true);
-    setTimeout(() => setCopiedKey(false), 2000);
-  };
+  // Write-only: never pre-filled from the server (the real key is never
+  // echoed back). Left empty, the backend keeps whatever key is already
+  // stored — only a non-empty value here rotates it.
+  const [fiscalizationKeyInput, setFiscalizationKeyInput] = useState('');
 
   const handleDetectCountry = async () => {
     setIsDetectingGeo(true);
@@ -137,10 +129,13 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       const response = await apiFetch('/api/company', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(company),
+        body: JSON.stringify({ ...company, fiscalizationApiKey: fiscalizationKeyInput || undefined }),
       });
-      
+
       if (response.ok) {
+        const updated = await response.json().catch(() => null);
+        if (updated) setCompany(updated);
+        setFiscalizationKeyInput('');
         setIsSaved(true);
         if (company.language) {
           setLanguage(company.language as any);
@@ -564,6 +559,27 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                             data-testid="settings-company-idnat-input"
                           />
                         </div>
+                      </div>
+                      <div className="space-y-1.5 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                          {t('settings.fiscalizationApiKey')}
+                        </label>
+                        <div className="relative">
+                          <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type="password"
+                            placeholder={company.hasFiscalizationKey ? '••••••••••••••••' : t('settings.fiscalizationApiKeyPlaceholder')}
+                            className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                            value={fiscalizationKeyInput}
+                            onChange={(e) => setFiscalizationKeyInput(e.target.value)}
+                            data-testid="settings-company-fiscalization-key-input"
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-400 ml-1">
+                          {company.hasFiscalizationKey
+                            ? t('settings.fiscalizationApiKeyConfiguredHint')
+                            : t('settings.fiscalizationApiKeyMissingHint')}
+                        </p>
                       </div>
                     </>
                   )}
