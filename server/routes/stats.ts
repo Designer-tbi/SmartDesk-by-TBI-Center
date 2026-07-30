@@ -33,20 +33,22 @@ statsRouter.get('/', async (req, res, next) => {
           AND date_trunc('month', t.date::date) = m.month
         ), 0) as expenses
       FROM months m
-      LEFT JOIN invoices i ON date_trunc('month', i.date::date) = m.month AND i."companyId" = $1
+      LEFT JOIN invoices i ON date_trunc('month', i.date::date) = m.month AND i."companyId" = $1 AND i.type = 'Invoice'
       GROUP BY m.month
       ORDER BY m.month ASC
     `, [companyId]);
 
-    // Revenue split by product category (Paid invoices only).
+    // Revenue split by product category (Paid invoices only). LEFT JOIN
+    // products so free-text line items (no linked product) still count,
+    // falling into "Autres" instead of being silently dropped.
     const categoryDataRes = await req.db.query(`
-      SELECT 
+      SELECT
         COALESCE(p.category, 'Autres') as name,
         SUM(ii.price * ii.quantity) as value
       FROM invoice_items ii
       JOIN invoices i ON ii."invoiceId" = i.id
-      JOIN products p ON ii."productId" = p.id
-      WHERE i.status = 'Paid' AND i."companyId" = $1 AND p."companyId" = $1
+      LEFT JOIN products p ON ii."productId" = p.id AND p."companyId" = $1
+      WHERE i.status = 'Paid' AND i.type = 'Invoice' AND i."companyId" = $1
       GROUP BY p.category
     `, [companyId]);
 

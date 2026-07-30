@@ -23,7 +23,7 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://login-troubleshoot-1
 # Test credentials
 RDC_USD_USER = {"email": "plamedi.fika@tbi-center.fr", "password": "admin"}  # CD/USD, demo
 CONGO_USER = {"email": "designer@tbi-center.fr", "password": "admin"}  # CG, demo with SFEC key
-SUPER_ADMIN = {"email": "eden@tbi-center.fr", "password": "loub@ki2014D"}
+SUPER_ADMIN = {"email": "eden@tbi-center.fr", "password": os.environ.get('SUPER_ADMIN_PASSWORD', '')}
 
 
 class TestSession:

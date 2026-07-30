@@ -29,7 +29,7 @@ SUSPENDED_USER = {
 
 SUPER_ADMIN = {
     "email": "eden@tbi-center.fr",
-    "password": "loub@ki2014D"
+    "password": os.environ.get('SUPER_ADMIN_PASSWORD', '')
 }
 
 ACTIVE_USER = {

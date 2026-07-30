@@ -401,7 +401,7 @@ class TestSuperAdminVisibility:
             f"{BASE_URL}/api/auth/login",
             json={
                 "email": "eden@tbi-center.fr",
-                "password": "loub@ki2014D"
+                "password": os.environ.get('SUPER_ADMIN_PASSWORD', '')
             },
             headers={"Content-Type": "application/json"}
         )

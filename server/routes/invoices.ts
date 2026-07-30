@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { requireAuth, requireCompany } from '../middleware/auth.js';
 import nodemailer from 'nodemailer';
 import { jsPDF } from 'jspdf';
@@ -943,7 +944,25 @@ invoicesRouter.post('/:id/send-email', async (req, res, next) => {
       process.env.PUBLIC_BASE_URL ||
       process.env.REACT_APP_BACKEND_URL ||
       'https://smart-desk.pro';
-    const signatureLink = invoice.signatureLink || (isQuote ? `${signatureBaseUrl}/sign-quote/${invoice.id}` : null);
+    let signatureLink: string | null = null;
+    if (isQuote) {
+      // The invoice id alone (e.g. DEV-2026-347) is guessable — require an
+      // unguessable per-quote token in the link too, so /api/public/quotes
+      // can't be enumerated to read/sign other tenants' quotes.
+      let signingToken = invoice.signingToken;
+      if (!signingToken) {
+        signingToken = crypto.randomBytes(24).toString('hex');
+        await req.db.query(
+          'UPDATE invoices SET "signingToken" = $1 WHERE id = $2 AND "companyId" = $3',
+          [signingToken, id, req.user!.companyId],
+        );
+      }
+      signatureLink = `${signatureBaseUrl}/sign-quote/${invoice.id}?t=${signingToken}`;
+      await req.db.query(
+        'UPDATE invoices SET "signatureLink" = $1 WHERE id = $2 AND "companyId" = $3',
+        [signatureLink, id, req.user!.companyId],
+      );
+    }
 
     // Preserve user-entered whitespace + newlines (matches the product
     // creation form). HTML emails collapse whitespace by default, so we

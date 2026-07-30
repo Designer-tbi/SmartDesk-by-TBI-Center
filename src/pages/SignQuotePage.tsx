@@ -24,6 +24,9 @@ export default function SignQuotePage() {
     (location.pathname.startsWith('/sign/') && !location.pathname.startsWith('/sign-quote/'));
   const apiBase = isContract ? '/api/public/contracts' : '/api/public/quotes';
   const docLabel = isContract ? 'Contrat' : 'Devis';
+  // Unguessable per-document secret from the emailed link — required
+  // alongside :id since the id alone (e.g. DEV-2026-347) is guessable.
+  const signingToken = new URLSearchParams(location.search).get('t') || '';
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -55,7 +58,7 @@ export default function SignQuotePage() {
     let cancelled = false;
     (async () => {
       try {
-        const r = await fetch(`${apiBase}/${id}`, { credentials: 'omit' });
+        const r = await fetch(`${apiBase}/${id}?t=${encodeURIComponent(signingToken)}`, { credentials: 'omit' });
         if (!r.ok) {
           const e = await r.json().catch(() => null);
           throw new Error(e?.error || `HTTP ${r.status}`);
@@ -69,7 +72,7 @@ export default function SignQuotePage() {
       }
     })();
     return () => { cancelled = true; };
-  }, [id, apiBase]);
+  }, [id, apiBase, signingToken]);
 
   /* ---- Canvas helpers ---- */
   const getCtx = () => canvasRef.current?.getContext('2d') || null;
@@ -175,7 +178,7 @@ export default function SignQuotePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'omit',
-        body: JSON.stringify({ signerName: signerName.trim(), signatureDataUrl: dataUrl }),
+        body: JSON.stringify({ signerName: signerName.trim(), signatureDataUrl: dataUrl, t: signingToken }),
       });
       const json = await r.json().catch(() => null);
       if (!r.ok) throw new Error(json?.error || `HTTP ${r.status}`);

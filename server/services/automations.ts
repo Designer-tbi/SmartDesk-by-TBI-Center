@@ -259,14 +259,19 @@ export async function autoPostPaidInvoiceJournal(
   if (already.rows.length > 0) return null;
 
   const invRes = await db.query(
-    `SELECT id, "totalHT", "tvaTotal", total, "centimesAdditionnels", "contactId"
+    `SELECT id, "totalHT", "netFinancier", "tvaTotal", total, "centimesAdditionnels", "contactId"
        FROM invoices WHERE id = $1 AND "companyId" = $2 AND type = 'Invoice'`,
     [invoiceId, companyId],
   );
   const inv = invRes.rows[0];
   if (!inv) return null;
 
-  const totalHT = Number(inv.totalHT) || 0;
+  // "totalHT" is the pre-discount gross (brutHT) — the amount actually
+  // billed/collected net of all reductions (remise/rabais/ristourne/
+  // escompte) but before VAT is "netFinancier". Crediting 701 with the
+  // gross would leave the entry unbalanced by the discount amount for any
+  // invoice with a reduction.
+  const netFinancier = Number(inv.netFinancier) || Number(inv.totalHT) || 0;
   const tvaTotal = Number(inv.tvaTotal) || 0;
   const centimes = Number(inv.centimesAdditionnels) || 0;
   const total = Number(inv.total) || 0;
@@ -296,7 +301,7 @@ export async function autoPostPaidInvoiceJournal(
 
     const rows: Array<[string, number, number]> = [
       ['521', total, 0], // Banques (débit)
-      ['701', 0, totalHT], // Ventes (crédit)
+      ['701', 0, netFinancier], // Ventes (crédit) — net of all discounts
     ];
     if (tvaTotal + centimes > 0) {
       rows.push(['445', 0, tvaTotal + centimes]); // TVA facturée + CAC

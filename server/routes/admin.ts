@@ -133,9 +133,7 @@ adminRouter.post('/companies', async (req, res, next) => {
     
     // Create company. Demo companies get the DGID fiscalization API key
     // baked in so invoices can be auto-certified on creation.
-    const dgidKey = type === 'demo'
-      ? (process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c')
-      : null;
+    const dgidKey = type === 'demo' ? (process.env.DGID_DEMO_API_KEY || null) : null;
     await req.db.query('INSERT INTO public.companies (id, name, type, status, phone, email, "createdAt", "schemaName", "fiscalizationApiKey") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
       [id, name, type, status || 'active', adminPhone || null, adminEmail || null, new Date().toISOString(), schemaName, dgidKey]);
     
@@ -179,13 +177,12 @@ adminRouter.put('/companies/:id', async (req, res, next) => {
       [name, type, status, id]);
     // Keep the DGID demo key in sync when a company becomes demo / ceases
     // to be demo. Non-demo companies get the key cleared for safety.
-    if (type === 'demo') {
-      const dgidKey = process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c';
+    if (type === 'demo' && process.env.DGID_DEMO_API_KEY) {
       await req.db.query(
         `UPDATE public.companies SET "fiscalizationApiKey" = $1 WHERE id = $2 AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
-        [dgidKey, id],
+        [process.env.DGID_DEMO_API_KEY, id],
       );
-    } else {
+    } else if (type !== 'demo') {
       await req.db.query(`UPDATE public.companies SET "fiscalizationApiKey" = NULL WHERE id = $1`, [id]);
     }
     res.json({ id, name, type, status });

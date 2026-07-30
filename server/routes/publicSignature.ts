@@ -1,17 +1,28 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { autoCreateFirstPayslip } from '../services/automations.js';
 import { broadcast } from '../activity.js';
 
 /**
- * Public router for quote signing flows.
+ * Public router for quote/contract signing flows.
  *
- * NO authentication is required — these endpoints are reached by clients
- * via the link emailed to them. The dbMiddleware tags `/api/public/*`
- * paths with `isSuperAdmin=true` so the carefully-scoped queries below
- * can read across tenants. We never expose RLS-bypassed data outside of
- * what's strictly needed to render the signature page.
+ * NO login is required — these endpoints are reached by clients via the
+ * link emailed to them. The dbMiddleware tags `/api/public/*` paths with
+ * `isSuperAdmin=true` so the queries below can read across tenants, which
+ * means the document id alone (e.g. DEV-2026-347) is NOT a sufficient
+ * secret — it's a short, guessable string. Every request here must also
+ * present the unguessable `signingToken` minted when the link was sent
+ * (see invoices.ts / employees.ts `send-email`), compared in constant time.
  */
 export const publicSignatureRouter = Router();
+
+function timingSafeTokenMatch(expected: string | null | undefined, provided: unknown): boolean {
+  if (!expected || typeof provided !== 'string' || !provided) return false;
+  const a = Buffer.from(expected);
+  const b = Buffer.from(provided);
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
 
 publicSignatureRouter.get('/quotes/:id', async (req, res, next) => {
   try {
@@ -19,7 +30,7 @@ publicSignatureRouter.get('/quotes/:id', async (req, res, next) => {
 
     const invRes = await req.db.query(
       `SELECT id, type, "contactId", "companyId", date, "dueDate",
-              "totalHT", "tvaTotal", total, status, notes, "signedAt",
+              "totalHT", "tvaTotal", total, status, notes, "signedAt", "signingToken",
               remise, "remiseType", rabais, "rabaisType",
               ristourne, "ristourneType", escompte, "escompteType",
               "centimesAdditionnels", "netCommercial", "netFinancier"
@@ -29,6 +40,10 @@ publicSignatureRouter.get('/quotes/:id', async (req, res, next) => {
     );
     const invoice = invRes.rows[0];
     if (!invoice) return res.status(404).json({ error: 'Devis introuvable' });
+    if (!timingSafeTokenMatch(invoice.signingToken, req.query.t)) {
+      return res.status(404).json({ error: 'Devis introuvable' });
+    }
+    delete invoice.signingToken;
 
     const itemsRes = await req.db.query(
       `SELECT name, description, quantity, price, "tvaRate", "tvaAmount"
@@ -67,7 +82,7 @@ publicSignatureRouter.get('/quotes/:id', async (req, res, next) => {
 publicSignatureRouter.post('/quotes/:id/sign', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { signerName, signatureDataUrl } = req.body || {};
+    const { signerName, signatureDataUrl, t } = req.body || {};
     if (!signerName || String(signerName).trim().length < 2) {
       return res.status(400).json({ error: 'Nom du signataire requis.' });
     }
@@ -76,11 +91,14 @@ publicSignatureRouter.post('/quotes/:id/sign', async (req, res, next) => {
     }
 
     const exists = await req.db.query(
-      `SELECT id, status, "signedAt", "companyId" FROM invoices WHERE id = $1 AND type = 'Quote'`,
+      `SELECT id, status, "signedAt", "companyId", "signingToken" FROM invoices WHERE id = $1 AND type = 'Quote'`,
       [id],
     );
     const inv = exists.rows[0];
     if (!inv) return res.status(404).json({ error: 'Devis introuvable' });
+    if (!timingSafeTokenMatch(inv.signingToken, t ?? req.query.t)) {
+      return res.status(404).json({ error: 'Devis introuvable' });
+    }
     if (inv.signedAt) {
       return res.status(409).json({ error: 'Ce devis est déjà signé.' });
     }
@@ -114,12 +132,16 @@ publicSignatureRouter.get('/contracts/:id', async (req, res, next) => {
 
     const cRes = await req.db.query(
       `SELECT id, type, "employeeId", "companyId", "startDate", "endDate",
-              salary, status, content, "signedAt"
+              salary, status, content, "signedAt", "signingToken"
          FROM contracts WHERE id = $1`,
       [id],
     );
     const contract = cRes.rows[0];
     if (!contract) return res.status(404).json({ error: 'Contrat introuvable' });
+    if (!timingSafeTokenMatch(contract.signingToken, req.query.t)) {
+      return res.status(404).json({ error: 'Contrat introuvable' });
+    }
+    delete contract.signingToken;
 
     const compRes = await req.db.query(
       `SELECT name, address, email, phone, niu, currency, logo
@@ -157,7 +179,7 @@ publicSignatureRouter.get('/contracts/:id', async (req, res, next) => {
 publicSignatureRouter.post('/contracts/:id/sign', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { signerName, signatureDataUrl } = req.body || {};
+    const { signerName, signatureDataUrl, t } = req.body || {};
     if (!signerName || String(signerName).trim().length < 2) {
       return res.status(400).json({ error: 'Nom du signataire requis.' });
     }
@@ -166,11 +188,14 @@ publicSignatureRouter.post('/contracts/:id/sign', async (req, res, next) => {
     }
 
     const exists = await req.db.query(
-      `SELECT id, status, "signedAt", "companyId" FROM contracts WHERE id = $1`,
+      `SELECT id, status, "signedAt", "companyId", "signingToken" FROM contracts WHERE id = $1`,
       [id],
     );
     const c = exists.rows[0];
     if (!c) return res.status(404).json({ error: 'Contrat introuvable' });
+    if (!timingSafeTokenMatch(c.signingToken, t ?? req.query.t)) {
+      return res.status(404).json({ error: 'Contrat introuvable' });
+    }
     if (c.signedAt) return res.status(409).json({ error: 'Ce contrat est déjà signé.' });
 
     const signedAt = new Date().toISOString();

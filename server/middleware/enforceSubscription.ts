@@ -10,8 +10,7 @@
  */
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
+import { JWT_SECRET } from '../utils/jwtSecret.js';
 const TRIAL_MS = 15 * 24 * 60 * 60 * 1000;
 
 const ALLOW_PREFIX = [

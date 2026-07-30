@@ -557,11 +557,13 @@ export async function initializeDatabase() {
           )
         `);
 
-        await db.query(
-          `UPDATE companies SET "fiscalizationApiKey" = $1
-           WHERE type = 'demo' AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
-          [process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c'],
-        );
+        if (process.env.DGID_DEMO_API_KEY) {
+          await db.query(
+            `UPDATE companies SET "fiscalizationApiKey" = $1
+             WHERE type = 'demo' AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
+            [process.env.DGID_DEMO_API_KEY],
+          );
+        }
       };
 
       const flag = await db.query(
@@ -708,18 +710,26 @@ export async function initializeDatabase() {
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certifiedAt" TIMESTAMPTZ`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationStatus" TEXT`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationPayload" JSONB`);
+    // Unguessable per-document secret required (alongside the id) to view
+    // or sign a quote/contract through the unauthenticated /api/public/*
+    // links — the id alone (e.g. DEV-2026-347) is guessable and must not
+    // be sufficient to read or forge a signature on another tenant's doc.
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "signingToken" TEXT`);
+    await db.query(`ALTER TABLE contracts ADD COLUMN IF NOT EXISTS "signingToken" TEXT`);
     // Extended SFEC recipient types: business/individual/government/foreign.
     // Foreign contacts also store their country of origin.
     await db.query(`ALTER TABLE contacts ADD COLUMN IF NOT EXISTS "foreignCountry" TEXT`);
     // Auto-propagate the default DGID key to every existing demo company that
     // doesn't have one yet. New demo companies get it on creation (see
     // /api/auth/send-demo-email).
-    await db.query(
-      `UPDATE companies
-       SET "fiscalizationApiKey" = $1
-       WHERE type = 'demo' AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
-      [process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c'],
-    );
+    if (process.env.DGID_DEMO_API_KEY) {
+      await db.query(
+        `UPDATE companies
+         SET "fiscalizationApiKey" = $1
+         WHERE type = 'demo' AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
+        [process.env.DGID_DEMO_API_KEY],
+      );
+    }
     // Per-user preferences (language, sidebar state, etc.) stored in DB so
     // that the frontend can get rid of localStorage entirely.
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS preferences JSONB DEFAULT '{}'::jsonb`);
@@ -911,38 +921,28 @@ async function runSeed(dbInstance: any) {
       defaultCompanyId = companyRes.rows[0].id;
     }
     
-    // Check if super admin exists
-    const res1 = await dbInstance.query('SELECT * FROM users WHERE email = $1', ['eden@tbi-center.fr']);
-    const adminPassword = 'loub@ki2014D';
-    const hashedAdminPassword = bcrypt.hashSync(adminPassword, 10);
-    
-    if (res1.rows.length === 0) {
-      console.log('Seeding super admin: eden@tbi-center.fr');
-      await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)', 
-        ['super_admin_1', defaultCompanyId, 'eden@tbi-center.fr', hashedAdminPassword, 'super_admin', 'Super Admin']);
-    } else {
-      console.log('Updating super admin password: eden@tbi-center.fr');
-      await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedAdminPassword, 'eden@tbi-center.fr']);
-    }
-
-    const res2 = await dbInstance.query('SELECT * FROM users WHERE email = $1', ['missengue07@gmail.com']);
-    if (res2.rows.length === 0) {
-      console.log('Seeding super admin: missengue07@gmail.com');
-      await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)', 
-        ['super_admin_2', defaultCompanyId, 'missengue07@gmail.com', hashedAdminPassword, 'super_admin', 'Admin User']);
-    } else {
-      console.log('Updating super admin password: missengue07@gmail.com');
-      await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedAdminPassword, 'missengue07@gmail.com']);
-    }
-
-    const res4 = await dbInstance.query('SELECT * FROM users WHERE email = $1', ['contact@tbi-center.fr']);
-    if (res4.rows.length === 0) {
-      console.log('Seeding super admin: contact@tbi-center.fr');
-      await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)', 
-        ['super_admin_3', defaultCompanyId, 'contact@tbi-center.fr', hashedAdminPassword, 'super_admin', 'Contact Admin']);
-    } else {
-      console.log('Updating super admin password: contact@tbi-center.fr');
-      await dbInstance.query('UPDATE users SET password = $1 WHERE email = $2', [hashedAdminPassword, 'contact@tbi-center.fr']);
+    // Check if super admin exists. This only ever INSERTs on first run —
+    // it must never overwrite an existing user's password on every cold
+    // start, or a compromised/rotated password would keep getting reset
+    // back to the seed value.
+    const seedAdminPassword = process.env.SUPER_ADMIN_SEED_PASSWORD;
+    const superAdmins: Array<{ id: string; email: string; name: string }> = [
+      { id: 'super_admin_1', email: 'eden@tbi-center.fr', name: 'Super Admin' },
+      { id: 'super_admin_2', email: 'missengue07@gmail.com', name: 'Admin User' },
+      { id: 'super_admin_3', email: 'contact@tbi-center.fr', name: 'Contact Admin' },
+    ];
+    for (const admin of superAdmins) {
+      const existing = await dbInstance.query('SELECT id FROM users WHERE email = $1', [admin.email]);
+      if (existing.rows.length === 0) {
+        if (!seedAdminPassword) {
+          console.warn(`Skipping seed of super admin ${admin.email}: SUPER_ADMIN_SEED_PASSWORD is not set`);
+          continue;
+        }
+        console.log('Seeding super admin:', admin.email);
+        const hashedAdminPassword = bcrypt.hashSync(seedAdminPassword, 10);
+        await dbInstance.query('INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)',
+          [admin.id, defaultCompanyId, admin.email, hashedAdminPassword, 'super_admin', admin.name]);
+      }
     }
 
     // Seed demo companies (default country = CG — marché cible du Congo,

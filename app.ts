@@ -95,8 +95,13 @@ app.use('/api/schedules', schedulesRouter);
 app.use('/api/public', publicSignatureRouter);
 
 // Debug route — CRITICAL for diagnosing Vercel 500s. Visit /api/debug on the
-// live deployment to see exactly what's failing.
+// live deployment to see exactly what's failing. Gated behind DEBUG_TOKEN
+// so it doesn't leak DB/env presence and latency to anonymous callers.
 app.get('/api/debug', async (req, res) => {
+  const debugToken = process.env.DEBUG_TOKEN;
+  if (!debugToken || req.headers['x-debug-token'] !== debugToken) {
+    return res.status(404).json({ error: 'Not found' });
+  }
   const info: any = {
     status: 'ok',
     vercel: !!process.env.VERCEL,

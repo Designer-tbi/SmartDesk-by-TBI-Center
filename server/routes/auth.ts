@@ -5,6 +5,8 @@ import nodemailer from 'nodemailer';
 import { requireAuth } from '../middleware/auth.js';
 import { seedDefaultRoles } from '../../db.js';
 import { getMailerForCompany } from '../services/mailer.js';
+import { JWT_SECRET } from '../utils/jwtSecret.js';
+import { loginRateLimiter, demoSignupRateLimiter } from '../middleware/rateLimit.js';
 
 /**
  * Derive sensible accounting defaults (currency, standard, language) from
@@ -38,8 +40,6 @@ function regionalDefaultsFromCountry(code: string | null | undefined) {
   // Default: OHADA / XAF / French (the app's primary market).
   return { currency: 'XAF', accountingStandard: 'OHADA', language: FR_SPEAKING.has(iso) ? 'fr' : 'fr' };
 }
-
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
 
 export const authRouter = Router();
 
@@ -122,7 +122,7 @@ authRouter.put('/change-password', requireAuth, async (req, res, next) => {
   }
 });
 
-authRouter.post('/login', async (req, res, next) => {
+authRouter.post('/login', loginRateLimiter, async (req, res, next) => {
   try {
     const { email, password, demoMode } = req.body;
     console.log('Login attempt for email:', email, 'demoMode:', demoMode);
@@ -146,16 +146,13 @@ authRouter.post('/login', async (req, res, next) => {
     console.log('isMatch result:', isMatch);
     if (!isMatch) {
       console.log('Login failed: Password mismatch for email:', email);
-      
-      // Provide a helpful hint depending on the email
-      let hint = 'loub@ki2014D';
-      if (email === 'demo@smartdesk.com') {
-        hint = 'demo123';
-      } else if (user.companyId && user.companyId.startsWith('demo-company-')) {
-        hint = 'le code à 6 chiffres reçu par email';
+
+      let error = 'Mot de passe incorrect.';
+      if (user.companyId && user.companyId.startsWith('demo-company-')) {
+        error = 'Mot de passe incorrect. Indice : utilisez le code à 6 chiffres reçu par email.';
       }
-      
-      return res.status(401).json({ error: `Mot de passe incorrect. Indice : utilisez ${hint}` });
+
+      return res.status(401).json({ error });
     }
 
     let company: any = null;
@@ -442,7 +439,7 @@ authRouter.get('/geolocate', async (req, res) => {
 
 
 
-authRouter.post('/send-demo-email', async (req, res, next) => {
+authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next) => {
   try {
     const { nom, prenom, email, telephone, code, companyName, country, state } = req.body;
     

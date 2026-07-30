@@ -1,10 +1,21 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { requireTenant } from '../middleware/auth.js';
+import { isManagerRole } from '../utils/roles.js';
 import bcrypt from 'bcryptjs';
 
 export const companyRouter = Router();
 
 companyRouter.use(...requireTenant);
+
+// Company settings, user management and role management are admin-only —
+// any authenticated tenant member was previously able to create/promote
+// users, edit roles/permissions, and wipe all CRM/accounting data.
+const requireManager = (req: Request, res: Response, next: NextFunction) => {
+  if (!isManagerRole(req.user!.role)) {
+    return res.status(403).json({ error: 'Forbidden: réservé aux administrateurs.' });
+  }
+  next();
+};
 
 companyRouter.get('/', async (req, res, next) => {
   try {
@@ -109,7 +120,7 @@ companyRouter.post('/onboarding', async (req, res, next) => {
   }
 });
 
-companyRouter.put('/', async (req, res, next) => {
+companyRouter.put('/', requireManager, async (req, res, next) => {
   try {
     const {
       name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address,
@@ -157,7 +168,7 @@ companyRouter.put('/', async (req, res, next) => {
   }
 });
 
-companyRouter.post('/reset-crm', async (req, res, next) => {
+companyRouter.post('/reset-crm', requireManager, async (req, res, next) => {
   try {
     await req.db.query('BEGIN');
     
@@ -184,7 +195,7 @@ companyRouter.post('/reset-crm', async (req, res, next) => {
   }
 });
 
-companyRouter.post('/reset-accounting', async (req, res, next) => {
+companyRouter.post('/reset-accounting', requireManager, async (req, res, next) => {
   try {
     await req.db.query('BEGIN');
     
@@ -217,7 +228,7 @@ companyRouter.get('/roles', async (req, res, next) => {
   }
 });
 
-companyRouter.post('/roles', async (req, res, next) => {
+companyRouter.post('/roles', requireManager, async (req, res, next) => {
   try {
     const role = req.body;
     await req.db.query('BEGIN');
@@ -238,7 +249,7 @@ companyRouter.post('/roles', async (req, res, next) => {
   }
 });
 
-companyRouter.put('/roles/:id', async (req, res, next) => {
+companyRouter.put('/roles/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, permissions } = req.body;
@@ -267,7 +278,7 @@ companyRouter.put('/roles/:id', async (req, res, next) => {
   }
 });
 
-companyRouter.delete('/roles/:id', async (req, res, next) => {
+companyRouter.delete('/roles/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     await req.db.query('BEGIN');
@@ -297,7 +308,7 @@ companyRouter.get('/users', async (req, res, next) => {
   }
 });
 
-companyRouter.post('/users', async (req, res, next) => {
+companyRouter.post('/users', requireManager, async (req, res, next) => {
   try {
     const { id, email, password, role, name, status } = req.body;
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -309,7 +320,7 @@ companyRouter.post('/users', async (req, res, next) => {
   }
 });
 
-companyRouter.put('/users/:id', async (req, res, next) => {
+companyRouter.put('/users/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { email, role, name, status } = req.body;
@@ -321,7 +332,7 @@ companyRouter.put('/users/:id', async (req, res, next) => {
   }
 });
 
-companyRouter.delete('/users/:id', async (req, res, next) => {
+companyRouter.delete('/users/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     try {

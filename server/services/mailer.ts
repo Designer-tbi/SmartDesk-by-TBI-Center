@@ -21,13 +21,13 @@ export type MailerHandle = {
 const DEMO_HOST = process.env.SMTP_DEMO_HOST || 'ssl0.ovh.net';
 const DEMO_PORT = parseInt(process.env.SMTP_DEMO_PORT || '465', 10);
 const DEMO_USER = process.env.SMTP_DEMO_USER || 'demo@smart-desk.pro';
-const DEMO_PASS = process.env.SMTP_DEMO_PASS || 'loub@ki2014D';
+const DEMO_PASS = process.env.SMTP_DEMO_PASS;
 
 const PROD_HOST = process.env.SMTP_HOST || 'mail.tbi-center.fr';
 const PROD_PORT = parseInt(process.env.SMTP_PORT || '465', 10);
 const PROD_SECURE = process.env.SMTP_SECURE !== 'false';
 const PROD_USER = process.env.SMTP_USER || 'demo@tbi-center.fr';
-const PROD_PASS = process.env.SMTP_PASS || 'loub@ki2014D';
+const PROD_PASS = process.env.SMTP_PASS;
 
 /**
  * Build an SMTP transporter appropriate for the given company.
@@ -48,6 +48,12 @@ export function getMailerForCompany(
   const user = isDemo ? DEMO_USER : PROD_USER;
   const pass = isDemo ? DEMO_PASS : PROD_PASS;
   const secure = isDemo ? port === 465 : PROD_SECURE;
+
+  if (!pass) {
+    throw new Error(
+      `Missing ${isDemo ? 'SMTP_DEMO_PASS' : 'SMTP_PASS'} environment variable — cannot send mail for ${isDemo ? 'demo' : 'production'} mailbox.`,
+    );
+  }
 
   const transporter = nodemailer.createTransport({
     host,
