@@ -1,10 +1,21 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { requireTenant } from '../middleware/auth.js';
 import { logActivity } from '../activity.js';
+import { isManagerRole } from '../utils/roles.js';
 
 export const projectsRouter = Router();
 
 projectsRouter.use(...requireTenant);
+
+// Creating/editing projects is a normal collaborative action for any
+// tenant member (like most project-management tools) — but permanently
+// deleting one is destructive enough to reserve for admins.
+const requireManager = (req: Request, res: Response, next: NextFunction) => {
+  if (!isManagerRole(req.user!.role)) {
+    return res.status(403).json({ error: 'Forbidden: réservé aux administrateurs.' });
+  }
+  next();
+};
 
 projectsRouter.get('/', async (req, res, next) => {
   try {
@@ -37,24 +48,26 @@ projectsRouter.put('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const proj = req.body;
-    await req.db.query('UPDATE projects SET name = $1, client = $2, "contactId" = $3, status = $4, deadline = $5, "startDate" = $6, progress = $7, description = $8, details = $9, priority = $10, budget = $11, "teamIds" = $12 WHERE id = $13 AND "companyId" = $14',
+    const result = await req.db.query('UPDATE projects SET name = $1, client = $2, "contactId" = $3, status = $4, deadline = $5, "startDate" = $6, progress = $7, description = $8, details = $9, priority = $10, budget = $11, "teamIds" = $12 WHERE id = $13 AND "companyId" = $14',
       [proj.name, proj.client, proj.contactId, proj.status, proj.deadline, proj.startDate, proj.progress, proj.description, proj.details, proj.priority, proj.budget, JSON.stringify(proj.teamIds || []), id, req.user!.companyId]);
-    
+    if (!result.rowCount) return res.status(404).json({ error: 'Projet introuvable.' });
+
     await logActivity(req.db, req.user!.id, req.user!.companyId, 'UPDATE_PROJECT', `Projet mis à jour: ${proj.name}`);
-    
+
     res.json(proj);
   } catch (error) {
     next(error);
   }
 });
 
-projectsRouter.delete('/:id', async (req, res, next) => {
+projectsRouter.delete('/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
-    await req.db.query('DELETE FROM projects WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
-    
+    const result = await req.db.query('DELETE FROM projects WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Projet introuvable.' });
+
     await logActivity(req.db, req.user!.id, req.user!.companyId, 'DELETE_PROJECT', `Projet supprimé (ID: ${id})`);
-    
+
     res.status(204).send();
   } catch (error) {
     next(error);

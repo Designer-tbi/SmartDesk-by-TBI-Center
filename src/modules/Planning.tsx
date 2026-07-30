@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { useTranslation } from '../lib/i18n';
+import { isManagerRole } from '../lib/roles';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addDays, startOfYear, endOfYear, eachMonthOfInterval, addWeeks, subWeeks, addYears, subYears, differenceInMinutes, startOfDay, endOfDay } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -121,14 +122,6 @@ export const Planning = ({ user }: { user?: any }) => {
     else if (view === 'day') setCurrentDate(addDays(currentDate, 1));
   };
 
-  // SmartDesk roles are keyed per-company (e.g. `role_admin_demo-1`,
-  // `role_rh_demo-2`) so we accept those prefixes plus the legacy plain
-  // role values used by super-admin and seeded fixtures.
-  const isManagerRole = (role?: string | null) => {
-    if (!role) return false;
-    if (role === 'admin' || role === 'super_admin' || role === 'rh') return true;
-    return role.startsWith('role_admin_') || role.startsWith('role_rh_') || role.startsWith('role_super_admin_');
-  };
   const canManage = isManagerRole(currentUser?.role);
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -18,6 +18,8 @@ import {
   Trash2
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
+import { isManagerRole } from '../lib/roles';
+import { toast } from '../lib/toast';
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addDays, startOfYear, endOfYear, eachMonthOfInterval, addWeeks, subWeeks, addYears, subYears, startOfDay, endOfDay } from 'date-fns';
 import { fr, enUS } from 'date-fns/locale';
 import { useTranslation } from '../lib/i18n';
@@ -176,9 +178,13 @@ export const Agenda = ({ user }: { user?: any }) => {
         setSelectedEvent(null);
         setShowDeleteConfirm(false);
         fetchEvents();
+      } else {
+        const data = await res.json().catch(() => null);
+        toast.error(data?.error || 'Échec de la suppression de l\'événement.');
       }
     } catch (err) {
       console.error('Failed to delete event:', err);
+      toast.error('Erreur de connexion.');
     }
   };
 
@@ -625,7 +631,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      {(currentUser?.role === 'admin' || currentUser?.role === 'super_admin') && (
+                      {isManagerRole(currentUser?.role) && (
                         <div className="space-y-2">
                           <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('agenda.form.assignTo')}</label>
                           <div className="relative">

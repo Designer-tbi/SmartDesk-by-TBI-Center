@@ -6,6 +6,8 @@ import { Project, Contact, Employee } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useLiveSync } from '../lib/useLiveSync';
 import { currencySymbolFromCode } from '../lib/locale';
+import { isManagerRole } from '../lib/roles';
+import { toast } from '../lib/toast';
 
 export const Projects = ({ user }: { user?: any }) => {
   const { t } = useTranslation();
@@ -34,8 +36,13 @@ export const Projects = ({ user }: { user?: any }) => {
   });
 
   const isUS = user?.country === 'USA' || user?.country === 'US';
-  const currencySymbol = currencySymbolFromCode(user?.currency || (isUS ? 'USD' : 'EUR'));
-  const currencyCode = user?.currency || (isUS ? 'USD' : 'XAF');
+  // Both must fall back to the SAME currency — they previously disagreed
+  // (symbol defaulted to EUR, the actual amount formatting defaulted to
+  // XAF), so an unset user.currency showed a "€" label next to XAF-
+  // formatted amounts.
+  const fallbackCurrency = isUS ? 'USD' : 'XAF';
+  const currencyCode = user?.currency || fallbackCurrency;
+  const currencySymbol = currencySymbolFromCode(currencyCode);
   const locale = user?.language === 'en' ? 'en-US' : 'fr-FR';
 
   const formatCurrency = (amount: number) => {
@@ -134,33 +141,38 @@ export const Projects = ({ user }: { user?: any }) => {
     }
 
     try {
+      let response: Response;
       if (editingProject) {
-        const response = await apiFetch(`/api/projects/${editingProject.id}`, {
+        response = await apiFetch(`/api/projects/${editingProject.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newProject),
         });
-        if (response.ok) fetchProjects();
-        setEditingProject(null);
       } else {
         const id = `proj_${Math.random().toString(36).substr(2, 9)}`;
-        const response = await apiFetch('/api/projects', {
+        response = await apiFetch('/api/projects', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...newProject, id }),
         });
-        if (response.ok) fetchProjects();
       }
+      if (!response.ok) {
+        const data = await response.json().catch(() => null);
+        setFormError(data?.error || 'Échec de l\'enregistrement du projet.');
+        return;
+      }
+      await fetchProjects();
+      setEditingProject(null);
       setIsModalOpen(false);
-      setNewProject({ 
-        name: '', 
-        client: '', 
+      setNewProject({
+        name: '',
+        client: '',
         contactId: '',
-        status: 'Planning', 
-        deadline: '', 
+        status: 'Planning',
+        deadline: '',
         startDate: new Date().toISOString().split('T')[0],
-        progress: 0, 
-        description: '', 
+        progress: 0,
+        description: '',
         details: '',
         priority: 'Medium',
         budget: 0,
@@ -168,8 +180,11 @@ export const Projects = ({ user }: { user?: any }) => {
       });
     } catch (error) {
       console.error('Failed to save project:', error);
+      setFormError('Erreur de connexion.');
     }
   };
+
+  const canManage = isManagerRole(user?.role);
 
   const handleDelete = async (id: string) => {
     try {
@@ -179,9 +194,13 @@ export const Projects = ({ user }: { user?: any }) => {
       if (response.ok) {
         fetchProjects();
         setDeleteConfirmId(null);
+      } else {
+        const data = await response.json().catch(() => null);
+        toast.error(data?.error || 'Échec de la suppression du projet.');
       }
     } catch (error) {
       console.error('Failed to delete project:', error);
+      toast.error('Erreur de connexion.');
     }
   };
 
@@ -236,7 +255,9 @@ export const Projects = ({ user }: { user?: any }) => {
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button onClick={() => setViewProject(project)} className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all" title={t('common.view')}><Eye className="w-4 h-4" /></button>
                 <button onClick={() => { setEditingProject(project); setNewProject(project); setIsModalOpen(true); }} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
-                <button onClick={() => setDeleteConfirmId(project.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
+                {canManage && (
+                  <button onClick={() => setDeleteConfirmId(project.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
+                )}
               </div>
             </div>
             
@@ -256,7 +277,7 @@ export const Projects = ({ user }: { user?: any }) => {
                         {emp?.profilePicture ? (
                           <img src={emp.profilePicture} alt={emp.name} className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-[8px] font-bold text-accent-red">{emp?.name.charAt(0)}</span>
+                          <span className="text-[8px] font-bold text-accent-red">{emp?.name?.charAt(0)}</span>
                         )}
                       </div>
                     );
@@ -644,7 +665,7 @@ export const Projects = ({ user }: { user?: any }) => {
                               {emp?.profilePicture ? (
                                 <img src={emp.profilePicture} alt={emp.name} className="w-full h-full object-cover" />
                               ) : (
-                                <span className="text-[10px] font-bold text-accent-red">{emp?.name.charAt(0)}</span>
+                                <span className="text-[10px] font-bold text-accent-red">{emp?.name?.charAt(0)}</span>
                               )}
                             </div>
                             <span className="text-xs font-bold text-slate-700">{emp?.name}</span>
