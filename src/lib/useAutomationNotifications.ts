@@ -29,6 +29,12 @@ const LABELS: Record<string, (data: any) => string> = {
     `Bulletin de paie brouillon créé pour le contrat ${d.contractId}.`,
 };
 
+// activity_log `action` ids the corresponding server-side logActivity()
+// calls use (see invoices.ts / publicSignature.ts) — distinct from the
+// WebSocket message `type`s above, which are named after the resource
+// rather than the log entry.
+const AUTOMATION_ACTIONS = ['AUTO_JOURNAL_ENTRY', 'AUTO_INVOICE_FROM_QUOTE', 'AUTO_PAYSLIP'];
+
 export const useAutomationNotifications = (companyId?: string | null) => {
   const { lastMessage } = useWebSocket();
   const seen = useRef(new Set<string>());
@@ -64,10 +70,9 @@ export const useAutomationNotifications = (companyId?: string | null) => {
 
     const poll = async () => {
       try {
-        const url = sinceIso
-          ? `/api/company/activity/recent?since=${encodeURIComponent(sinceIso)}`
-          : '/api/company/activity/recent';
-        const res = await apiFetch(url);
+        const params = new URLSearchParams({ actions: AUTOMATION_ACTIONS.join(',') });
+        if (sinceIso) params.set('since', sinceIso);
+        const res = await apiFetch(`/api/company/activity/recent?${params.toString()}`);
         if (!res.ok || cancelled) return;
         const rows: Array<{ id: string; action: string; details: string; createdAt: string }> = await res.json();
         for (const row of rows) {

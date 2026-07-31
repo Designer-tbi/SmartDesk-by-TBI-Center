@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Bell, HelpCircle, LogOut, PlayCircle, Menu, Building2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Search, HelpCircle, LogOut, PlayCircle, Menu, Building2 } from 'lucide-react';
 import { useTranslation } from '../../lib/i18n';
 import { apiFetch, setApiSession } from '../../lib/api';
+import { NotificationBell } from './NotificationBell';
 
 export const Header = ({
   title,
@@ -15,6 +17,7 @@ export const Header = ({
   user?: any;
 }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const isDemoMode = !!user?.isDemo;
   const [companies, setCompanies] = useState<any[]>([]);
   // Selected company id for super-admin tenant switcher is persisted as a
@@ -109,11 +112,13 @@ export const Header = ({
         </div>
 
         <div className="flex items-center gap-1 lg:gap-4">
-          <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors relative group">
-            <Bell className="w-6 h-6 group-hover:text-accent-red transition-colors" />
-            <span className="absolute top-2 right-2.5 w-2.5 h-2.5 bg-accent-red rounded-full border-2 border-white"></span>
-          </button>
-          <button className="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors hidden sm:block group">
+          <NotificationBell user={user} />
+          <button
+            onClick={() => navigate('/settings?tab=help')}
+            data-testid="header-help-button"
+            title={t('header.help')}
+            className="p-2 text-slate-600 hover:bg-slate-100 rounded-full transition-colors hidden sm:block group"
+          >
             <HelpCircle className="w-6 h-6 group-hover:text-accent-red transition-colors" />
           </button>
           {onLogout && (

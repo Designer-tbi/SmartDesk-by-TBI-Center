@@ -105,6 +105,9 @@ const translations: Record<Language, Record<string, string>> = {
     'header.agenda': 'Agenda & Calendrier',
     'header.planning': 'Planning des Salariés',
     'header.demoMode': 'Mode Démo',
+    'header.notifications': 'Notifications',
+    'header.noNotifications': 'Aucune notification pour le moment.',
+    'header.help': 'Aide',
     
     // Login
     'login.invalidCredentials': 'Identifiants incorrects. Veuillez réessayer.',
@@ -1313,6 +1316,9 @@ const translations: Record<Language, Record<string, string>> = {
     'header.agenda': 'Agenda & Calendar',
     'header.planning': 'Employee Planning',
     'header.demoMode': 'Demo Mode',
+    'header.notifications': 'Notifications',
+    'header.noNotifications': 'No notifications yet.',
+    'header.help': 'Help',
     
     'help.dashboard': 'Dashboard: Overview of key indicators and activities.',
     'help.agenda': 'Agenda: Manage your appointments, meetings, and events.',

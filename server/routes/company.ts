@@ -181,22 +181,34 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
 
 // Polling fallback for automation toasts (INVOICE_AUTO_CREATED,
 // JOURNAL_AUTO_CREATED, PAYSLIP_AUTO_CREATED — see
-// src/lib/useAutomationNotifications.ts). Those events are broadcast over
-// the WebSocket, but that server is only started outside of Vercel's
-// serverless runtime (see server.ts) — on Vercel it never fires, so
-// nothing durable ever told the client an automation ran. The actions
-// below are additionally logged to activity_log for exactly this reason.
-const AUTOMATION_ACTIONS = ['AUTO_JOURNAL_ENTRY', 'AUTO_INVOICE_FROM_QUOTE', 'AUTO_PAYSLIP'];
+// src/lib/useAutomationNotifications.ts) AND the header's notification
+// bell (src/components/layout/NotificationBell.tsx). Automation events
+// are also broadcast over the WebSocket, but that server is only started
+// outside of Vercel's serverless runtime (see server.ts) — on Vercel it
+// never fires, so nothing durable ever told the client an automation
+// ran. The actions below are additionally logged to activity_log for
+// exactly this reason.
+//
+// `?actions=A,B,C` restricts to those action ids (used by the toast
+// poller); omitted, every action for the tenant is returned (used by the
+// bell) except super-admin actions, which aren't meaningful to a regular
+// tenant member.
 companyRouter.get('/activity/recent', async (req, res, next) => {
   try {
     const since = typeof req.query.since === 'string' ? req.query.since : null;
+    const actionsParam = typeof req.query.actions === 'string' ? req.query.actions : null;
+    const actions = actionsParam ? actionsParam.split(',').filter(Boolean) : null;
+    const limit = actions ? 20 : 30;
     const result = await req.db.query(
-      `SELECT id, action, details, "createdAt" FROM activity_log
-       WHERE "companyId" = $1 AND action = ANY($2)
-         AND ($3::timestamptz IS NULL OR "createdAt" > $3::timestamptz)
-       ORDER BY "createdAt" ASC
-       LIMIT 20`,
-      [req.user!.companyId, AUTOMATION_ACTIONS, since],
+      `SELECT a.id, a.action, a.details, a."createdAt" FROM activity_log a
+       LEFT JOIN public.users u ON a."userId" = u.id
+       WHERE a."companyId" = $1
+         AND ($2::text[] IS NULL OR a.action = ANY($2))
+         AND ($3::timestamptz IS NULL OR a."createdAt" > $3::timestamptz)
+         AND (u.role IS NULL OR u.role != 'super_admin')
+       ORDER BY a."createdAt" ASC
+       LIMIT ${limit}`,
+      [req.user!.companyId, actions, since],
     );
     res.json(result.rows);
   } catch (error) {
