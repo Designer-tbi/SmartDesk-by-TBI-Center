@@ -110,6 +110,14 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           if (data) {
             setUser(data);
             setGlobalUser(data);
+            // notificationPrefs was seeded from `globalUser` at mount time,
+            // before this fetch resolved — sync it now that the persisted
+            // preferences have actually arrived, otherwise the toggles
+            // always show the hardcoded defaults instead of what was last
+            // saved (looked like saving silently did nothing).
+            if (data.preferences?.notifications) {
+              setNotificationPrefs((prev) => ({ ...prev, ...data.preferences.notifications }));
+            }
           }
         }
       } catch (error) {
