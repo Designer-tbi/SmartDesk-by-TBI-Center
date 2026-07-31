@@ -179,6 +179,31 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
   }
 });
 
+// Polling fallback for automation toasts (INVOICE_AUTO_CREATED,
+// JOURNAL_AUTO_CREATED, PAYSLIP_AUTO_CREATED — see
+// src/lib/useAutomationNotifications.ts). Those events are broadcast over
+// the WebSocket, but that server is only started outside of Vercel's
+// serverless runtime (see server.ts) — on Vercel it never fires, so
+// nothing durable ever told the client an automation ran. The actions
+// below are additionally logged to activity_log for exactly this reason.
+const AUTOMATION_ACTIONS = ['AUTO_JOURNAL_ENTRY', 'AUTO_INVOICE_FROM_QUOTE', 'AUTO_PAYSLIP'];
+companyRouter.get('/activity/recent', async (req, res, next) => {
+  try {
+    const since = typeof req.query.since === 'string' ? req.query.since : null;
+    const result = await req.db.query(
+      `SELECT id, action, details, "createdAt" FROM activity_log
+       WHERE "companyId" = $1 AND action = ANY($2)
+         AND ($3::timestamptz IS NULL OR "createdAt" > $3::timestamptz)
+       ORDER BY "createdAt" ASC
+       LIMIT 20`,
+      [req.user!.companyId, AUTOMATION_ACTIONS, since],
+    );
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
 companyRouter.post('/reset-crm', requireManager, async (req, res, next) => {
   try {
     await req.db.query('BEGIN');

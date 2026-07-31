@@ -10,7 +10,7 @@ import { getMailerForCompany } from '../services/mailer.js';
 import { computeInvoiceTotals } from '../services/invoiceTotals.js';
 import { autoPostPaidInvoiceJournal, autoConvertSignedQuoteToInvoice, autoCertifyInvoice } from '../services/automations.js';
 import { buildInvoicePdfBuffer } from '../services/invoicePdf.js';
-import { broadcast } from '../activity.js';
+import { broadcast, logActivity } from '../activity.js';
 import { decrementStockForItems, restoreStockForItems, adjustStockForItemChange } from '../services/stock.js';
 import { requirePermission } from '../middleware/permissions.js';
 
@@ -293,6 +293,11 @@ invoicesRouter.post('/', requirePermission('sales.edit'), async (req, res, next)
                 type: 'JOURNAL_AUTO_CREATED',
                 data: { invoiceId: inv.id, entryId, companyId: req.user!.companyId },
               });
+              // Durable trail for clients that never see the WebSocket
+              // broadcast (no persistent connection on serverless hosts) —
+              // useAutomationNotifications polls this as a fallback.
+              logActivity(req.db, req.user!.id, req.user!.companyId, 'AUTO_JOURNAL_ENTRY',
+                `Écriture comptable enregistrée pour la facture ${inv.id}.`).catch(() => {});
             }
           })
           .catch((err) => console.error('POST /api/invoices - auto-journal failed', err));
@@ -459,6 +464,8 @@ invoicesRouter.put('/:id', requirePermission('sales.edit'), async (req, res, nex
                 type: 'JOURNAL_AUTO_CREATED',
                 data: { invoiceId: id, entryId, companyId: req.user.companyId },
               });
+              await logActivity(req.db, req.user.id, req.user.companyId, 'AUTO_JOURNAL_ENTRY',
+                `Écriture comptable enregistrée pour la facture ${id}.`).catch(() => {});
             }
           } catch (err) {
             console.error('auto-post paid invoice journal (certified) failed', err);
@@ -571,6 +578,8 @@ invoicesRouter.put('/:id', requirePermission('sales.edit'), async (req, res, nex
             type: 'JOURNAL_AUTO_CREATED',
             data: { invoiceId: id, entryId, companyId: req.user.companyId },
           });
+          await logActivity(req.db, req.user.id, req.user.companyId, 'AUTO_JOURNAL_ENTRY',
+            `Écriture comptable enregistrée pour la facture ${id}.`).catch(() => {});
         }
       } catch (err) {
         console.error('auto-post paid invoice journal failed', err);
@@ -597,6 +606,8 @@ invoicesRouter.put('/:id', requirePermission('sales.edit'), async (req, res, nex
             type: 'INVOICE_AUTO_CREATED',
             data: { quoteId: id, invoiceId: autoInvoiceIdInternal, companyId: req.user.companyId },
           });
+          await logActivity(req.db, req.user.id, req.user.companyId, 'AUTO_INVOICE_FROM_QUOTE',
+            `Facture ${autoInvoiceIdInternal} créée automatiquement depuis le devis signé ${id}.`).catch(() => {});
         }
       } catch (err) {
         console.error('auto-convert signed quote→invoice (internal) failed', err);

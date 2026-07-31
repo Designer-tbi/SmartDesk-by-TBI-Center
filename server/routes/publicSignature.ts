@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import { autoCreateFirstPayslip } from '../services/automations.js';
-import { broadcast } from '../activity.js';
+import { broadcast, logActivity } from '../activity.js';
 
 /**
  * Public router for quote/contract signing flows.
@@ -217,6 +217,8 @@ publicSignatureRouter.post('/contracts/:id/sign', async (req, res, next) => {
           type: 'PAYSLIP_AUTO_CREATED',
           data: { contractId: id, payslipId: autoPayslipId, companyId: c.companyId },
         });
+        await logActivity(req.db, undefined, c.companyId, 'AUTO_PAYSLIP',
+          `Bulletin de paie brouillon créé pour le contrat ${id}.`).catch(() => {});
       }
     } catch (err) {
       console.error('auto-create first payslip failed', err);

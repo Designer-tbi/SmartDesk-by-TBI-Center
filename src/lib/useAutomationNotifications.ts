@@ -1,16 +1,24 @@
 /**
  * Global automation notifications.
  *
- * Listens on the tenant WebSocket for cross-module automation events
- * (quote → invoice, invoice → journal entry, contract → payslip) and
- * surfaces a visible toast so the user always knows when a ripple
- * action has fired server-side.
+ * Two delivery paths, same dedupe set:
+ *   1. WebSocket — cross-module automation events (quote → invoice,
+ *      invoice → journal entry, contract → payslip) delivered instantly.
+ *      Only live outside Vercel's serverless runtime (see server.ts —
+ *      the WS server is never started there).
+ *   2. Polling fallback — GET /api/company/activity/recent, which reads
+ *      the same events from activity_log (see server/routes/company.ts).
+ *      This is what actually fires on serverless deployments, where the
+ *      WebSocket never connects.
  *
  * Mount once, ideally next to <ToastHost /> in App.tsx.
  */
 import { useEffect, useRef } from 'react';
 import { useWebSocket } from './websocket';
 import { toast } from './toast';
+import { apiFetch } from './api';
+
+const POLL_INTERVAL_MS = 15_000;
 
 const LABELS: Record<string, (data: any) => string> = {
   INVOICE_AUTO_CREATED: (d) =>
@@ -25,6 +33,7 @@ export const useAutomationNotifications = (companyId?: string | null) => {
   const { lastMessage } = useWebSocket();
   const seen = useRef(new Set<string>());
 
+  // -- WebSocket path --
   useEffect(() => {
     if (!lastMessage) return;
     const { type, data } = lastMessage as any;
@@ -41,4 +50,45 @@ export const useAutomationNotifications = (companyId?: string | null) => {
     seen.current.add(key);
     toast.success(fn(data));
   }, [lastMessage, companyId]);
+
+  // -- Polling fallback --
+  useEffect(() => {
+    if (!companyId) return;
+    let cancelled = false;
+    let timer: number | null = null;
+    // Baseline starts as "now" — the first poll only establishes what
+    // already happened before this session started; it must never dump
+    // the whole historical backlog as toasts on page load.
+    let sinceIso: string | null = new Date().toISOString();
+    let primed = false;
+
+    const poll = async () => {
+      try {
+        const url = sinceIso
+          ? `/api/company/activity/recent?since=${encodeURIComponent(sinceIso)}`
+          : '/api/company/activity/recent';
+        const res = await apiFetch(url);
+        if (!res.ok || cancelled) return;
+        const rows: Array<{ id: string; action: string; details: string; createdAt: string }> = await res.json();
+        for (const row of rows) {
+          if (seen.current.has(row.id)) continue;
+          seen.current.add(row.id);
+          // The very first poll seeds the dedupe set silently — only
+          // toast events discovered on subsequent polls.
+          if (primed) toast.success(row.details);
+          if (!sinceIso || row.createdAt > sinceIso) sinceIso = row.createdAt;
+        }
+        primed = true;
+      } catch {
+        /* offline / transient — retried on the next tick */
+      }
+    };
+
+    poll();
+    timer = window.setInterval(poll, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      if (timer != null) window.clearInterval(timer);
+    };
+  }, [companyId]);
 };
