@@ -129,12 +129,15 @@ export interface Employee {
   salary: number;
   profilePicture?: string;
   documents?: { name: string; url: string }[];
+  cni?: string;
+  niu?: string;
+  matricule?: string;
 }
 
 export interface LeaveRequest {
   id: string;
   employeeId: string;
-  type: 'Annual' | 'Sick' | 'Maternity' | 'Other';
+  type: string;
   startDate: string;
   endDate: string;
   status: 'Pending' | 'Approved' | 'Rejected';

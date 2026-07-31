@@ -787,7 +787,7 @@ export const CRM = ({ user }: { user?: any }) => {
             contact={viewContact}
             onClose={() => setViewContact(null)}
             onEdit={(c) => openEdit(c)}
-            currencySymbol={selectedCompany?.currency || 'XAF'}
+            currencySymbol={user?.currency || 'XAF'}
             t={t}
             language={language}
           />

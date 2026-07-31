@@ -51,7 +51,10 @@ export const EmployeeDetailModal: React.FC<Props> = ({
   const [tab, setTab] = useState<Tab>('info');
   const [ready, setReady] = useState(false);
   const navigate = useNavigate();
-  useEffect(() => { setReady(true); }, []);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
 
   const empContracts = contracts.filter((c) => c.employeeId === employee.id);
   const empPayslips = payslips.filter((p) => p.employeeId === employee.id);

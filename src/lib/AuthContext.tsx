@@ -58,21 +58,19 @@ type ProviderProps = {
 };
 
 export const AuthProvider = ({ user, setUser, logout, children }: ProviderProps) => {
-  const [company, setCompany] = useState<CompanyInfo>(null);
+  const [rawCompany, setRawCompany] = useState<CompanyInfo>(null);
+  const company = user?.companyId ? rawCompany : null;
 
-  const refreshCompany = useCallback(async () => {
-    if (!user?.companyId) {
-      setCompany(null);
-      return;
-    }
-    try {
-      const r = await apiFetch('/api/company');
-      if (r.ok) {
-        setCompany(await r.json());
-      }
-    } catch {
-      /* non-fatal */
-    }
+  const refreshCompany = useCallback(() => {
+    if (!user?.companyId) return Promise.resolve();
+    return apiFetch('/api/company')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data) setRawCompany(data);
+      })
+      .catch(() => {
+        /* non-fatal */
+      });
   }, [user?.companyId]);
 
   const refreshUser = useCallback(async () => {

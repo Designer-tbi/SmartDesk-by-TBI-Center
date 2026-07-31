@@ -1812,7 +1812,6 @@ export const Sales = ({ user }: { user: any }) => {
                         <div className="shrink-0 bg-white p-2 rounded-lg border border-emerald-200">
                           {(viewInvoice.certificationPayload as any)?.qrImage ? (
                             // Official SFEC QR delivered by the DGID API.
-                            // eslint-disable-next-line jsx-a11y/alt-text
                             <img
                               src={(viewInvoice.certificationPayload as any).qrImage}
                               width={96}

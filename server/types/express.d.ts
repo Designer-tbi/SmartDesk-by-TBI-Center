@@ -14,6 +14,7 @@ declare global {
         currency?: string;
         companyLogo?: string | null;
         companyName?: string | null;
+        country?: string | null;
       };
     }
   }

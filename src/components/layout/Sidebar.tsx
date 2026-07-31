@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -42,11 +42,14 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
   );
 
   // Sync with the user preferences once the /api/auth/me payload arrives.
-  useEffect(() => {
+  // Adjusted during render (not in an effect) to avoid an extra commit.
+  const [syncedPreferences, setSyncedPreferences] = useState(user?.preferences);
+  if (user?.preferences !== syncedPreferences) {
+    setSyncedPreferences(user?.preferences);
     if (user?.preferences?.[COLLAPSED_SECTIONS_KEY]) {
       setCollapsedSections(user.preferences[COLLAPSED_SECTIONS_KEY]);
     }
-  }, [user?.preferences]);
+  }
 
   const toggleSection = (key: string) => {
     setCollapsedSections((prev) => {

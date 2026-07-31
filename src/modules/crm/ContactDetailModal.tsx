@@ -75,7 +75,7 @@ export const ContactDetailModal: React.FC<Props> = ({
   const navTo = (path: string) => { onClose(); navigate(path); };
 
   const totalPaid = invoices.filter((i) => i.status === 'Paid').reduce((s, i) => s + Number(i.total || 0), 0);
-  const totalOutstanding = invoices.filter((i) => i.status !== 'Paid' && i.status !== 'Cancelled').reduce((s, i) => s + Number(i.total || 0), 0);
+  const totalOutstanding = invoices.filter((i) => i.status !== 'Paid').reduce((s, i) => s + Number(i.total || 0), 0);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-red/20 backdrop-blur-sm">
