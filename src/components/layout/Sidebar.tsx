@@ -20,7 +20,9 @@ import {
   BarChart3,
   ScrollText,
   FileBadge,
-  X
+  X,
+  Wallet,
+  Bot
 } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -126,6 +128,8 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
       title: t('nav.section.config'),
       items: [
         { icon: Shield, label: t('nav.users'), path: '/users' },
+        { icon: Wallet, label: t('nav.myOptions'), path: '/my-options' },
+        { icon: Bot, label: t('nav.myAgents'), path: '/my-agents' },
         { icon: Settings, label: t('nav.settings'), path: '/settings' },
       ]
     }

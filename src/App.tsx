@@ -29,6 +29,8 @@ const Planning = lazy(() => import('./modules/Planning').then(m => ({ default: m
 const Login = lazy(() => import('./modules/Login').then(m => ({ default: m.Login })));
 const SuperAdmin = lazy(() => import('./modules/SuperAdmin').then(m => ({ default: m.SuperAdmin })));
 const Declarations = lazy(() => import('./modules/Declarations').then(m => ({ default: m.Declarations })));
+const MyOptions = lazy(() => import('./modules/MyOptions').then(m => ({ default: m.MyOptions })));
+const MyAgents = lazy(() => import('./modules/MyAgents').then(m => ({ default: m.MyAgents })));
 
 const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, onLogout?: () => void, user: any }) => {
   const location = useLocation();
@@ -225,6 +227,8 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
               <Route path="/declarations/*" element={<Declarations />} />
             )}
             <Route path="/users" element={<Users user={user} />} />
+            <Route path="/my-options" element={<MyOptions />} />
+            <Route path="/my-agents" element={<MyAgents />} />
             <Route path="/settings" element={<Settings user={user} setUser={setUser} />} />
             {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
           </Routes>
