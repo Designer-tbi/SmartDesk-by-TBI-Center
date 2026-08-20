@@ -72,10 +72,25 @@ if (!process.env.VERCEL) {
     app.use(express.static(distPath, {
       maxAge: '1y',
       immutable: true,
-      index: false
+      index: false,
+      // The 1-year immutable cache above is only safe for Vite's
+      // content-hashed /assets/* chunks (a new build gets new filenames).
+      // sw.js and manifest.json keep the SAME filename across deploys —
+      // caching them immutably meant browsers would never re-check for a
+      // new service worker (or manifest) after their first visit, so a
+      // real redeploy could look like "nothing changed" for weeks/months.
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('sw.js') || filePath.endsWith('manifest.json')) {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
     }));
 
     app.get("*", (req, res) => {
+      // index.html references the current build's hashed /assets/*
+      // filenames — it must never be cached, or browsers would keep
+      // requesting long-gone asset filenames from a previous deploy.
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(distPath, "index.html"));
     });
 
