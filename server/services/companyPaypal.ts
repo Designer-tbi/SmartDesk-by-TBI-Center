@@ -74,7 +74,7 @@ async function paypalFetch(config: CompanyPaypalConfig, path: string, init: Requ
 
 export async function createOrder(
   config: CompanyPaypalConfig,
-  opts: { amountUsd: string; description: string; returnUrl: string; cancelUrl: string; referenceId?: string },
+  opts: { amountUsd: string; currencyCode?: string; description: string; returnUrl: string; cancelUrl: string; referenceId?: string },
 ) {
   return paypalFetch(config, '/v2/checkout/orders', {
     method: 'POST',
@@ -83,7 +83,7 @@ export async function createOrder(
       purchase_units: [{
         reference_id: opts.referenceId,
         description: opts.description,
-        amount: { currency_code: 'USD', value: opts.amountUsd },
+        amount: { currency_code: opts.currencyCode || 'USD', value: opts.amountUsd },
       }],
       application_context: {
         shipping_preference: 'NO_SHIPPING',

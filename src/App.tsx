@@ -8,6 +8,7 @@ import { I18nProvider, useTranslation } from './lib/i18n';
 import { AuthProvider } from './lib/AuthContext';
 import { OnboardingWizard } from './components/OnboardingWizard';
 import SignQuotePage from './pages/SignQuotePage';
+import PayInvoicePage from './pages/PayInvoicePage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import { ToastHost } from './lib/toast';
 import { useAutomationNotifications } from './lib/useAutomationNotifications';
@@ -99,6 +100,7 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
     location.pathname.startsWith('/sign-quote/') ||
     location.pathname.startsWith('/sign-contract/') ||
     location.pathname.startsWith('/sign/') ||
+    location.pathname.startsWith('/pay/') ||
     location.pathname.startsWith('/reset-password/');
 
   const logout = useCallback(async () => {
@@ -160,6 +162,7 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
           <Route path="/sign-quote/:id" element={<SignQuotePage />} />
           <Route path="/sign-contract/:id" element={<SignQuotePage />} />
           <Route path="/sign/:id" element={<SignQuotePage />} />
+          <Route path="/pay/:id" element={<PayInvoicePage />} />
           <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         </Routes>
       </Suspense>

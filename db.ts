@@ -567,6 +567,12 @@ export async function initializeDatabase() {
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalClientId" TEXT`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalClientSecret" TEXT`);
 
+        // Tracks a customer's PayPal payment of a quote/invoice via the
+        // public /pay/:id page (see server/routes/publicSignature.ts).
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "paypalOrderId" TEXT`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "paypalPaymentStatus" TEXT`);
+        await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "paypalPaidAt" TIMESTAMPTZ`);
+
         // Key/value store used (so far) to persist the PayPal product +
         // plan ids generated on first bootstrap — avoids hard-coding
         // them or re-creating them on every deploy.
@@ -591,8 +597,8 @@ export async function initializeDatabase() {
         `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
       );
       // Bumped so existing deploys re-run the incremental migrations once
-      // and pick up the per-company PayPal columns.
-      const TARGET_SCHEMA = '2026-08-20-company-paypal';
+      // and pick up the customer-facing PayPal payment columns.
+      const TARGET_SCHEMA = '2026-08-20-invoice-paypal';
       if (flag.rows[0]?.value === TARGET_SCHEMA) {
         console.log('Database schema already up-to-date, skipping init.');
         return;
@@ -737,6 +743,10 @@ export async function initializeDatabase() {
     // Per-company PayPal credentials for collecting customer payments.
     await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalClientId" TEXT`);
     await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalClientSecret" TEXT`);
+    // Tracks a customer's PayPal payment of a quote/invoice via /pay/:id.
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "paypalOrderId" TEXT`);
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "paypalPaymentStatus" TEXT`);
+    await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "paypalPaidAt" TIMESTAMPTZ`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationNumber" TEXT`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certifiedAt" TIMESTAMPTZ`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationStatus" TEXT`);

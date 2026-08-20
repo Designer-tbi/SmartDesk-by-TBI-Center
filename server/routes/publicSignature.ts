@@ -2,6 +2,8 @@ import { Router } from 'express';
 import crypto from 'crypto';
 import { autoCreateFirstPayslip } from '../services/automations.js';
 import { broadcast, logActivity } from '../activity.js';
+import { createOrder, captureOrder } from '../services/companyPaypal.js';
+import { resolvePaypalAmount } from '../services/exchangeRate.js';
 
 /**
  * Public router for quote/contract signing flows.
@@ -119,6 +121,182 @@ publicSignatureRouter.post('/quotes/:id/sign', async (req, res, next) => {
     // workflow auditable and lets the SmartDesk operator validate the
     // payment before billing.
     res.json({ ok: true, signedAt });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/* ---------- Online PayPal payment (quotes + invoices) ---------- */
+
+/**
+ * Public view of a quote or invoice for the "Payer en ligne" flow
+ * (reached via /pay/:id in the frontend). Works for either document
+ * type, unlike /quotes/:id above which is signature-flow specific.
+ */
+publicSignatureRouter.get('/invoices/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const invRes = await req.db.query(
+      `SELECT id, type, "contactId", "companyId", date, "dueDate",
+              "totalHT", "tvaTotal", total, status, "signingToken",
+              "paypalPaymentStatus"
+         FROM invoices WHERE id = $1`,
+      [id],
+    );
+    const invoice = invRes.rows[0];
+    if (!invoice) return res.status(404).json({ error: 'Document introuvable' });
+    if (!timingSafeTokenMatch(invoice.signingToken, req.query.t)) {
+      return res.status(404).json({ error: 'Document introuvable' });
+    }
+    delete invoice.signingToken;
+
+    const itemsRes = await req.db.query(
+      `SELECT name, description, quantity, price FROM invoice_items WHERE "invoiceId" = $1`,
+      [id],
+    );
+
+    const compRes = await req.db.query(
+      `SELECT name, address, email, phone, niu, currency, logo, "paypalClientId", "paypalClientSecret"
+         FROM companies WHERE id = $1`,
+      [invoice.companyId],
+    );
+    const companyRow = compRes.rows[0] || {};
+    const hasPaypalConfig = !!(companyRow.paypalClientId && companyRow.paypalClientSecret);
+
+    let contact: any = null;
+    if (invoice.contactId) {
+      const cRes = await req.db.query(`SELECT name, email, address FROM contacts WHERE id = $1`, [invoice.contactId]);
+      contact = cRes.rows[0] || null;
+    }
+
+    res.json({
+      invoice: { ...invoice, items: itemsRes.rows },
+      company: {
+        name: companyRow.name, address: companyRow.address, email: companyRow.email,
+        phone: companyRow.phone, niu: companyRow.niu, currency: companyRow.currency,
+        logo: companyRow.logo, hasPaypalConfig,
+      },
+      contact,
+      alreadyPaid: invoice.paypalPaymentStatus === 'paid' || invoice.status === 'Paid',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** Creates a real PayPal order for the document's total (converted to
+ *  USD when the company's currency isn't accepted by PayPal). */
+publicSignatureRouter.post('/invoices/:id/paypal/create', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { t } = req.body || {};
+
+    const invRes = await req.db.query(
+      `SELECT id, "companyId", total, status, "signingToken", "paypalPaymentStatus" FROM invoices WHERE id = $1`,
+      [id],
+    );
+    const invoice = invRes.rows[0];
+    if (!invoice) return res.status(404).json({ error: 'Document introuvable' });
+    if (!timingSafeTokenMatch(invoice.signingToken, t ?? req.query.t)) {
+      return res.status(404).json({ error: 'Document introuvable' });
+    }
+    if (invoice.status === 'Paid' || invoice.paypalPaymentStatus === 'paid') {
+      return res.status(409).json({ error: 'Ce document est déjà payé.' });
+    }
+
+    const compRes = await req.db.query(
+      `SELECT name, currency, "paypalClientId", "paypalClientSecret" FROM companies WHERE id = $1`,
+      [invoice.companyId],
+    );
+    const company = compRes.rows[0];
+    if (!company?.paypalClientId || !company?.paypalClientSecret) {
+      return res.status(400).json({ error: "Le paiement en ligne n'est pas disponible pour cette société." });
+    }
+
+    const { value, currencyCode } = await resolvePaypalAmount(Number(invoice.total || 0), company.currency);
+
+    const base =
+      process.env.PUBLIC_BASE_URL ||
+      process.env.REACT_APP_BACKEND_URL ||
+      `${req.protocol}://${req.get('host')}`;
+    const order = await createOrder(
+      { paypalClientId: company.paypalClientId, paypalClientSecret: company.paypalClientSecret },
+      {
+        amountUsd: value,
+        currencyCode,
+        description: `${company.name} — Paiement ${id}`,
+        returnUrl: `${base}/pay/${id}?t=${encodeURIComponent(invoice.signingToken)}&paypalReturn=1`,
+        cancelUrl: `${base}/pay/${id}?t=${encodeURIComponent(invoice.signingToken)}&paypalCancel=1`,
+        referenceId: id,
+      },
+    );
+
+    await req.db.query(
+      `UPDATE invoices SET "paypalOrderId" = $1, "paypalPaymentStatus" = 'pending' WHERE id = $2`,
+      [order.id, id],
+    );
+
+    const approveUrl = (order.links || []).find((l: any) => l.rel === 'approve')?.href || null;
+    res.json({ orderId: order.id, approveUrl, amount: value, currency: currencyCode });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** Captures the order once the customer approved it on PayPal's site. */
+publicSignatureRouter.post('/invoices/:id/paypal/capture', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { t, orderId } = req.body || {};
+    if (!orderId) return res.status(400).json({ error: 'orderId manquant.' });
+
+    const invRes = await req.db.query(
+      `SELECT id, "companyId", type, status, "signingToken", "paypalOrderId" FROM invoices WHERE id = $1`,
+      [id],
+    );
+    const invoice = invRes.rows[0];
+    if (!invoice) return res.status(404).json({ error: 'Document introuvable' });
+    if (!timingSafeTokenMatch(invoice.signingToken, t ?? req.query.t)) {
+      return res.status(404).json({ error: 'Document introuvable' });
+    }
+    if (invoice.paypalOrderId !== orderId) {
+      return res.status(400).json({ error: 'Commande PayPal invalide pour ce document.' });
+    }
+
+    const compRes = await req.db.query(
+      `SELECT "paypalClientId", "paypalClientSecret" FROM companies WHERE id = $1`,
+      [invoice.companyId],
+    );
+    const company = compRes.rows[0];
+    if (!company?.paypalClientId || !company?.paypalClientSecret) {
+      return res.status(400).json({ error: "Le paiement en ligne n'est pas disponible pour cette société." });
+    }
+
+    const capture = await captureOrder(
+      { paypalClientId: company.paypalClientId, paypalClientSecret: company.paypalClientSecret },
+      orderId,
+    );
+    if (capture.status !== 'COMPLETED') {
+      return res.status(400).json({ error: 'Le paiement PayPal n\'a pas été finalisé.', status: capture.status });
+    }
+
+    // For a real invoice, a completed PayPal payment settles it outright.
+    // For a quote, we only record the payment here — converting it into a
+    // Paid invoice (with journal entry + SFEC certification) stays a
+    // deliberate action the operator takes from the Sales UI
+    // (POST /api/invoices/:id/mark-quote-paid), not something an
+    // unauthenticated customer payment silently triggers.
+    const isInvoice = invoice.type === 'Invoice';
+    await req.db.query(
+      `UPDATE invoices SET "paypalPaymentStatus" = 'paid', "paypalPaidAt" = NOW()
+         ${isInvoice ? `, status = 'Paid', "paidAt" = NOW()` : ''}
+       WHERE id = $1`,
+      [id],
+    );
+
+    const capturedAmount = capture.purchase_units?.[0]?.payments?.captures?.[0]?.amount;
+    res.json({ ok: true, status: capture.status, amount: capturedAmount || null });
   } catch (error) {
     next(error);
   }

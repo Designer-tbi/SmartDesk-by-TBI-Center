@@ -958,25 +958,34 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
       process.env.PUBLIC_BASE_URL ||
       process.env.REACT_APP_BACKEND_URL ||
       'https://smart-desk.pro';
+    // The invoice id alone (e.g. DEV-2026-347) is guessable — require an
+    // unguessable per-document token in the link too, so /api/public/*
+    // can't be enumerated to read/sign/pay other tenants' documents. Minted
+    // for BOTH quotes (signature) and invoices (online payment) so either
+    // can be shared via a public link.
+    let signingToken = invoice.signingToken;
+    if (!signingToken) {
+      signingToken = crypto.randomBytes(24).toString('hex');
+      await req.db.query(
+        'UPDATE invoices SET "signingToken" = $1 WHERE id = $2 AND "companyId" = $3',
+        [signingToken, id, req.user!.companyId],
+      );
+    }
+
     let signatureLink: string | null = null;
     if (isQuote) {
-      // The invoice id alone (e.g. DEV-2026-347) is guessable — require an
-      // unguessable per-quote token in the link too, so /api/public/quotes
-      // can't be enumerated to read/sign other tenants' quotes.
-      let signingToken = invoice.signingToken;
-      if (!signingToken) {
-        signingToken = crypto.randomBytes(24).toString('hex');
-        await req.db.query(
-          'UPDATE invoices SET "signingToken" = $1 WHERE id = $2 AND "companyId" = $3',
-          [signingToken, id, req.user!.companyId],
-        );
-      }
       signatureLink = `${signatureBaseUrl}/sign-quote/${invoice.id}?t=${signingToken}`;
       await req.db.query(
         'UPDATE invoices SET "signatureLink" = $1 WHERE id = $2 AND "companyId" = $3',
         [signatureLink, id, req.user!.companyId],
       );
     }
+
+    // "Payer en ligne" button — shown whenever the company has its own
+    // PayPal credentials configured (Settings → Paiements), for quotes and
+    // invoices alike.
+    const hasPaypalConfig = !!(company.paypalClientId && company.paypalClientSecret);
+    const payLink = hasPaypalConfig ? `${signatureBaseUrl}/pay/${invoice.id}?t=${signingToken}` : null;
 
     // Preserve user-entered whitespace + newlines (matches the product
     // creation form). HTML emails collapse whitespace by default, so we
@@ -1031,6 +1040,12 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
           ${isQuote && signatureLink ? `
             <div style="margin-top: 30px; text-align: center;">
               <a href="${signatureLink}" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Signer le devis en ligne</a>
+            </div>
+          ` : ''}
+
+          ${payLink ? `
+            <div style="margin-top: ${isQuote ? '12px' : '30px'}; text-align: center;">
+              <a href="${payLink}" style="background: #0070ba; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Payer en ligne par PayPal</a>
             </div>
           ` : ''}
           
