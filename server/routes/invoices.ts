@@ -981,6 +981,13 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
       );
     }
 
+    // "Signer le devis" button — only shown once the company has configured
+    // its own SMTP mailbox (Settings → Envoi de documents). Below that, no
+    // custom mailbox means the e-mail still goes out via the platform's
+    // default mailbox, but the customer-facing signature action is held
+    // back until the company has its own channel set up.
+    const hasSmtpConfig = !!(company.smtpHost && company.smtpUser && company.smtpPass);
+
     // "Payer en ligne" button — shown whenever the company has its own
     // PayPal credentials configured (Settings → Paiements), for quotes and
     // invoices alike.
@@ -1037,14 +1044,14 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
             <p style="font-size: 1.2em; color: #4f46e5;"><strong>Total TTC:</strong> ${invoice.total.toLocaleString()} ${company.currency}</p>
           </div>
           
-          ${isQuote && signatureLink ? `
+          ${isQuote && signatureLink && hasSmtpConfig ? `
             <div style="margin-top: 30px; text-align: center;">
               <a href="${signatureLink}" style="background: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Signer le devis en ligne</a>
             </div>
           ` : ''}
 
           ${payLink ? `
-            <div style="margin-top: ${isQuote ? '12px' : '30px'}; text-align: center;">
+            <div style="margin-top: ${isQuote && signatureLink && hasSmtpConfig ? '12px' : '30px'}; text-align: center;">
               <a href="${payLink}" style="background: #0070ba; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold;">Payer en ligne par PayPal</a>
             </div>
           ` : ''}
