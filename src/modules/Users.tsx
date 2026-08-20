@@ -7,9 +7,14 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { useTranslation } from '../lib/i18n';
 import { EmptyState } from '../components/ui';
 import { toast } from '../lib/toast';
+import { isManagerRole } from '../lib/roles';
 
 export const Users = ({ user }: { user?: any }) => {
   const { t } = useTranslation();
+  // POST/PUT/DELETE on users and roles are all requireManager server-side
+  // (server/routes/company.ts) — hide those actions for non-managers so
+  // the buttons don't just 403 on click.
+  const canManage = isManagerRole(user?.role);
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [activeTab, setActiveTab] = useState<'users' | 'roles'>('users');
@@ -188,6 +193,7 @@ export const Users = ({ user }: { user?: any }) => {
           </button>
         </div>
         
+        {canManage && (
         <button
           onClick={() => {
             if (activeTab === 'users') {
@@ -205,6 +211,7 @@ export const Users = ({ user }: { user?: any }) => {
           <Plus className="w-5 h-5" />
           {activeTab === 'users' ? t('users.newUser') : t('users.newRole')}
         </button>
+        )}
       </div>
 
       {activeTab === 'users' ? (
@@ -256,6 +263,7 @@ export const Users = ({ user }: { user?: any }) => {
                       {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : t('users.never')}
                     </td>
                     <td className="px-6 py-4 text-right">
+                      {canManage && (
                       <div className="flex items-center justify-end gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
                         <button
                           onClick={() => {
@@ -278,6 +286,7 @@ export const Users = ({ user }: { user?: any }) => {
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -293,14 +302,15 @@ export const Users = ({ user }: { user?: any }) => {
                 <div className="p-3 bg-soft-red rounded-xl text-accent-red">
                   <ShieldCheck className="w-6 h-6" />
                 </div>
+                {canManage && (
                 <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                  <button 
+                  <button
                     onClick={() => {
                       setEditingRole(role);
                       setNewRole({ name: role.name, permissions: role.permissions });
                       setIsRoleModalOpen(true);
                     }}
-                    className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm" 
+                    className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm"
                     title={t('common.edit')}
                   >
                     <Edit2 className="w-4 h-4" />
@@ -309,6 +319,7 @@ export const Users = ({ user }: { user?: any }) => {
                     <Trash2 className="w-4 h-4" />
                   </button>
                 </div>
+                )}
               </div>
               <h4 className="text-lg font-bold text-slate-900 mb-2">{role.name}</h4>
               <p className="text-sm text-slate-500 mb-4">
@@ -330,7 +341,8 @@ export const Users = ({ user }: { user?: any }) => {
               </div>
             </div>
           ))}
-          <button 
+          {canManage && (
+          <button
             onClick={() => { setEditingRole(null); setNewRole({ name: '', permissions: [] }); setIsRoleModalOpen(true); }}
             className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center gap-3 text-slate-400 hover:text-accent-red hover:border-accent-red/20 hover:bg-soft-red/30 transition-all group"
           >
@@ -339,6 +351,7 @@ export const Users = ({ user }: { user?: any }) => {
             </div>
             <span className="font-bold text-sm">{t('users.createRole')}</span>
           </button>
+          )}
         </div>
       )}
 

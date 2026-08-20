@@ -7,6 +7,7 @@ import autoTable from 'jspdf-autotable';
 import { autoCreateDefaultContract, autoCreateFirstPayslip } from '../services/automations.js';
 import { broadcast } from '../activity.js';
 import { isManagerRole } from '../utils/roles.js';
+import { requirePermission } from '../middleware/permissions.js';
 
 export const employeesRouter = Router();
 
@@ -44,7 +45,12 @@ employeesRouter.post('/leaves', async (req, res, next) => {
   }
 });
 
-employeesRouter.put('/leaves/:id', async (req, res, next) => {
+// Unlike POST /leaves (self-service creation, stays open above), this
+// route is what actually approves/rejects a request — the only frontend
+// caller is HR.tsx's handleUpdateLeaveStatus. Requires the same permission
+// that already covers "manage employees and leaves" so a non-manager
+// can't self-approve their own vacation.
+employeesRouter.put('/leaves/:id', requirePermission('hr.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const leave = req.body;
@@ -77,7 +83,7 @@ employeesRouter.get('/payslips', async (req, res, next) => {
   }
 });
 
-employeesRouter.post('/payslips', requireManager, async (req, res, next) => {
+employeesRouter.post('/payslips', requirePermission('hr.payroll'), async (req, res, next) => {
   try {
     const payslip = req.body;
     await req.db.query(
@@ -90,7 +96,7 @@ employeesRouter.post('/payslips', requireManager, async (req, res, next) => {
   }
 });
 
-employeesRouter.put('/payslips/:id', requireManager, async (req, res, next) => {
+employeesRouter.put('/payslips/:id', requirePermission('hr.payroll'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const payslip = req.body;
@@ -104,7 +110,7 @@ employeesRouter.put('/payslips/:id', requireManager, async (req, res, next) => {
   }
 });
 
-employeesRouter.delete('/payslips/:id', requireManager, async (req, res, next) => {
+employeesRouter.delete('/payslips/:id', requirePermission('hr.payroll'), async (req, res, next) => {
   try {
     const { id } = req.params;
     await req.db.query('DELETE FROM payslips WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);

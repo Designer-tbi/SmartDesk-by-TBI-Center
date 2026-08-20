@@ -10,6 +10,12 @@ interface Props {
   onOpenLeaveModal: () => void;
   onUpdateStatus: (leave: LeaveRequest, status: 'Approved' | 'Rejected' | 'Pending') => void;
   onDelete: (id: string) => void;
+  /** Approving/rejecting requires the hr.edit permission server-side
+   *  (PUT /api/employees/leaves/:id) — hide the "Gérer" action for anyone
+   *  who doesn't have it so the button doesn't just 403 when clicked.
+   *  Creating a request (onOpenLeaveModal) stays open to everyone since
+   *  employees legitimately self-manage that part. */
+  canManage: boolean;
 }
 
 export const LeavesTab: React.FC<Props> = ({
@@ -20,6 +26,7 @@ export const LeavesTab: React.FC<Props> = ({
   onOpenLeaveModal,
   onUpdateStatus,
   onDelete,
+  canManage,
 }) => {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -83,6 +90,7 @@ export const LeavesTab: React.FC<Props> = ({
                   </span>
                 </td>
                 <td className="px-6 py-4 text-right relative">
+                  {canManage && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -93,7 +101,8 @@ export const LeavesTab: React.FC<Props> = ({
                   >
                     Gérer
                   </button>
-                  {manageLeaveId === leave.id && (
+                  )}
+                  {canManage && manageLeaveId === leave.id && (
                     <div
                       className="absolute right-4 top-12 z-30 w-48 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden"
                       onClick={(e) => e.stopPropagation()}

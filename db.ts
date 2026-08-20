@@ -573,6 +573,27 @@ export async function initializeDatabase() {
         await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "paypalPaymentStatus" TEXT`);
         await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "paypalPaidAt" TIMESTAMPTZ`);
 
+        // Enforce journal-entry idempotency at the DB level — the existing
+        // plain index above only sped up the SELECT-then-INSERT app-level
+        // guard in autoPostPaidInvoiceJournal, it didn't prevent two
+        // near-simultaneous triggers for the same invoice from both
+        // inserting a journal entry. Wrapped in try/catch: if a deploy
+        // already has duplicate (companyId, sourceRef) rows from that race,
+        // creating the index would fail outright — the app-level guard
+        // stays as a first line of defence either way.
+        try {
+          await db.query(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_journal_entries_source_ref_unique
+              ON journal_entries("companyId", "sourceRef")
+              WHERE "sourceRef" IS NOT NULL
+          `);
+        } catch (err) {
+          console.error(
+            'Could not create unique index on journal_entries(companyId, sourceRef) — likely pre-existing duplicate rows from the race this index is meant to prevent. Application-level idempotency guard still applies.',
+            err,
+          );
+        }
+
         // Key/value store used (so far) to persist the PayPal product +
         // plan ids generated on first bootstrap — avoids hard-coding
         // them or re-creating them on every deploy.
@@ -597,8 +618,8 @@ export async function initializeDatabase() {
         `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
       );
       // Bumped so existing deploys re-run the incremental migrations once
-      // and pick up the customer-facing PayPal payment columns.
-      const TARGET_SCHEMA = '2026-08-20-invoice-paypal';
+      // and pick up the unique journal-entry idempotency index.
+      const TARGET_SCHEMA = '2026-08-20-journal-idempotency';
       if (flag.rows[0]?.value === TARGET_SCHEMA) {
         console.log('Database schema already up-to-date, skipping init.');
         return;

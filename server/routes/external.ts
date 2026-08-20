@@ -66,9 +66,14 @@ const generatePassword = () => {
  *   surfaced/stored by the partner — SmartDesk never echoes it again.
  */
 externalRouter.post('/companies', async (req, res, next) => {
-  // Use the root pool directly: this endpoint has no tenant context
-  // (no JWT) so the regular req.db middleware is bypassed.
-  const db = rootPool;
+  // Check out a single dedicated client for the whole transaction — this
+  // endpoint has no tenant context (no JWT) so the regular req.db
+  // middleware is bypassed. Calling rootPool.query() directly for each
+  // statement (as this used to) checks out and releases a DIFFERENT pooled
+  // connection per call, so BEGIN/COMMIT wouldn't necessarily wrap the same
+  // session as the INSERTs, and a connection released mid-transaction sits
+  // in the pool "idle in transaction" until some other request reuses it.
+  const db = await rootPool.connect();
   await db.query('BEGIN');
   try {
     const {
@@ -197,12 +202,6 @@ externalRouter.post('/companies', async (req, res, next) => {
 
     await db.query('COMMIT');
 
-    // Reset the RLS context so subsequent requests on this pooled
-    // connection don't leak our tenant id.
-    try {
-      await db.query(`SELECT set_config('app.current_company_id', '', false)`);
-    } catch { /* noop */ }
-
     // Fetch the fresh company row — exclude internal flags + the
     // fiscalization key, never the raw password.
     const compRes = await db.query(
@@ -230,6 +229,12 @@ externalRouter.post('/companies', async (req, res, next) => {
   } catch (error) {
     try { await db.query('ROLLBACK'); } catch { /* noop */ }
     next(error);
+  } finally {
+    // Always reset the RLS session var before this client goes back to the
+    // pool, then release it — the same client that ran BEGIN/COMMIT is the
+    // one released, unlike the previous per-call rootPool.query() pattern.
+    try { await db.query(`SELECT set_config('app.current_company_id', '', false)`); } catch { /* noop */ }
+    db.release();
   }
 });
 

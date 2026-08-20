@@ -25,3 +25,20 @@ export function hasModuleAccess(permissions: string[] | 'all' | undefined | null
   if (permissions === 'all') return true;
   return permissions.some((p) => p === 'all' || p.startsWith(`${modulePrefix}.`));
 }
+
+/**
+ * True if the user's resolved permission set grants a SPECIFIC permission
+ * id (e.g. "hr.payroll"), mirroring the server-side requirePermission()
+ * check exactly — unlike hasModuleAccess, which only checks the module
+ * prefix. Used to gate manager-only write UI (buttons, forms) so a
+ * non-manager doesn't see actions that will just 403 server-side.
+ *
+ * `permissions` missing entirely fails OPEN for the same reason as
+ * hasModuleAccess — a stale cached user shouldn't lose access to actions
+ * they actually have.
+ */
+export function hasPermission(permissions: string[] | 'all' | undefined | null, permissionId: string): boolean {
+  if (permissions == null) return true;
+  if (permissions === 'all') return true;
+  return permissions.some((p) => p === 'all' || p === permissionId);
+}

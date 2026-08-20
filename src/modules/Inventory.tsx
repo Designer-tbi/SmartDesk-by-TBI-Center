@@ -246,7 +246,7 @@ export const Inventory = ({ user }: { user: any }) => {
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-2">
                       <span className={`text-sm font-bold ${product.stock < 10 ? 'text-rose-600' : 'text-slate-900'}`}>
-                        {product.stock}
+                        {Math.max(0, product.stock)}
                       </span>
                       {product.stock < 10 && <AlertTriangle className="w-4 h-4 text-amber-500" />}
                     </div>
@@ -554,7 +554,7 @@ export const Inventory = ({ user }: { user: any }) => {
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-bold text-accent-red uppercase tracking-widest">{t('inventory.stock')}</p>
-                  <p className={`text-base font-bold ${viewProduct.stock < 10 ? 'text-rose-600' : 'text-emerald-600'}`}>{viewProduct.stock}</p>
+                  <p className={`text-base font-bold ${viewProduct.stock < 10 ? 'text-rose-600' : 'text-emerald-600'}`}>{Math.max(0, viewProduct.stock)}</p>
                 </div>
               </div>
               <div className="space-y-1 pt-4 border-t border-red-50">

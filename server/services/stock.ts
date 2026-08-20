@@ -2,10 +2,15 @@
  * Keeps `products.stock` in sync with invoiced quantities.
  *
  * Only physical products (`type = 'product'`) are tracked — services have
- * no stock concept. Stock is clamped at 0 (never goes negative) rather
- * than blocking the invoice: SmartDesk doesn't currently support
- * backorders, and refusing to invoice would be a worse failure mode for a
- * small business than a temporarily-inaccurate stock count.
+ * no stock concept. Stock is allowed to go negative rather than clamped at
+ * 0: SmartDesk doesn't currently support backorders, and refusing to
+ * invoice would be a worse failure mode for a small business than a
+ * temporarily-inaccurate stock count. A negative value genuinely means
+ * "oversold by N units" — clamping it to 0 here would make the decrement/
+ * restore/adjust deltas non-invertible (an invoice for more than what's in
+ * stock, later deleted, would over-restore stock past its true value).
+ * The frontend (Inventory.tsx) clamps to 0 only for display, so the UI
+ * never shows a negative number while the underlying math stays correct.
  */
 
 export interface StockLineItem {
@@ -25,7 +30,7 @@ async function applyStockDeltas(db: DB, companyId: string, delta: Map<string, nu
     if (!productId || !soldDelta) continue;
     await db.query(
       `UPDATE products
-          SET stock = GREATEST(0, stock - $1), "updatedAt" = NOW()
+          SET stock = stock - $1, "updatedAt" = NOW()
         WHERE id = $2 AND "companyId" = $3 AND type = 'product'`,
       [soldDelta, productId, companyId],
     );

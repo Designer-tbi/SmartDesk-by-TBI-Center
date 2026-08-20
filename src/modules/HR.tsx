@@ -22,6 +22,7 @@ import { PayrollGenerateModal } from './hr/PayrollGenerateModal';
 import { EmployeeDetailModal } from './hr/EmployeeDetailModal';
 import { useLiveSync } from '../lib/useLiveSync';
 import { currencySymbolFromCode, resolveLocale } from '../lib/locale';
+import { isManagerRole, hasPermission } from '../lib/roles';
 
 const MONTH_LABELS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
@@ -36,6 +37,14 @@ export const HR = ({ user }: { user: any }) => {
   const employeeLocale = resolveLocale(user?.country);
 
   const taxLabel = isUS ? t('accounting.salesTax') : t('accounting.tva');
+  // Mirrors the server-side gates exactly: employee/contract CRUD stays
+  // admin-only (requireManager), while leave approval and payroll also
+  // accept the granular hr.edit/hr.payroll permission (requirePermission).
+  // Hiding these for anyone who'd just get a 403 avoids showing buttons
+  // that silently fail on click.
+  const canManageEmployees = isManagerRole(user?.role);
+  const canManageLeaves = canManageEmployees || hasPermission(user?.permissions, 'hr.edit');
+  const canManagePayroll = canManageEmployees || hasPermission(user?.permissions, 'hr.payroll');
   const [activeTab, setActiveTab] = useState<'directory' | 'leaves' | 'payroll' | 'contracts' | 'stats' | 'tasks'>('directory');
   const [contractSubTab, setContractSubTab] = useState<'list' | 'templates' | 'signed'>('list');
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -758,8 +767,8 @@ export const HR = ({ user }: { user: any }) => {
           </button>
         </div>
         
-        {activeTab === 'directory' && (
-          <button 
+        {activeTab === 'directory' && canManageEmployees && (
+          <button
             onClick={openAddModal}
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95"
           >
@@ -768,10 +777,10 @@ export const HR = ({ user }: { user: any }) => {
           </button>
         )}
 
-        {activeTab === 'contracts' && (
+        {activeTab === 'contracts' && canManageEmployees && (
           <div className="flex gap-2">
             {contractSubTab === 'list' && (
-              <button 
+              <button
                 onClick={() => setIsContractModalOpen(true)}
                 className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95"
               >
@@ -780,7 +789,7 @@ export const HR = ({ user }: { user: any }) => {
               </button>
             )}
             {contractSubTab === 'templates' && (
-              <button 
+              <button
                 onClick={() => setIsTemplateModalOpen(true)}
                 className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95"
               >
@@ -818,8 +827,12 @@ export const HR = ({ user }: { user: any }) => {
                   <h3 className="text-lg font-bold text-slate-900 truncate">{employee.name}</h3>
                   <div className="flex gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
                     <button onClick={() => setViewEmployee(employee)} className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all shadow-sm" title={t('common.view')}><Eye className="w-4 h-4" /></button>
-                    <button onClick={() => openEditModal(employee)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all shadow-sm" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
-                    <button onClick={() => setDeleteConfirmId(employee.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
+                    {canManageEmployees && (
+                      <>
+                        <button onClick={() => openEditModal(employee)} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-all shadow-sm" title={t('common.edit')}><Pencil className="w-4 h-4" /></button>
+                        <button onClick={() => setDeleteConfirmId(employee.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all shadow-sm" title={t('common.delete')}><Trash2 className="w-4 h-4" /></button>
+                      </>
+                    )}
                   </div>
                 </div>
                 <p className="text-sm text-accent-red font-semibold mb-4">{employee.role}</p>
@@ -946,7 +959,7 @@ export const HR = ({ user }: { user: any }) => {
                                 <FileSignature className="w-4 h-4" />
                               </button>
                             )}
-                            {contract.status !== 'Signed' && contract.status !== 'Active' && (
+                            {contract.status !== 'Signed' && contract.status !== 'Active' && canManageEmployees && (
                               <button
                                 onClick={() => handleSendContract(contract.id)}
                                 disabled={isSending === contract.id}
@@ -1086,6 +1099,7 @@ export const HR = ({ user }: { user: any }) => {
           onOpenLeaveModal={openLeaveModal}
           onUpdateStatus={handleUpdateLeaveStatus}
           onDelete={handleDeleteLeave}
+          canManage={canManageLeaves}
         />
       )}
 
@@ -1118,6 +1132,7 @@ export const HR = ({ user }: { user: any }) => {
             onDownload={handleDownloadPayslip}
             onToggleStatus={handleTogglePayslipStatus}
             onDelete={handleDeletePayslip}
+            canManage={canManagePayroll}
           />
         </>
       )}

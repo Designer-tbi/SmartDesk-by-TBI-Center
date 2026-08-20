@@ -50,7 +50,13 @@ invoicesRouter.post('/', requirePermission('sales.edit'), async (req, res, next)
     // surfaced only as a generic "creation failed"). Sequential per
     // company/type/year is both collision-resistant and a more sensible
     // invoice numbering scheme.
-    if (!inv.id) {
+    //
+    // The COUNT(*)+1 read is not atomic with the later INSERT, so two
+    // near-simultaneous requests can still compute the same number — the
+    // retry loop around the INSERT (below) recomputes and tries again on a
+    // unique-violation instead of failing the whole request.
+    const needsAutoId = !inv.id;
+    const generateNextInvoiceId = async () => {
       const prefix = inv.type === 'Invoice' ? 'INV' : 'DEV';
       const year = new Date(inv.date || Date.now()).getFullYear();
       const countRes = await req.db.query(
@@ -58,7 +64,10 @@ invoicesRouter.post('/', requirePermission('sales.edit'), async (req, res, next)
         [req.user.companyId, inv.type, year],
       );
       const seq = Number(countRes.rows[0]?.count || 0) + 1;
-      inv.id = `${prefix}-${year}-${String(seq).padStart(3, '0')}`;
+      return `${prefix}-${year}-${String(seq).padStart(3, '0')}`;
+    };
+    if (needsAutoId) {
+      inv.id = await generateNextInvoiceId();
     }
 
     // Re-compute the totals server-side using the authoritative OHADA
@@ -90,38 +99,59 @@ invoicesRouter.post('/', requirePermission('sales.edit'), async (req, res, next)
     
     try {
       const contactId = inv.contactId && inv.contactId !== '' ? inv.contactId : null;
-      
-      await req.db.query(
-        `INSERT INTO invoices (
-           id, "companyId", type, "contactId", date, "dueDate",
-           "totalHT", "tvaTotal", total, status, notes,
-           "signatureLink", "signedAt",
-           "remise", "remiseType", "rabais", "rabaisType",
-           "ristourne", "ristourneType", "escompte", "escompteType",
-           "centimesAdditionnels", "netCommercial", "netFinancier",
-           "convertedFromQuoteId", deposit
-         ) VALUES (
-           $1, $2, $3, $4, $5, $6,
-           $7, $8, $9, $10, $11,
-           $12, $13,
-           $14, $15, $16, $17,
-           $18, $19, $20, $21,
-           $22, $23, $24,
-           $25, $26
-         )`,
-        [
-          inv.id, req.user.companyId, inv.type, contactId, inv.date, inv.dueDate,
-          totals.brutHT, totals.tvaTotal, totals.total, inv.status, inv.notes || null,
-          inv.signatureLink || null, inv.signedAt || null,
-          inv.remise ?? inv.discount ?? 0, inv.remiseType || 'amount',
-          inv.rabais ?? 0, inv.rabaisType || 'amount',
-          inv.ristourne ?? 0, inv.ristourneType || 'amount',
-          inv.escompte ?? 0, inv.escompteType || 'percent',
-          totals.centimesAdditionnels, totals.netCommercial, totals.netFinancier,
-          inv.convertedFromQuoteId || null, Number(inv.deposit) || 0,
-        ],
-      );
-      
+
+      // Retry loop for the invoice INSERT: a unique-violation on `id` means
+      // another request grabbed the same auto-generated number between our
+      // COUNT(*) read and this INSERT. Use a SAVEPOINT so the surrounding
+      // transaction doesn't abort on the failed attempt — without it,
+      // Postgres refuses any further statement until a ROLLBACK.
+      const MAX_ID_ATTEMPTS = 5;
+      for (let attempt = 1; ; attempt++) {
+        await req.db.query('SAVEPOINT invoice_insert');
+        try {
+          await req.db.query(
+            `INSERT INTO invoices (
+               id, "companyId", type, "contactId", date, "dueDate",
+               "totalHT", "tvaTotal", total, status, notes,
+               "signatureLink", "signedAt",
+               "remise", "remiseType", "rabais", "rabaisType",
+               "ristourne", "ristourneType", "escompte", "escompteType",
+               "centimesAdditionnels", "netCommercial", "netFinancier",
+               "convertedFromQuoteId", deposit
+             ) VALUES (
+               $1, $2, $3, $4, $5, $6,
+               $7, $8, $9, $10, $11,
+               $12, $13,
+               $14, $15, $16, $17,
+               $18, $19, $20, $21,
+               $22, $23, $24,
+               $25, $26
+             )`,
+            [
+              inv.id, req.user.companyId, inv.type, contactId, inv.date, inv.dueDate,
+              totals.brutHT, totals.tvaTotal, totals.total, inv.status, inv.notes || null,
+              inv.signatureLink || null, inv.signedAt || null,
+              inv.remise ?? inv.discount ?? 0, inv.remiseType || 'amount',
+              inv.rabais ?? 0, inv.rabaisType || 'amount',
+              inv.ristourne ?? 0, inv.ristourneType || 'amount',
+              inv.escompte ?? 0, inv.escompteType || 'percent',
+              totals.centimesAdditionnels, totals.netCommercial, totals.netFinancier,
+              inv.convertedFromQuoteId || null, Number(inv.deposit) || 0,
+            ],
+          );
+          await req.db.query('RELEASE SAVEPOINT invoice_insert');
+          break;
+        } catch (insertErr: any) {
+          await req.db.query('ROLLBACK TO SAVEPOINT invoice_insert');
+          const isUniqueViolation = insertErr?.code === '23505';
+          if (isUniqueViolation && needsAutoId && attempt < MAX_ID_ATTEMPTS) {
+            inv.id = await generateNextInvoiceId();
+            continue;
+          }
+          throw insertErr;
+        }
+      }
+
       if (Array.isArray(inv.items)) {
         for (const item of inv.items) {
           const productId = item.productId && item.productId !== '' ? item.productId : null;
@@ -1002,17 +1032,24 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     const formatDescription = (d: string) => escapeHtml(d).replace(/\r?\n/g, '<br/>');
 
-    const itemsHtml = items.map(item => `
+    // Safe numeric coercion — Postgres returns numerics as strings, and
+    // `.toLocaleString()` on a string is a documented no-op (returns the
+    // string unchanged) rather than grouping/localizing it.
+    const itemsHtml = items.map(item => {
+      const price = Number(item.price) || 0;
+      const quantity = Number(item.quantity) || 0;
+      return `
       <tr>
         <td style="padding: 8px; border-bottom: 1px solid #eee; white-space: pre-wrap;">
           <strong>${escapeHtml(item.name)}</strong>
           ${item.description ? `<br/><span style="font-size: 0.85em; color: #666; white-space: pre-wrap;">${formatDescription(item.description)}</span>` : ''}
         </td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${item.price.toLocaleString()} ${company.currency}</td>
-        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${(item.quantity * item.price).toLocaleString()} ${company.currency}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">${quantity}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${price.toLocaleString()} ${company.currency}</td>
+        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">${(quantity * price).toLocaleString()} ${company.currency}</td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
 
     const mailOptions = {
       from,
@@ -1039,9 +1076,9 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
           </table>
           
           <div style="text-align: right; margin-top: 20px;">
-            <p><strong>Total HT:</strong> ${invoice.totalHT.toLocaleString()} ${company.currency}</p>
-            <p><strong>TVA:</strong> ${invoice.tvaTotal.toLocaleString()} ${company.currency}</p>
-            <p style="font-size: 1.2em; color: #4f46e5;"><strong>Total TTC:</strong> ${invoice.total.toLocaleString()} ${company.currency}</p>
+            <p><strong>Total HT:</strong> ${(Number(invoice.totalHT) || 0).toLocaleString()} ${company.currency}</p>
+            <p><strong>TVA:</strong> ${(Number(invoice.tvaTotal) || 0).toLocaleString()} ${company.currency}</p>
+            <p style="font-size: 1.2em; color: #4f46e5;"><strong>Total TTC:</strong> ${(Number(invoice.total) || 0).toLocaleString()} ${company.currency}</p>
           </div>
           
           ${isQuote && signatureLink && hasSmtpConfig ? `

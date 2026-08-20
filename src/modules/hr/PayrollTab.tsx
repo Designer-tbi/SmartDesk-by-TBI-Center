@@ -12,6 +12,10 @@ interface Props {
   onDownload: (payslip: Payslip) => void;
   onToggleStatus: (payslip: Payslip) => void;
   onDelete: (id: string) => void;
+  /** Generating/editing/deleting payslips requires the hr.payroll
+   *  permission server-side — hide those actions for anyone who doesn't
+   *  have it. Downloading a payslip PDF has no such restriction. */
+  canManage: boolean;
 }
 
 export const PayrollTab: React.FC<Props> = ({
@@ -24,11 +28,13 @@ export const PayrollTab: React.FC<Props> = ({
   onDownload,
   onToggleStatus,
   onDelete,
+  canManage,
 }) => {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-6 border-b border-slate-100 flex items-center justify-between">
         <h3 className="font-bold text-slate-900">Gestion de la Paie</h3>
+        {canManage && (
         <button
           onClick={onOpenPayrollModal}
           className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-bold hover:bg-emerald-700 transition-all shadow-sm"
@@ -36,6 +42,7 @@ export const PayrollTab: React.FC<Props> = ({
         >
           <Download className="w-4 h-4" /> Générer les Bulletins
         </button>
+        )}
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left border-collapse">
@@ -61,16 +68,24 @@ export const PayrollTab: React.FC<Props> = ({
                   {payslip.netSalary.toLocaleString()} {currencySymbol}
                 </td>
                 <td className="px-6 py-4">
-                  <button
-                    onClick={() => onToggleStatus(payslip)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-bold hover:opacity-80 transition-opacity ${
+                  {canManage ? (
+                    <button
+                      onClick={() => onToggleStatus(payslip)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold hover:opacity-80 transition-opacity ${
+                        payslip.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
+                      }`}
+                      title="Cliquer pour changer le statut"
+                      data-testid={`hr-payslip-toggle-${payslip.id}`}
+                    >
+                      {payslip.status === 'Paid' ? t('hr.paid') : t('hr.draft')}
+                    </button>
+                  ) : (
+                    <span className={`inline-block px-2.5 py-1 rounded-lg text-xs font-bold ${
                       payslip.status === 'Paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                    }`}
-                    title="Cliquer pour changer le statut"
-                    data-testid={`hr-payslip-toggle-${payslip.id}`}
-                  >
-                    {payslip.status === 'Paid' ? t('hr.paid') : t('hr.draft')}
-                  </button>
+                    }`}>
+                      {payslip.status === 'Paid' ? t('hr.paid') : t('hr.draft')}
+                    </span>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-right">
                   <div className="flex items-center justify-end gap-1">
@@ -87,6 +102,7 @@ export const PayrollTab: React.FC<Props> = ({
                         <Download className="w-4 h-4" />
                       )}
                     </button>
+                    {canManage && (
                     <button
                       onClick={() => onDelete(payslip.id)}
                       className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
@@ -95,6 +111,7 @@ export const PayrollTab: React.FC<Props> = ({
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
+                    )}
                   </div>
                 </td>
               </tr>

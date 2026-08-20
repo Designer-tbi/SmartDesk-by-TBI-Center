@@ -340,8 +340,16 @@ export async function autoPostPaidInvoiceJournal(
     } catch { /* noop */ }
 
     return entryId;
-  } catch (err) {
+  } catch (err: any) {
     await db.query('ROLLBACK');
+    // The SELECT-then-INSERT guard above is a check-then-act race: two
+    // near-simultaneous triggers for the same invoice (double-click on
+    // "mark as Paid", or two automation paths firing together) can both
+    // pass the check before either commits. The unique index on
+    // journal_entries(companyId, sourceRef) (db.ts) turns that race into a
+    // unique-violation here instead of a silent double-post — treat it the
+    // same as the idempotency guard above: already posted, nothing to do.
+    if (err?.code === '23505') return null;
     throw err;
   }
 }

@@ -9,9 +9,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { fetchDetectedLocale, mapIsoToRegion } from '../lib/geo';
 
 import { useTranslation } from '../lib/i18n';
+import { isManagerRole } from '../lib/roles';
 
 export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: any, setUser: any }) => {
   const { t, setLanguage } = useTranslation();
+  // PUT /api/company and the CRM/accounting reset routes are all
+  // requireManager server-side — hide those actions for non-managers so
+  // they aren't left filling out a form that will just 403 on submit.
+  const canManageCompany = isManagerRole(globalUser?.role);
   const [searchParams, setSearchParams] = useSearchParams();
   const VALID_TABS = ['company', 'profile', 'security', 'notifications', 'help'] as const;
   type SettingsTab = (typeof VALID_TABS)[number];
@@ -201,9 +206,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       const res = await apiFetch('/api/company/paypal/test-payment', { method: 'POST' });
       const data = await res.json().catch(() => null);
       if (res.ok && data?.approveUrl) {
-        window.open(data.approveUrl, '_blank');
-        setPaypalTestStatus('awaiting');
-        setPaypalTestMessage(`${t('settings.paypalTestAwaiting')} (≈100 XAF ≈ ${data.amountUsd} USD)`);
+        // Same-tab redirect — the PayPal return_url brings the browser back
+        // to this exact page, so the effect below that captures the order
+        // fires here. Opening in a new tab (window.open) would leave this
+        // tab's status stuck on "awaiting" forever since the capture would
+        // run in the other tab's own component instance instead.
+        window.location.href = data.approveUrl;
       } else {
         setPaypalTestStatus('error');
         setPaypalTestMessage(data?.error || t('settings.paypalTestError'));
@@ -1077,6 +1085,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                       </div>
                     )}
                   </div>
+                  {canManageCompany && (
                   <button
                     type="submit"
                     disabled={isSubmitting}
@@ -1085,10 +1094,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     {isSubmitting ? t('settings.updating') : t('common.save')}
                   </button>
+                  )}
                 </div>
               </form>
             </div>
 
+            {canManageCompany && (
             <div className="bg-rose-50 rounded-2xl border border-rose-100 p-6 space-y-4">
               <div className="flex items-center gap-3 text-rose-700">
                 <Trash2 className="w-5 h-5" />
@@ -1109,6 +1120,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                 </button>
               </div>
             </div>
+            )}
           </motion.div>
         )}
 
