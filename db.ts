@@ -559,6 +559,14 @@ export async function initializeDatabase() {
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpPass" TEXT`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpFromName" TEXT`);
 
+        // Per-company PayPal credentials so a company can collect payments
+        // from its own customers (quotes/invoices) into its own PayPal
+        // account — separate from the platform's own PayPal app used to
+        // bill companies for their SmartDesk subscription (see
+        // server/services/paypal.ts).
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalClientId" TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalClientSecret" TEXT`);
+
         // Key/value store used (so far) to persist the PayPal product +
         // plan ids generated on first bootstrap — avoids hard-coding
         // them or re-creating them on every deploy.
@@ -583,8 +591,8 @@ export async function initializeDatabase() {
         `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
       );
       // Bumped so existing deploys re-run the incremental migrations once
-      // and pick up the per-company SMTP columns.
-      const TARGET_SCHEMA = '2026-08-20-company-smtp';
+      // and pick up the per-company PayPal columns.
+      const TARGET_SCHEMA = '2026-08-20-company-paypal';
       if (flag.rows[0]?.value === TARGET_SCHEMA) {
         console.log('Database schema already up-to-date, skipping init.');
         return;
@@ -726,6 +734,9 @@ export async function initializeDatabase() {
     await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpUser" TEXT`);
     await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpPass" TEXT`);
     await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpFromName" TEXT`);
+    // Per-company PayPal credentials for collecting customer payments.
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalClientId" TEXT`);
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalClientSecret" TEXT`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationNumber" TEXT`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certifiedAt" TIMESTAMPTZ`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationStatus" TEXT`);

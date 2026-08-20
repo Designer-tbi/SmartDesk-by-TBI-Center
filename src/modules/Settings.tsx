@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut, Upload, Check, PlayCircle, Star, HelpCircle, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Settings as SettingsIcon, Radar, Wallet, Percent, Server, Lock, Hash } from 'lucide-react';
+import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut, Upload, Check, PlayCircle, Star, HelpCircle, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Settings as SettingsIcon, Radar, Wallet, Percent, Server, Lock, Hash, CreditCard, ExternalLink } from 'lucide-react';
 import { HelpSection } from '../components/HelpSection';
 import { CompanyInfo, User as UserType } from '../types';
 import { apiFetch } from '../lib/api';
@@ -12,7 +12,7 @@ import { useTranslation } from '../lib/i18n';
 
 export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: any, setUser: any }) => {
   const { t, setLanguage } = useTranslation();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const VALID_TABS = ['company', 'profile', 'security', 'notifications', 'help'] as const;
   type SettingsTab = (typeof VALID_TABS)[number];
   const requestedTab = searchParams.get('tab');
@@ -70,6 +70,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   // Same write-only pattern as the SFEC key: never pre-filled from the
   // server, blank on save = keep the currently stored SMTP password.
   const [smtpPassInput, setSmtpPassInput] = useState('');
+  // Same write-only pattern for the PayPal client secret.
+  const [paypalSecretInput, setPaypalSecretInput] = useState('');
+  const [isTestingPaypal, setIsTestingPaypal] = useState(false);
+  const [paypalTestStatus, setPaypalTestStatus] = useState<'idle' | 'awaiting' | 'capturing' | 'success' | 'error' | 'cancelled'>('idle');
+  const [paypalTestMessage, setPaypalTestMessage] = useState<string | null>(null);
 
   const handleDetectCountry = async () => {
     setIsDetectingGeo(true);
@@ -146,6 +151,71 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Handles the redirect back from PayPal's own site after the user
+  // approves (or cancels) the test payment — PayPal appends `token`
+  // (the order id) to our return_url automatically.
+  useEffect(() => {
+    const paypalTest = searchParams.get('paypalTest');
+    if (paypalTest === 'return') {
+      const orderId = searchParams.get('token');
+      if (orderId) {
+        setPaypalTestStatus('capturing');
+        (async () => {
+          try {
+            const res = await apiFetch('/api/company/paypal/test-payment/capture', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ orderId }),
+            });
+            const data = await res.json().catch(() => null);
+            if (res.ok && data?.status === 'COMPLETED') {
+              setPaypalTestStatus('success');
+              setPaypalTestMessage(
+                `${t('settings.paypalTestSuccess')} (${data.amount?.value || ''} ${data.amount?.currency_code || 'USD'})`,
+              );
+            } else {
+              setPaypalTestStatus('error');
+              setPaypalTestMessage(data?.error || t('settings.paypalTestError'));
+            }
+          } catch {
+            setPaypalTestStatus('error');
+            setPaypalTestMessage(t('settings.paypalTestError'));
+          }
+        })();
+      }
+      setSearchParams({ tab: 'company' }, { replace: true });
+    } else if (paypalTest === 'cancel') {
+      setPaypalTestStatus('cancelled');
+      setPaypalTestMessage(t('settings.paypalTestCancelled'));
+      setSearchParams({ tab: 'company' }, { replace: true });
+    }
+    // Only run once on mount, once searchParams has settled.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handlePaypalTestPayment = async () => {
+    setIsTestingPaypal(true);
+    setPaypalTestStatus('idle');
+    setPaypalTestMessage(null);
+    try {
+      const res = await apiFetch('/api/company/paypal/test-payment', { method: 'POST' });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.approveUrl) {
+        window.open(data.approveUrl, '_blank');
+        setPaypalTestStatus('awaiting');
+        setPaypalTestMessage(`${t('settings.paypalTestAwaiting')} (≈100 XAF ≈ ${data.amountUsd} USD)`);
+      } else {
+        setPaypalTestStatus('error');
+        setPaypalTestMessage(data?.error || t('settings.paypalTestError'));
+      }
+    } catch {
+      setPaypalTestStatus('error');
+      setPaypalTestMessage(t('settings.paypalTestError'));
+    } finally {
+      setIsTestingPaypal(false);
+    }
+  };
+
   const handleCompanySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -160,6 +230,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           ...company,
           fiscalizationApiKey: fiscalizationKeyInput || undefined,
           smtpPass: smtpPassInput || undefined,
+          paypalClientSecret: paypalSecretInput || undefined,
         }),
       });
 
@@ -170,6 +241,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
         if (updated) setCompany(updated);
         setFiscalizationKeyInput('');
         setSmtpPassInput('');
+        setPaypalSecretInput('');
         setIsSaved(true);
         if (company.language) {
           setLanguage(company.language as any);
@@ -914,6 +986,80 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                       ? t('settings.smtpConfiguredHint')
                       : t('settings.smtpMissingHint')}
                   </p>
+                </div>
+
+                <div className="pt-6 mt-2 border-t border-slate-100 space-y-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <CreditCard className="w-4 h-4 text-accent-red" />
+                      {t('settings.paypalTitle')}
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1">{t('settings.paypalDesc')}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.paypalClientId')}</label>
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                          value={(company as any).paypalClientId || ''}
+                          onChange={(e) => setCompany({ ...company, paypalClientId: e.target.value } as any)}
+                          data-testid="settings-paypal-client-id"
+                          placeholder="AeA1xy..."
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.paypalClientSecret')}</label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          placeholder={(company as any).hasPaypalConfig ? '••••••••••••••••' : t('settings.paypalClientSecretPlaceholder')}
+                          className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                          value={paypalSecretInput}
+                          onChange={(e) => setPaypalSecretInput(e.target.value)}
+                          data-testid="settings-paypal-client-secret"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 ml-1">
+                    {(company as any).hasPaypalConfig
+                      ? t('settings.paypalConfiguredHint')
+                      : t('settings.paypalMissingHint')}
+                  </p>
+
+                  {(company as any).hasPaypalConfig && (
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3 bg-soft-red/20 rounded-xl p-4">
+                      <button
+                        type="button"
+                        onClick={handlePaypalTestPayment}
+                        disabled={isTestingPaypal}
+                        data-testid="settings-paypal-test-payment-btn"
+                        className="flex items-center justify-center gap-2 px-4 py-2.5 bg-white border border-red-100 rounded-xl text-sm font-bold text-accent-red hover:bg-soft-red transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
+                      >
+                        {isTestingPaypal ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                        {t('settings.paypalTestButton')}
+                      </button>
+                      {paypalTestMessage && (
+                        <p className={`text-sm font-medium ${
+                          paypalTestStatus === 'success' ? 'text-emerald-600'
+                            : paypalTestStatus === 'error' ? 'text-red-600'
+                            : 'text-slate-500'
+                        }`}>
+                          {paypalTestStatus === 'capturing' ? <Loader2 className="w-4 h-4 animate-spin inline mr-1" /> : null}
+                          {paypalTestMessage}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-slate-100">

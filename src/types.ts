@@ -261,6 +261,11 @@ export interface CompanyInfo {
   smtpFromName?: string;
   hasSmtpConfig?: boolean;
   smtpPass?: string; // write-only: never populated from GET, blank = keep existing
+  // Per-company PayPal credentials for collecting customer payments
+  // (quotes/invoices), separate from the platform's own subscription billing.
+  paypalClientId?: string;
+  hasPaypalConfig?: boolean;
+  paypalClientSecret?: string; // write-only: never populated from GET, blank = keep existing
 }
 
 export interface User {

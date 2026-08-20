@@ -2,6 +2,8 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { requireTenant } from '../middleware/auth.js';
 import { isManagerRole } from '../utils/roles.js';
 import bcrypt from 'bcryptjs';
+import { createOrder, captureOrder } from '../services/companyPaypal.js';
+import { xafToUsdAmount } from '../services/exchangeRate.js';
 
 export const companyRouter = Router();
 
@@ -24,13 +26,15 @@ companyRouter.get('/', async (req, res, next) => {
     if (!company) {
       return res.status(404).json({ error: 'Company not found' });
     }
-    // Never echo the raw fiscalization API key or SMTP password — return
-    // only flags indicating whether each is configured.
-    const { fiscalizationApiKey, smtpPass, ...safe } = company;
+    // Never echo the raw fiscalization API key, SMTP password or PayPal
+    // client secret — return only flags indicating whether each is
+    // configured.
+    const { fiscalizationApiKey, smtpPass, paypalClientSecret, ...safe } = company;
     res.json({
       ...safe,
       hasFiscalizationKey: !!fiscalizationApiKey,
       hasSmtpConfig: !!(company.smtpHost && company.smtpUser && smtpPass),
+      hasPaypalConfig: !!(company.paypalClientId && paypalClientSecret),
     });
   } catch (error) {
     next(error);
@@ -133,6 +137,7 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
       legalForm, capital, representativeName, representativeRole,
       cnssEmployerRate, cnssEmployeeRate, fiscalizationApiKey,
       smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass, smtpFromName,
+      paypalClientId, paypalClientSecret,
     } = req.body;
     console.log('Updating company for user:', req.user!.id, 'companyId:', req.user!.companyId);
 
@@ -147,9 +152,11 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
       return res.status(400).json({ error: 'Clé API SFEC invalide (16+ caractères requis).' });
     }
 
-    // SMTP password is write-only for the same reason — GET never returns
-    // it, so a blank field on save must mean "keep the existing password".
+    // SMTP password and PayPal client secret are write-only for the same
+    // reason — GET never returns them, so a blank field on save must mean
+    // "keep the existing value".
     const trimmedSmtpPass = smtpPass ? String(smtpPass).trim() : '';
+    const trimmedPaypalSecret = paypalClientSecret ? String(paypalClientSecret).trim() : '';
 
     const result = await req.db.query(
       `UPDATE public.companies SET
@@ -162,8 +169,10 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
         "fiscalizationApiKey" = CASE WHEN $25 = '' THEN "fiscalizationApiKey" ELSE $25 END,
         "smtpHost" = $26, "smtpPort" = $27, "smtpSecure" = $28, "smtpUser" = $29,
         "smtpPass" = CASE WHEN $30 = '' THEN "smtpPass" ELSE $30 END,
-        "smtpFromName" = $31
-      WHERE id = $32`,
+        "smtpFromName" = $31,
+        "paypalClientId" = $32,
+        "paypalClientSecret" = CASE WHEN $33 = '' THEN "paypalClientSecret" ELSE $33 END
+      WHERE id = $34`,
       [
         name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address,
         country || 'AFRIQUE', state, logo || null, accountingStandard || 'OHADA',
@@ -180,6 +189,8 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
         smtpUser || null,
         trimmedSmtpPass,
         smtpFromName || null,
+        paypalClientId || null,
+        trimmedPaypalSecret,
         req.user!.companyId,
       ],
     );
@@ -192,15 +203,80 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
       console.error('Company not found after update for id:', req.user!.companyId);
       return res.status(404).json({ error: 'Company not found' });
     }
-    // Never echo the raw fiscalization API key or SMTP password.
-    const { fiscalizationApiKey: storedKey, smtpPass: storedSmtpPass, ...safe } = updatedCompany;
+    // Never echo the raw fiscalization API key, SMTP password or PayPal
+    // client secret.
+    const { fiscalizationApiKey: storedKey, smtpPass: storedSmtpPass, paypalClientSecret: storedPaypalSecret, ...safe } = updatedCompany;
     res.json({
       ...safe,
       hasFiscalizationKey: !!storedKey,
       hasSmtpConfig: !!(updatedCompany.smtpHost && updatedCompany.smtpUser && storedSmtpPass),
+      hasPaypalConfig: !!(updatedCompany.paypalClientId && storedPaypalSecret),
     });
   } catch (error) {
     console.error('Error updating company:', error);
+    next(error);
+  }
+});
+
+/**
+ * Creates a real PayPal order to verify the company's own live PayPal
+ * credentials actually work. Priced at the USD equivalent of 100 XAF
+ * (PayPal doesn't accept XAF as a transaction currency) — the customer
+ * completes the payment themselves on PayPal's site via the returned
+ * `approveUrl`, then the frontend calls the capture route below.
+ */
+companyRouter.post('/paypal/test-payment', requireManager, async (req, res, next) => {
+  try {
+    const companyRes = await req.db.query(
+      'SELECT "paypalClientId", "paypalClientSecret" FROM public.companies WHERE id = $1',
+      [req.user!.companyId],
+    );
+    const company = companyRes.rows[0];
+    if (!company?.paypalClientId || !company?.paypalClientSecret) {
+      return res.status(400).json({ error: "PayPal n'est pas configuré pour cette société." });
+    }
+
+    const amountUsd = await xafToUsdAmount(100);
+    const base = process.env.PAYPAL_RETURN_URL_BASE || `${req.protocol}://${req.get('host')}`;
+    const order = await createOrder(
+      { paypalClientId: company.paypalClientId, paypalClientSecret: company.paypalClientSecret },
+      {
+        amountUsd,
+        description: 'SmartDesk — Paiement test (≈100 XAF)',
+        returnUrl: `${base}/settings?tab=company&paypalTest=return`,
+        cancelUrl: `${base}/settings?tab=company&paypalTest=cancel`,
+      },
+    );
+
+    const approveUrl = (order.links || []).find((l: any) => l.rel === 'approve')?.href || null;
+    res.json({ orderId: order.id, approveUrl, amountUsd });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** Captures a test order after the user approved it on PayPal's site. */
+companyRouter.post('/paypal/test-payment/capture', requireManager, async (req, res, next) => {
+  try {
+    const { orderId } = req.body || {};
+    if (!orderId) return res.status(400).json({ error: 'orderId manquant.' });
+
+    const companyRes = await req.db.query(
+      'SELECT "paypalClientId", "paypalClientSecret" FROM public.companies WHERE id = $1',
+      [req.user!.companyId],
+    );
+    const company = companyRes.rows[0];
+    if (!company?.paypalClientId || !company?.paypalClientSecret) {
+      return res.status(400).json({ error: "PayPal n'est pas configuré pour cette société." });
+    }
+
+    const capture = await captureOrder(
+      { paypalClientId: company.paypalClientId, paypalClientSecret: company.paypalClientSecret },
+      orderId,
+    );
+    const capturedAmount = capture.purchase_units?.[0]?.payments?.captures?.[0]?.amount;
+    res.json({ status: capture.status, amount: capturedAmount || null });
+  } catch (error) {
     next(error);
   }
 });
