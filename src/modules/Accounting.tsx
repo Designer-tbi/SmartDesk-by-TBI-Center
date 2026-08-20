@@ -79,11 +79,16 @@ export const Accounting = ({ user }: { user?: any }) => {
       const invoicesRes = await apiFetch('/api/invoices');
       if (!invoicesRes.ok) throw new Error('Failed to fetch invoices');
       const invoicesData = await invoicesRes.json();
-      
-      const paidInvoices = invoicesData.filter((inv: any) => inv.status === 'paid' || inv.status === 'Paiement partiel');
-      
-      const existingRefs = new Set(journalEntries.map((j: any) => j.reference));
-      const newInvoices = paidInvoices.filter((inv: any) => !existingRefs.has(inv.number));
+
+      // Paid invoices are normally auto-posted to the journal the moment
+      // they're marked Paid (server-side, keyed by sourceRef=invoice id).
+      // This button is a manual backfill/safety-net for anything that
+      // slipped through — so it must key off the SAME sourceRef the
+      // automatic path uses, or it would double-post everything.
+      const paidInvoices = invoicesData.filter((inv: any) => inv.type === 'Invoice' && inv.status === 'Paid');
+
+      const existingRefs = new Set(journalEntries.map((j: any) => j.sourceRef).filter(Boolean));
+      const newInvoices = paidInvoices.filter((inv: any) => !existingRefs.has(inv.id));
 
       if (newInvoices.length === 0) {
         alert(t('accounting.noNewInvoices'));
@@ -94,7 +99,7 @@ export const Accounting = ({ user }: { user?: any }) => {
       for (const inv of newInvoices) {
         try {
           const suggestion = await suggestAccountingEntry(
-            `Facture client ${inv.number} - ${inv.clientName}`,
+            `Facture ${inv.id}`,
             inv.total,
             standard
           );
@@ -103,22 +108,22 @@ export const Accounting = ({ user }: { user?: any }) => {
             const res = await apiFetch('/api/journal-entries', {
               method: 'POST',
               body: JSON.stringify({
+                id: `je_manual_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
                 companyId: companyInfo.id,
                 date: inv.date,
-                reference: inv.number,
-                description: `Auto: ${inv.clientName} (${inv.number})`,
+                sourceRef: inv.id,
+                description: `Auto: Facture ${inv.id}`,
                 items: suggestion.items.map((l: any) => ({
                   accountId: l.accountId,
                   debit: l.debit,
                   credit: l.credit
                 })),
-                status: 'draft'
               })
             });
             if (res.ok) count++;
           }
         } catch (err) {
-          console.error(`Failed to automate invoice ${inv.number}:`, err);
+          console.error(`Failed to automate invoice ${inv.id}:`, err);
         }
       }
       

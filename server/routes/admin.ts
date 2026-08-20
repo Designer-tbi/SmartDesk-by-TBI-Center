@@ -133,9 +133,7 @@ adminRouter.post('/companies', async (req, res, next) => {
     
     // Create company. Demo companies get the DGID fiscalization API key
     // baked in so invoices can be auto-certified on creation.
-    const dgidKey = type === 'demo'
-      ? (process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c')
-      : null;
+    const dgidKey = type === 'demo' ? (process.env.DGID_DEMO_API_KEY || null) : null;
     await req.db.query('INSERT INTO public.companies (id, name, type, status, phone, email, "createdAt", "schemaName", "fiscalizationApiKey") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
       [id, name, type, status || 'active', adminPhone || null, adminEmail || null, new Date().toISOString(), schemaName, dgidKey]);
     
@@ -179,13 +177,12 @@ adminRouter.put('/companies/:id', async (req, res, next) => {
       [name, type, status, id]);
     // Keep the DGID demo key in sync when a company becomes demo / ceases
     // to be demo. Non-demo companies get the key cleared for safety.
-    if (type === 'demo') {
-      const dgidKey = process.env.DGID_DEMO_API_KEY || '97ecc2858d30bfe83f8f4b4f66250fd5eda6c41af396dada290ea4144bfd943c';
+    if (type === 'demo' && process.env.DGID_DEMO_API_KEY) {
       await req.db.query(
         `UPDATE public.companies SET "fiscalizationApiKey" = $1 WHERE id = $2 AND ("fiscalizationApiKey" IS NULL OR "fiscalizationApiKey" = '')`,
-        [dgidKey, id],
+        [process.env.DGID_DEMO_API_KEY, id],
       );
-    } else {
+    } else if (type !== 'demo') {
       await req.db.query(`UPDATE public.companies SET "fiscalizationApiKey" = NULL WHERE id = $1`, [id]);
     }
     res.json({ id, name, type, status });
@@ -332,6 +329,83 @@ adminRouter.delete('/users/:id', async (req, res, next) => {
       throw e;
     }
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+/* -------------------------------------------------------------- */
+/* Mobile Money — manual payment confirmation                      */
+/* -------------------------------------------------------------- */
+
+adminRouter.get('/mobile-money', async (req, res, next) => {
+  try {
+    const status = req.query.status === 'all' ? null : (req.query.status as string) || 'pending';
+    const r = await req.db.query(
+      status
+        ? `SELECT m.*, c.name as "companyName", c.country
+             FROM mobile_money_payments m
+             JOIN public.companies c ON c.id = m."companyId"
+            WHERE m.status = $1
+            ORDER BY m."createdAt" DESC`
+        : `SELECT m.*, c.name as "companyName", c.country
+             FROM mobile_money_payments m
+             JOIN public.companies c ON c.id = m."companyId"
+            ORDER BY m."createdAt" DESC`,
+      status ? [status] : [],
+    );
+    res.json(r.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post('/mobile-money/:id/confirm', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    await req.db.query('BEGIN');
+    const r = await req.db.query(
+      `SELECT * FROM mobile_money_payments WHERE id = $1 AND status = 'pending'`,
+      [id],
+    );
+    const payment = r.rows[0];
+    if (!payment) {
+      await req.db.query('ROLLBACK');
+      return res.status(404).json({ error: 'Paiement introuvable ou déjà traité.' });
+    }
+
+    const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await req.db.query(
+      `UPDATE mobile_money_payments
+          SET status = 'confirmed', "confirmedAt" = NOW(), "confirmedBy" = $1
+        WHERE id = $2`,
+      [req.user!.id, id],
+    );
+    await req.db.query(
+      `UPDATE public.companies
+          SET "subscriptionStatus" = 'active', "subscriptionPlan" = 'MOBILE_MONEY',
+              "subscriptionPeriodEnd" = $1
+        WHERE id = $2`,
+      [periodEnd, payment.companyId],
+    );
+    await req.db.query('COMMIT');
+    res.json({ ok: true, companyId: payment.companyId, subscriptionPeriodEnd: periodEnd });
+  } catch (error) {
+    await req.db.query('ROLLBACK');
+    next(error);
+  }
+});
+
+adminRouter.post('/mobile-money/:id/reject', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const r = await req.db.query(
+      `UPDATE mobile_money_payments SET status = 'rejected', "confirmedAt" = NOW(), "confirmedBy" = $1
+        WHERE id = $2 AND status = 'pending' RETURNING id`,
+      [req.user!.id, id],
+    );
+    if (!r.rowCount) return res.status(404).json({ error: 'Paiement introuvable ou déjà traité.' });
+    res.json({ ok: true });
   } catch (error) {
     next(error);
   }

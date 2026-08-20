@@ -1,10 +1,21 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { requireTenant } from '../middleware/auth.js';
+import { isManagerRole } from '../utils/roles.js';
 import bcrypt from 'bcryptjs';
 
 export const companyRouter = Router();
 
 companyRouter.use(...requireTenant);
+
+// Company settings, user management and role management are admin-only —
+// any authenticated tenant member was previously able to create/promote
+// users, edit roles/permissions, and wipe all CRM/accounting data.
+const requireManager = (req: Request, res: Response, next: NextFunction) => {
+  if (!isManagerRole(req.user!.role)) {
+    return res.status(403).json({ error: 'Forbidden: réservé aux administrateurs.' });
+  }
+  next();
+};
 
 companyRouter.get('/', async (req, res, next) => {
   try {
@@ -109,7 +120,7 @@ companyRouter.post('/onboarding', async (req, res, next) => {
   }
 });
 
-companyRouter.put('/', async (req, res, next) => {
+companyRouter.put('/', requireManager, async (req, res, next) => {
   try {
     const {
       name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address,
@@ -121,7 +132,9 @@ companyRouter.put('/', async (req, res, next) => {
 
     // SFEC key is Congo-specific and optional — an empty string means
     // "leave the existing key untouched" (Settings never receives the raw
-    // key back from GET, so a blank field must not wipe it out).
+    // key back from GET, so a blank field must not wipe it out). This also
+    // lets a company rotate a compromised key or set one that was skipped
+    // at onboarding time, from Settings.
     const trimmedKey = fiscalizationApiKey ? String(fiscalizationApiKey).trim() : '';
     const isCongo = String(country || '').toUpperCase() === 'CG' || String(country || '').toUpperCase() === 'CONGO';
     if (isCongo && trimmedKey && trimmedKey.length < 16) {
@@ -169,7 +182,44 @@ companyRouter.put('/', async (req, res, next) => {
   }
 });
 
-companyRouter.post('/reset-crm', async (req, res, next) => {
+// Polling fallback for automation toasts (INVOICE_AUTO_CREATED,
+// JOURNAL_AUTO_CREATED, PAYSLIP_AUTO_CREATED — see
+// src/lib/useAutomationNotifications.ts) AND the header's notification
+// bell (src/components/layout/NotificationBell.tsx). Automation events
+// are also broadcast over the WebSocket, but that server is only started
+// outside of Vercel's serverless runtime (see server.ts) — on Vercel it
+// never fires, so nothing durable ever told the client an automation
+// ran. The actions below are additionally logged to activity_log for
+// exactly this reason.
+//
+// `?actions=A,B,C` restricts to those action ids (used by the toast
+// poller); omitted, every action for the tenant is returned (used by the
+// bell) except super-admin actions, which aren't meaningful to a regular
+// tenant member.
+companyRouter.get('/activity/recent', async (req, res, next) => {
+  try {
+    const since = typeof req.query.since === 'string' ? req.query.since : null;
+    const actionsParam = typeof req.query.actions === 'string' ? req.query.actions : null;
+    const actions = actionsParam ? actionsParam.split(',').filter(Boolean) : null;
+    const limit = actions ? 20 : 30;
+    const result = await req.db.query(
+      `SELECT a.id, a.action, a.details, a."createdAt" FROM activity_log a
+       LEFT JOIN public.users u ON a."userId" = u.id
+       WHERE a."companyId" = $1
+         AND ($2::text[] IS NULL OR a.action = ANY($2))
+         AND ($3::timestamptz IS NULL OR a."createdAt" > $3::timestamptz)
+         AND (u.role IS NULL OR u.role != 'super_admin')
+       ORDER BY a."createdAt" ASC
+       LIMIT ${limit}`,
+      [req.user!.companyId, actions, since],
+    );
+    res.json(result.rows);
+  } catch (error) {
+    next(error);
+  }
+});
+
+companyRouter.post('/reset-crm', requireManager, async (req, res, next) => {
   try {
     await req.db.query('BEGIN');
     
@@ -196,7 +246,7 @@ companyRouter.post('/reset-crm', async (req, res, next) => {
   }
 });
 
-companyRouter.post('/reset-accounting', async (req, res, next) => {
+companyRouter.post('/reset-accounting', requireManager, async (req, res, next) => {
   try {
     await req.db.query('BEGIN');
     
@@ -229,7 +279,7 @@ companyRouter.get('/roles', async (req, res, next) => {
   }
 });
 
-companyRouter.post('/roles', async (req, res, next) => {
+companyRouter.post('/roles', requireManager, async (req, res, next) => {
   try {
     const role = req.body;
     await req.db.query('BEGIN');
@@ -250,7 +300,7 @@ companyRouter.post('/roles', async (req, res, next) => {
   }
 });
 
-companyRouter.put('/roles/:id', async (req, res, next) => {
+companyRouter.put('/roles/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, permissions } = req.body;
@@ -279,7 +329,7 @@ companyRouter.put('/roles/:id', async (req, res, next) => {
   }
 });
 
-companyRouter.delete('/roles/:id', async (req, res, next) => {
+companyRouter.delete('/roles/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     await req.db.query('BEGIN');
@@ -309,9 +359,15 @@ companyRouter.get('/users', async (req, res, next) => {
   }
 });
 
-companyRouter.post('/users', async (req, res, next) => {
+companyRouter.post('/users', requireManager, async (req, res, next) => {
   try {
     const { id, email, password, role, name, status } = req.body;
+    if (!email || !name) {
+      return res.status(400).json({ error: 'Email et nom sont requis.' });
+    }
+    if (!password || String(password).length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
+    }
     const hashedPassword = await bcrypt.hash(password, 10);
     await req.db.query('INSERT INTO public.users (id, "companyId", email, password, role, name, status) VALUES ($1, $2, $3, $4, $5, $6, $7)',
       [id, req.user!.companyId, email, hashedPassword, role, name, status || 'Active']);
@@ -321,19 +377,23 @@ companyRouter.post('/users', async (req, res, next) => {
   }
 });
 
-companyRouter.put('/users/:id', async (req, res, next) => {
+companyRouter.put('/users/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { email, role, name, status } = req.body;
-    await req.db.query('UPDATE public.users SET email = $1, role = $2, name = $3, status = $4 WHERE id = $5 AND "companyId" = $6',
+    if (!email || !name) {
+      return res.status(400).json({ error: 'Email et nom sont requis.' });
+    }
+    const result = await req.db.query('UPDATE public.users SET email = $1, role = $2, name = $3, status = $4 WHERE id = $5 AND "companyId" = $6',
       [email, role, name, status, id, req.user!.companyId]);
+    if (!result.rowCount) return res.status(404).json({ error: 'Utilisateur introuvable.' });
     res.json({ id, companyId: req.user!.companyId, email, role, name, status });
   } catch (error) {
     next(error);
   }
 });
 
-companyRouter.delete('/users/:id', async (req, res, next) => {
+companyRouter.delete('/users/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     try {

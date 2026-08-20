@@ -1,12 +1,17 @@
 # Test Credentials
 
+Real passwords must never be committed to this file — see the security
+fixes on branch `claude/code-verification-0e8qdg`. Store actual values in
+your secrets manager / local `.env` and reference the account by email only
+here.
+
 ## Super Admin
 - Email: eden@tbi-center.fr
-- Password: loub@ki2014D
+- Password: set via `SUPER_ADMIN_SEED_PASSWORD` on first seed only (no
+  longer hardcoded or reset on every boot — see `db.ts`).
 
 ## Demo Company (CG — Republic of Congo) — Onboarding RESET
 - Email: designer@tbi-center.fr
-- Password: admin
 - Company ID: demo-company-1778004153821
 - Country: CG
 - onboardingCompleted=false (fresh wizard test)
@@ -14,7 +19,6 @@
 
 ## Demo Company (CD — RDC, currency CDF) — Onboarding RESET
 - Email: ariane.mbombo@tbi-center.fr
-- Password: admin
 - Company ID: demo-company-1777919795902
 - Country: CD
 - Currency: CDF
@@ -22,7 +26,6 @@
 
 ## Demo Company (CD — RDC, currency USD) — Already onboarded
 - Email: plamedi.fika@tbi-center.fr
-- Password: admin
 - Company ID: demo-company-1778066583519
 - Country: CD
 - Currency: USD

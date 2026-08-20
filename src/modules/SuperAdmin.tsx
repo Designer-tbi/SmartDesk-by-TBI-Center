@@ -3,12 +3,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../lib/i18n';
 import { apiFetch } from '../lib/api';
 import { useWebSocket } from '../lib/websocket';
-import { Building2, Users, Activity, Trash2, Edit2, Plus, CheckCircle2, XCircle, X, Search, Clock, PauseCircle, PlayCircle } from 'lucide-react';
+import { Building2, Users, Activity, Trash2, Edit2, Plus, CheckCircle2, XCircle, X, Search, Clock, PauseCircle, PlayCircle, Smartphone } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const SuperAdmin = () => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'companies' | 'users' | 'activity'>('companies');
+  const [activeTab, setActiveTab] = useState<'companies' | 'users' | 'activity' | 'mobileMoney'>('companies');
+  const [mobileMoneyPayments, setMobileMoneyPayments] = useState<any[]>([]);
+  const [mobileMoneyLoading, setMobileMoneyLoading] = useState(false);
   const [companyFilter, setCompanyFilter] = useState<'all' | 'real' | 'demo'>('all');
   const [userSearch, setUserSearch] = useState('');
   const [stats, setStats] = useState<any>(null);
@@ -76,6 +78,45 @@ export const SuperAdmin = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const fetchMobileMoneyPayments = async () => {
+    setMobileMoneyLoading(true);
+    try {
+      const res = await apiFetch('/api/admin/mobile-money?status=pending');
+      if (res.ok) setMobileMoneyPayments(await res.json());
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setMobileMoneyLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'mobileMoney') fetchMobileMoneyPayments();
+  }, [activeTab]);
+
+  const handleConfirmMobileMoney = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/admin/mobile-money/${id}/confirm`, { method: 'POST' });
+      if (res.ok) {
+        fetchMobileMoneyPayments();
+        fetchData();
+      } else {
+        setError('Échec de la confirmation du paiement.');
+      }
+    } catch (err) {
+      setError('Erreur de connexion.');
+    }
+  };
+
+  const handleRejectMobileMoney = async (id: string) => {
+    try {
+      const res = await apiFetch(`/api/admin/mobile-money/${id}/reject`, { method: 'POST' });
+      if (res.ok) fetchMobileMoneyPayments();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const fetchCompanyUsers = async (companyId: string) => {
     try {
@@ -310,13 +351,21 @@ export const SuperAdmin = () => {
           >
             {t('admin.users')}
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('activity')}
             className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
               activeTab === 'activity' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             {t('admin.activity')}
+          </button>
+          <button
+            onClick={() => setActiveTab('mobileMoney')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5 ${
+              activeTab === 'mobileMoney' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Smartphone className="w-3.5 h-3.5" /> Mobile Money
           </button>
         </div>
       </div>
@@ -667,6 +716,69 @@ export const SuperAdmin = () => {
                   </div>
                 )}
               </div>
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'mobileMoney' && (
+          <motion.div
+            key="mobileMoney"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+          >
+            <div className="p-6 border-b border-slate-200">
+              <h2 className="text-lg font-bold text-slate-900">Paiements Mobile Money en attente</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Vérifiez la réception du transfert Airtel Money / MTN Mobile Money puis confirmez pour activer l'abonnement du client pour 30 jours.
+              </p>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                  <tr>
+                    <th className="text-left p-4">Entreprise</th>
+                    <th className="text-left p-4">Opérateur</th>
+                    <th className="text-left p-4">Téléphone</th>
+                    <th className="text-left p-4">Référence</th>
+                    <th className="text-left p-4">Montant</th>
+                    <th className="text-left p-4">Demandé le</th>
+                    <th className="text-right p-4">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mobileMoneyPayments.map((p) => (
+                    <tr key={p.id} className="border-t border-slate-100">
+                      <td className="p-4 font-medium text-slate-900">{p.companyName} <span className="text-slate-400 font-normal">({p.country})</span></td>
+                      <td className="p-4 capitalize">{p.provider === 'airtel' ? 'Airtel Money' : 'MTN Mobile Money'}</td>
+                      <td className="p-4">{p.phoneNumber}</td>
+                      <td className="p-4 font-mono text-xs">{p.referenceCode}</td>
+                      <td className="p-4">{p.amountLocal}</td>
+                      <td className="p-4 text-slate-500">{new Date(p.createdAt).toLocaleString('fr-FR')}</td>
+                      <td className="p-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => handleConfirmMobileMoney(p.id)}
+                            className="px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold hover:bg-emerald-100 flex items-center gap-1"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" /> Confirmer
+                          </button>
+                          <button
+                            onClick={() => handleRejectMobileMoney(p.id)}
+                            className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 flex items-center gap-1"
+                          >
+                            <XCircle className="w-3.5 h-3.5" /> Rejeter
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!mobileMoneyLoading && mobileMoneyPayments.length === 0 && (
+                <div className="text-center py-12 text-slate-500">Aucun paiement Mobile Money en attente.</div>
+              )}
             </div>
           </motion.div>
         )}

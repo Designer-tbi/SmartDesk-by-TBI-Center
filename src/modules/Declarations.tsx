@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { apiFetch } from '../lib/api';
 import {
   Routes,
   Route,
@@ -232,12 +233,21 @@ const DECLARATIONS_2026: Declaration[] = (() => {
  * ------------------------------------------------------------------ */
 
 const TODAY = new Date();
+// The 2026 calendar below is sourced from the actual Finance Law text
+// (article numbers included). Deadlines are structural (Nth of the
+// month) and mostly stable year to year, but legal article references
+// are NOT safely extrapolatable to other years without the real text —
+// fabricating a citation would be worse than admitting the data is
+// pinned to 2026. Surface that honestly instead of silently going stale.
+const DATA_YEAR = 2026;
 
 function computeStatus(dueIso: string): Status {
   const due = new Date(dueIso);
-  const diffDays = Math.floor((due.getTime() - TODAY.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays < -1) return 'late';
-  if (diffDays < 0) return 'pending';
+  // Compare at midnight so "due today" isn't counted as already late by a
+  // few hours of wall-clock drift.
+  const todayMidnight = new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
+  const diffDays = Math.floor((due.getTime() - todayMidnight.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return 'late';
   if (diffDays <= 30) return 'upcoming';
   return 'pending';
 }
@@ -275,6 +285,63 @@ const STATUS_META: Record<Status, { label: string; badgeCls: string; icon: any; 
     dotCls: 'bg-red-600',
   },
 };
+
+/**
+ * Persisted per-tenant "filed / paid" state for each declaration — the
+ * calendar dates are the same for everyone, but whether a given company
+ * has actually filed a given obligation is per-tenant.
+ */
+function useDeclarationStatus() {
+  const [doneMap, setDoneMap] = useState<Record<string, { doneAt: string; note?: string }>>({});
+  const [loaded, setLoaded] = useState(false);
+
+  const refresh = useCallback(async () => {
+    try {
+      const r = await apiFetch('/api/declarations/status');
+      if (r.ok) {
+        const rows: Array<{ declarationId: string; doneAt: string; note?: string }> = await r.json();
+        const map: Record<string, { doneAt: string; note?: string }> = {};
+        for (const row of rows) map[row.declarationId] = { doneAt: row.doneAt, note: row.note };
+        setDoneMap(map);
+      }
+    } catch {
+      /* non-fatal — the calendar still works without persisted state */
+    } finally {
+      setLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
+
+  const markDone = useCallback(async (declarationId: string) => {
+    setDoneMap((prev) => ({ ...prev, [declarationId]: { doneAt: new Date().toISOString() } }));
+    try {
+      await apiFetch(`/api/declarations/status/${declarationId}`, { method: 'POST' });
+    } catch {
+      refresh();
+    }
+  }, [refresh]);
+
+  const markUndone = useCallback(async (declarationId: string) => {
+    setDoneMap((prev) => {
+      const next = { ...prev };
+      delete next[declarationId];
+      return next;
+    });
+    try {
+      await apiFetch(`/api/declarations/status/${declarationId}`, { method: 'DELETE' });
+    } catch {
+      refresh();
+    }
+  }, [refresh]);
+
+  const effectiveStatus = useCallback(
+    (d: Declaration): Status => (doneMap[d.id] ? 'done' : computeStatus(d.dueDate)),
+    [doneMap],
+  );
+
+  return { doneMap, loaded, markDone, markUndone, effectiveStatus };
+}
 
 function formatFr(dateIso: string): string {
   return new Date(dateIso).toLocaleDateString('fr-FR', {
@@ -320,14 +387,15 @@ const CategoryChip = ({ cat }: { cat: Category }) => {
 
 const DeclarationsDashboard = () => {
   const [filterCat, setFilterCat] = useState<Category | 'ALL'>('ALL');
+  const { effectiveStatus, markDone } = useDeclarationStatus();
 
   const declarations = useMemo(
     () =>
       DECLARATIONS_2026.filter((d) => filterCat === 'ALL' || d.category === filterCat).map((d) => ({
         ...d,
-        status: computeStatus(d.dueDate),
+        status: effectiveStatus(d),
       })),
-    [filterCat],
+    [filterCat, effectiveStatus],
   );
 
   const counts = useMemo(() => {
@@ -349,7 +417,7 @@ const DeclarationsDashboard = () => {
     }));
     for (const d of declarations) {
       const due = new Date(d.dueDate);
-      if (due.getFullYear() === 2026) {
+      if (due.getFullYear() === DATA_YEAR) {
         buckets[due.getMonth()][d.category] += 1;
       }
     }
@@ -406,6 +474,8 @@ const DeclarationsDashboard = () => {
           ))}
         </div>
       </header>
+
+      <StaleDataBanner />
 
       {/* KPI cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -549,13 +619,36 @@ const DeclarationsDashboard = () => {
                       </p>
                     </div>
                   </div>
-                  <StatusBadge status={d.status} />
+                  <div className="flex items-center gap-2 shrink-0">
+                    <StatusBadge status={d.status} />
+                    <button
+                      onClick={() => markDone(d.id)}
+                      data-testid={`mark-done-${d.id}`}
+                      className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1 hover:bg-emerald-100 transition-colors"
+                    >
+                      Marquer fait
+                    </button>
+                  </div>
                 </div>
               );
             })
           )}
         </div>
       </section>
+    </div>
+  );
+};
+
+const StaleDataBanner = () => {
+  if (TODAY.getFullYear() === DATA_YEAR) return null;
+  return (
+    <div className="flex items-start gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+      <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+      <p>
+        Ce calendrier reste calibré sur la <strong>Loi de Finances {DATA_YEAR}</strong>.
+        Les échéances de {TODAY.getFullYear()} n'ont pas encore été vérifiées contre le texte
+        officiel de l'année en cours — vérifiez les dates auprès de la DGID/CNSS avant de vous y fier.
+      </p>
     </div>
   );
 };
@@ -605,6 +698,7 @@ const KpiCard = ({
 const DeclarationsCalendar = () => {
   const [month, setMonth] = useState(0); // 0 = Jan 2026
   const [catFilter, setCatFilter] = useState<Category | 'ALL'>('ALL');
+  const { effectiveStatus, markDone, markUndone } = useDeclarationStatus();
 
   const monthNames = [
     'Janvier 2026', 'Février 2026', 'Mars 2026', 'Avril 2026',
@@ -615,12 +709,12 @@ const DeclarationsCalendar = () => {
   const eventsInMonth = useMemo(() => {
     return DECLARATIONS_2026.filter((d) => {
       const dt = new Date(d.dueDate);
-      if (dt.getFullYear() !== 2026) return false;
+      if (dt.getFullYear() !== DATA_YEAR) return false;
       if (dt.getMonth() !== month) return false;
       if (catFilter !== 'ALL' && d.category !== catFilter) return false;
       return true;
-    }).map((d) => ({ ...d, status: computeStatus(d.dueDate) }));
-  }, [month, catFilter]);
+    }).map((d) => ({ ...d, status: effectiveStatus(d) }));
+  }, [month, catFilter, effectiveStatus]);
 
   // Build calendar grid (weeks x days) for the selected month.
   const { weeks, year, monthIdx } = useMemo(() => {
@@ -679,6 +773,8 @@ const DeclarationsCalendar = () => {
           ))}
         </div>
       </header>
+
+      <StaleDataBanner />
 
       {/* Month nav */}
       <div className="flex items-center justify-between bg-white border border-slate-200 rounded-2xl p-4">
@@ -815,6 +911,23 @@ const DeclarationsCalendar = () => {
                       <p className="text-xs text-slate-600 mt-1">{ev.description}</p>
                     )}
                   </div>
+                  {ev.status === 'done' ? (
+                    <button
+                      onClick={() => markUndone(ev.id)}
+                      data-testid={`mark-undone-${ev.id}`}
+                      className="shrink-0 text-[11px] font-bold text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 hover:bg-slate-100 transition-colors"
+                    >
+                      Annuler
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => markDone(ev.id)}
+                      data-testid={`mark-done-${ev.id}`}
+                      className="shrink-0 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1 hover:bg-emerald-100 transition-colors"
+                    >
+                      Marquer fait
+                    </button>
+                  )}
                 </div>
               );
             })}

@@ -36,9 +36,19 @@ schedulesRouter.get('/', async (req, res, next) => {
     const params: any[] = [req.user!.companyId];
     
     if (!isAdmin) {
-      // Non-admin users only see their own user-bound schedules.
-      query += ` AND s."userId" = $2`;
-      params.push(req.user!.id);
+      // Non-admin users see their own user-bound schedules AND any
+      // schedule assigned to the HR employee record with a matching
+      // email — shifts are often assigned via the "Employés" (employeeId)
+      // side of the picker rather than the "Utilisateurs" (userId) side,
+      // and there's no formal users<->employees link, so email is the
+      // best available match.
+      query += ` AND (
+        s."userId" = $2
+        OR s."employeeId" IN (
+          SELECT id FROM public.employees WHERE "companyId" = $1 AND LOWER(email) = LOWER($3)
+        )
+      )`;
+      params.push(req.user!.id, req.user!.email || '');
     }
     
     query += ` ORDER BY s."startDate" ASC`;

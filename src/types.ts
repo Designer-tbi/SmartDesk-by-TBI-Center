@@ -99,6 +99,14 @@ export interface QuoteTemplate {
   lastModified: string;
 }
 
+export interface ProjectExpenseItem {
+  id: string;
+  description: string;
+  amount: number;
+  supplier?: string;
+  date?: string;
+}
+
 export interface Project {
   id: string;
   name: string;
@@ -113,6 +121,7 @@ export interface Project {
   priority?: 'Low' | 'Medium' | 'High';
   budget?: number;
   teamIds?: string[];
+  expenseItems?: ProjectExpenseItem[];
 }
 
 export interface Employee {
@@ -134,7 +143,12 @@ export interface Employee {
 export interface LeaveRequest {
   id: string;
   employeeId: string;
-  type: 'Annual' | 'Sick' | 'Maternity' | 'Other';
+  // Free text from a fixed set of options (see LeaveRequestModal.tsx):
+  // 'Congé annuel' | 'Congé maladie' | 'Congé maternité' | 'Congé sans
+  // solde' | 'Permission exceptionnelle'. Not a strict union — the old
+  // English union here ('Annual' | 'Sick' | ...) never matched what the
+  // UI actually writes.
+  type: string;
   startDate: string;
   endDate: string;
   status: 'Pending' | 'Approved' | 'Rejected';
@@ -261,7 +275,12 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  roleId: string;
+  // GET /api/company/users actually returns `role` (the roles table id),
+  // not `roleId` — kept both to avoid breaking existing local form state
+  // that uses `roleId`, but code reading the fetched user list should
+  // use `role`.
+  role?: string;
+  roleId?: string;
   status: 'Active' | 'Inactive';
   lastLogin?: string;
 }

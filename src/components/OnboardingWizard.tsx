@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Sparkles, Globe, MapPin, Building2, KeyRound, ShieldCheck, Loader2, Radar,
@@ -151,6 +151,25 @@ export const OnboardingWizard = ({ onCompleted }: Props) => {
   const isOhada = country.defaultStandard === 'OHADA';
   const isCongo = country.code === 'CG';
   const lastStep: Step = isCongo ? 5 : isOhada ? 4 : 3;
+
+  // Pre-fill from whatever the company already has on file (e.g. the name,
+  // email and phone collected on the demo request form) so the wizard is a
+  // confirmation step, not a re-entry of information the user already gave.
+  useEffect(() => {
+    apiFetch('/api/company')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((company) => {
+        if (!company) return;
+        if (company.name) setName((prev) => prev || company.name.replace(/\s*\([A-Z]{2}\)\s*$/, ''));
+        if (company.phone) setPhone((prev) => prev || company.phone);
+        if (company.email) setEmail((prev) => prev || company.email);
+        if (company.address) setAddress((prev) => prev || company.address);
+        if (company.niu) setNiu((prev) => prev || company.niu);
+        if (company.taxId) setTaxId((prev) => prev || company.taxId);
+        if (company.rccm) setRccm((prev) => prev || company.rccm);
+      })
+      .catch(() => { /* onboarding still works blank if this fails */ });
+  }, []);
 
   const handleAutoDetect = async () => {
     setAutoDetecting(true);

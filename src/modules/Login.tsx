@@ -22,7 +22,11 @@ export const Login = ({ onLogin }: LoginProps) => {
   const [successMessage, setSuccessMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  const [regForm, setRegForm] = useState({ nom: '', prenom: '', email: '', telephone: '', companyName: '', country: 'FR', state: '' });
+  const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+
+  const [regForm, setRegForm] = useState({ nom: '', prenom: '', email: '', telephone: '', companyName: '', country: 'CG', state: '' });
+  const [countryTouched, setCountryTouched] = useState(false);
   const [geoDetected, setGeoDetected] = useState(false);
   const [langAutoApplied, setLangAutoApplied] = useState(false);
 
@@ -44,8 +48,8 @@ export const Login = ({ onLogin }: LoginProps) => {
   }, []);
 
   // Pre-fill the country from the visitor's IP as soon as the user opens
-  // the inscription form. We only override the default 'FR' placeholder,
-  // never a choice the user already made.
+  // the inscription form. We only override the untouched default — never
+  // a choice the user already made in the dropdown.
   useEffect(() => {
     if (!isRegistering || geoDetected) return;
     let cancelled = false;
@@ -53,8 +57,7 @@ export const Login = ({ onLogin }: LoginProps) => {
       const iso = await fetchDetectedCountry();
       if (cancelled) return;
       setRegForm((prev) => {
-        // Don't overwrite an explicit user choice.
-        if (prev.country && prev.country !== 'FR') return prev;
+        if (countryTouched) return prev;
         // Restrict to the list offered in the signup dropdown.
         const allowed = new Set(['FR', 'CG', 'CI', 'SN', 'CM', 'CD']);
         return { ...prev, country: allowed.has(iso) ? iso : prev.country };
@@ -62,7 +65,7 @@ export const Login = ({ onLogin }: LoginProps) => {
       setGeoDetected(true);
     })();
     return () => { cancelled = true; };
-  }, [isRegistering, geoDetected]);
+  }, [isRegistering, geoDetected, countryTouched]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -153,28 +156,40 @@ export const Login = ({ onLogin }: LoginProps) => {
     setIsLoading(true);
     setError('');
     setSuccessMessage('');
-    
+
     try {
-      const code = Math.floor(100000 + Math.random() * 900000).toString();
-      
+      // The access code is generated server-side now (see /api/auth/send-demo-email).
       const response = await fetch('/api/auth/send-demo-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...regForm, code })
+        body: JSON.stringify(regForm)
       });
-      
+
+      const text = await response.text();
       if (response.ok) {
-        const text = await response.text();
         const data = JSON.parse(text);
+        // Skip the "note down your code and log in again" round-trip —
+        // sign the visitor straight into their new demo account.
         if (data.code) {
-          setSuccessMessage(t('login.accountCreated', { code: data.code }));
-        } else {
-          setSuccessMessage(t('login.codeSent'));
+          const loginRes = await fetch('/api/auth/login', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: regForm.email, password: data.code, demoMode: true }),
+          });
+          if (loginRes.ok) {
+            const loginData = await loginRes.json();
+            onLogin(loginData.user);
+            return;
+          }
         }
+        // Fallback: auto-login failed for some reason — show the code so
+        // the visitor can still log in manually.
+        setSuccessMessage(t('login.accountCreated', { code: data.code }));
         setIsRegistering(false);
+        setLoginMode('demo');
         setEmail(regForm.email);
       } else {
-        const text = await response.text();
         try {
           const errorData = JSON.parse(text);
           setError(errorData.error || t('login.invalidCredentials'));
@@ -182,6 +197,30 @@ export const Login = ({ onLogin }: LoginProps) => {
           console.error('Non-JSON error response:', text);
           setError(`Erreur serveur (${response.status})`);
         }
+      }
+    } catch (err) {
+      setError(t('login.connectionError'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    setSuccessMessage('');
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+      const data = await response.json().catch(() => null);
+      if (response.ok) {
+        setSuccessMessage(data?.message || 'Si un compte existe pour cet email, un lien de réinitialisation vient d\'être envoyé.');
+      } else {
+        setError(data?.error || t('login.connectionError'));
       }
     } catch (err) {
       setError(t('login.connectionError'));
@@ -322,7 +361,63 @@ export const Login = ({ onLogin }: LoginProps) => {
             </div>
 
             <AnimatePresence mode="wait">
-              {loginMode === 'demo' && isRegistering ? (
+              {forgotPasswordMode ? (
+                <motion.form
+                  key="forgot"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.5 }}
+                  onSubmit={handleForgotPassword}
+                  className="p-8 pt-0 space-y-4 flex-1"
+                >
+                  <p className="text-slate-400 text-sm">
+                    Indiquez votre email professionnel : nous vous envoyons un lien pour réinitialiser votre mot de passe.
+                  </p>
+                  {successMessage && (
+                    <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex items-center gap-3 text-emerald-400 text-sm">
+                      <CheckCircle2 className="w-5 h-5 shrink-0" />
+                      <p className="font-medium">{successMessage}</p>
+                    </div>
+                  )}
+                  {error && (
+                    <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center gap-3 text-red-400 text-sm">
+                      <AlertCircle className="w-5 h-5 shrink-0" />
+                      <p className="font-medium">{error}</p>
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Email</label>
+                    <div className="relative group">
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-accent-red transition-colors" />
+                      <input
+                        type="email"
+                        required
+                        className="w-full pl-12 pr-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/50 focus:border-accent-red transition-all placeholder:text-slate-600"
+                        placeholder="votre@email.com"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={isLoading}
+                    className="w-full py-4 bg-gradient-to-r from-accent-red to-primary-red text-white rounded-2xl font-bold text-sm hover:shadow-[0_0_30px_rgba(190,18,60,0.3)] transition-all active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-3 mt-4"
+                  >
+                    {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Envoyer le lien'}
+                  </button>
+                  <div className="text-center mt-2">
+                    <button
+                      type="button"
+                      onClick={() => { setForgotPasswordMode(false); setError(''); setSuccessMessage(''); }}
+                      className="text-sm text-slate-400 hover:text-white transition-colors font-medium"
+                    >
+                      Retour à la connexion
+                    </button>
+                  </div>
+                </motion.form>
+              ) : loginMode === 'demo' && isRegistering ? (
                 <motion.form 
                   key="register"
                   initial={{ opacity: 0, x: -20 }}
@@ -410,15 +505,15 @@ export const Login = ({ onLogin }: LoginProps) => {
                       <select
                         required
                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/50 focus:border-accent-red transition-all appearance-none cursor-pointer"
-                        value={regForm.country || 'FR'}
-                        onChange={(e) => setRegForm({...regForm, country: e.target.value, state: ''})}
+                        value={regForm.country || 'CG'}
+                        onChange={(e) => { setCountryTouched(true); setRegForm({...regForm, country: e.target.value, state: ''}); }}
                       >
-                        <option value="FR" className="bg-slate-900">France</option>
-                        <option value="CG" className="bg-slate-900">Congo</option>
+                        <option value="CG" className="bg-slate-900">Congo-Brazzaville</option>
+                        <option value="CD" className="bg-slate-900">RDC (Congo-Kinshasa)</option>
+                        <option value="CM" className="bg-slate-900">Cameroun</option>
                         <option value="CI" className="bg-slate-900">Côte d'Ivoire</option>
                         <option value="SN" className="bg-slate-900">Sénégal</option>
-                        <option value="CM" className="bg-slate-900">Cameroun</option>
-                        <option value="CD" className="bg-slate-900">RDC</option>
+                        <option value="FR" className="bg-slate-900">France</option>
                       </select>
                     </div>
                   </div>
@@ -497,7 +592,13 @@ export const Login = ({ onLogin }: LoginProps) => {
                   <div className="space-y-2">
                     <div className="flex justify-between items-center px-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Mot de passe</label>
-                      <button type="button" className="text-[10px] font-bold text-accent-red hover:text-red-400 transition-colors uppercase tracking-widest">Oublié ?</button>
+                      <button
+                        type="button"
+                        onClick={() => { setForgotPasswordMode(true); setForgotEmail(email); setError(''); setSuccessMessage(''); }}
+                        className="text-[10px] font-bold text-accent-red hover:text-red-400 transition-colors uppercase tracking-widest"
+                      >
+                        Oublié ?
+                      </button>
                     </div>
                     <div className="relative group">
                       <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-accent-red transition-colors" />

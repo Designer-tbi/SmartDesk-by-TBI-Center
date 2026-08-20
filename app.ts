@@ -34,6 +34,7 @@ import { eventsRouter } from './server/routes/events.js';
 import { schedulesRouter } from './server/routes/schedules.js';
 import { publicSignatureRouter } from './server/routes/publicSignature.js';
 import { subscriptionRouter } from './server/routes/subscription.js';
+import { declarationsRouter } from './server/routes/declarations.js';
 import { externalRouter } from './server/routes/external.js';
 import { enforceSubscription } from './server/middleware/enforceSubscription.js';
 
@@ -90,13 +91,19 @@ app.use('/api/admin', adminRouter);
 app.use('/api/company', companyRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/schedules', schedulesRouter);
+app.use('/api/declarations', declarationsRouter);
 // Public (no-auth) signature flow — recipients of quotes click a link and
 // land on /sign-quote/:id which calls these endpoints.
 app.use('/api/public', publicSignatureRouter);
 
 // Debug route — CRITICAL for diagnosing Vercel 500s. Visit /api/debug on the
-// live deployment to see exactly what's failing.
+// live deployment to see exactly what's failing. Gated behind DEBUG_TOKEN
+// so it doesn't leak DB/env presence and latency to anonymous callers.
 app.get('/api/debug', async (req, res) => {
+  const debugToken = process.env.DEBUG_TOKEN;
+  if (!debugToken || req.headers['x-debug-token'] !== debugToken) {
+    return res.status(404).json({ error: 'Not found' });
+  }
   const info: any = {
     status: 'ok',
     vercel: !!process.env.VERCEL,

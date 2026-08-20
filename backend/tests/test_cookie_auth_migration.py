@@ -18,7 +18,7 @@ import time
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://08f57f92-d2c0-4793-93da-868f95eea959.preview.emergentagent.com').rstrip('/')
 
 # Test credentials from /app/memory/test_credentials.md
-SUPER_ADMIN = {"email": "eden@tbi-center.fr", "password": "loub@ki2014D"}
+SUPER_ADMIN = {"email": "eden@tbi-center.fr", "password": os.environ.get('SUPER_ADMIN_PASSWORD', '')}
 DEMO_1_ADMIN = {"email": "admin@smartdesk.cg", "password": "admin"}  # TechCorp Demo (demo-1)
 DEMO_2_ADMIN = {"email": "admin@greenenergy.demo", "password": "admin"}  # GreenEnergy Demo (demo-2)
 

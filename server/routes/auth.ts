@@ -1,10 +1,14 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { requireAuth } from '../middleware/auth.js';
 import { seedDefaultRoles } from '../../db.js';
 import { getMailerForCompany } from '../services/mailer.js';
+import { JWT_SECRET } from '../utils/jwtSecret.js';
+import { loginRateLimiter, demoSignupRateLimiter } from '../middleware/rateLimit.js';
+import { resolvePermissionsList } from '../middleware/permissions.js';
 
 /**
  * Derive sensible accounting defaults (currency, standard, language) from
@@ -39,8 +43,6 @@ function regionalDefaultsFromCountry(code: string | null | undefined) {
   return { currency: 'XAF', accountingStandard: 'OHADA', language: FR_SPEAKING.has(iso) ? 'fr' : 'fr' };
 }
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
-
 export const authRouter = Router();
 
 authRouter.get('/me', requireAuth, async (req, res, next) => {
@@ -72,10 +74,15 @@ authRouter.get('/me', requireAuth, async (req, res, next) => {
     // Return persisted user preferences so the SPA can rehydrate its UI
     // state (language, sidebar, ...) without touching localStorage.
     const prefs = user.preferences || {};
+    // Resolved permission ids (or 'all') so the sidebar can hide modules
+    // the role has zero access to — mirrors what requirePermission()
+    // checks server-side on the write routes themselves.
+    const permissions = await resolvePermissionsList(req.db, user.role);
     res.json({
       ...req.user,
       preferences: prefs,
       language: prefs.language || req.user!.language || 'fr',
+      permissions,
     });
   } catch (error) {
     next(error);
@@ -122,7 +129,107 @@ authRouter.put('/change-password', requireAuth, async (req, res, next) => {
   }
 });
 
-authRouter.post('/login', async (req, res, next) => {
+/**
+ * Forgot password — step 1: request a reset link.
+ *
+ * Always responds 200 with the same generic message whether or not the
+ * email exists, so the endpoint can't be used to enumerate accounts. The
+ * token itself is a random 32-byte value; only its SHA-256 hash is
+ * persisted (mirrors how passwords are never stored in clear).
+ */
+authRouter.post('/forgot-password', loginRateLimiter, async (req, res, next) => {
+  try {
+    const { email } = req.body || {};
+    const generic = { ok: true, message: 'Si un compte existe pour cet email, un lien de réinitialisation vient d\'être envoyé.' };
+    if (!email) return res.json(generic);
+
+    const userRes = await req.db.query('SELECT id, name, "companyId" FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+    const user = userRes.rows[0];
+    if (!user) return res.json(generic);
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1h
+    await req.db.query(
+      'UPDATE users SET "resetTokenHash" = $1, "resetTokenExpires" = $2 WHERE id = $3',
+      [tokenHash, expires.toISOString(), user.id],
+    );
+
+    const companyRes = user.companyId
+      ? await req.db.query('SELECT type, name FROM companies WHERE id = $1', [user.companyId])
+      : { rows: [] as any[] };
+    const company = companyRes.rows[0];
+
+    const reqOrigin =
+      (req.headers.origin as string | undefined) ||
+      (req.headers.referer ? new URL(req.headers.referer as string).origin : undefined);
+    const baseUrl = reqOrigin || process.env.PUBLIC_BASE_URL || 'https://smart-desk.pro';
+    const resetLink = `${baseUrl}/reset-password/${token}`;
+
+    try {
+      const { transporter, from } = getMailerForCompany(company?.type, company?.name || 'SmartDesk');
+      await transporter.sendMail({
+        from,
+        to: email,
+        subject: 'Réinitialisation de votre mot de passe SmartDesk',
+        html: `
+          <p>Bonjour ${user.name || ''},</p>
+          <p>Une demande de réinitialisation de mot de passe a été effectuée pour ce compte.</p>
+          <p><a href="${resetLink}" style="background:#be123c;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:bold;">Réinitialiser mon mot de passe</a></p>
+          <p>Ce lien expire dans 1 heure. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
+        `,
+        text: `Réinitialisez votre mot de passe : ${resetLink} (expire dans 1 heure)`,
+      });
+    } catch (mailErr) {
+      console.error('forgot-password: failed to send reset email:', mailErr);
+      // Don't leak whether the send succeeded — the response stays generic.
+    }
+
+    res.json(generic);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Forgot password — step 2: consume the token and set a new password.
+ */
+authRouter.post('/reset-password', loginRateLimiter, async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body || {};
+    if (!token || !newPassword) {
+      return res.status(400).json({ error: 'Token et nouveau mot de passe requis.' });
+    }
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ error: 'Le mot de passe doit contenir au moins 8 caractères.' });
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
+    const userRes = await req.db.query(
+      'SELECT id FROM users WHERE "resetTokenHash" = $1 AND "resetTokenExpires" > NOW()',
+      [tokenHash],
+    );
+    const user = userRes.rows[0];
+    if (!user) {
+      return res.status(400).json({ error: 'Lien invalide ou expiré. Demandez un nouveau lien.' });
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await req.db.query(
+      'UPDATE users SET password = $1, "resetTokenHash" = NULL, "resetTokenExpires" = NULL WHERE id = $2',
+      [hashed, user.id],
+    );
+    // Invalidate existing sessions so a leaked/expired token can't be
+    // replayed once the password has been changed out from under it.
+    await req.db.query('DELETE FROM sessions WHERE "userId" = $1', [user.id]);
+
+    res.json({ ok: true, message: 'Mot de passe mis à jour. Vous pouvez maintenant vous connecter.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+authRouter.post('/login', loginRateLimiter, async (req, res, next) => {
   try {
     const { email, password, demoMode } = req.body;
     console.log('Login attempt for email:', email, 'demoMode:', demoMode);
@@ -146,16 +253,13 @@ authRouter.post('/login', async (req, res, next) => {
     console.log('isMatch result:', isMatch);
     if (!isMatch) {
       console.log('Login failed: Password mismatch for email:', email);
-      
-      // Provide a helpful hint depending on the email
-      let hint = 'loub@ki2014D';
-      if (email === 'demo@smartdesk.com') {
-        hint = 'demo123';
-      } else if (user.companyId && user.companyId.startsWith('demo-company-')) {
-        hint = 'le code à 6 chiffres reçu par email';
+
+      let error = 'Mot de passe incorrect.';
+      if (user.companyId && user.companyId.startsWith('demo-company-')) {
+        error = 'Mot de passe incorrect. Indice : utilisez le code à 6 chiffres reçu par email.';
       }
-      
-      return res.status(401).json({ error: `Mot de passe incorrect. Indice : utilisez ${hint}` });
+
+      return res.status(401).json({ error });
     }
 
     let company: any = null;
@@ -305,6 +409,7 @@ authRouter.post('/login', async (req, res, next) => {
       }
     }
 
+    const permissions = await resolvePermissionsList(req.db, user.role);
     res.json({
       user: {
         id: user.id,
@@ -322,6 +427,7 @@ authRouter.post('/login', async (req, res, next) => {
         hasFiscalizationKey: !!company?.fiscalizationApiKey,
         isDemo,
         preferences: prefs,
+        permissions,
       }
     });
   } catch (error) {
@@ -442,14 +548,20 @@ authRouter.get('/geolocate', async (req, res) => {
 
 
 
-authRouter.post('/send-demo-email', async (req, res, next) => {
+authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next) => {
   try {
-    const { nom, prenom, email, telephone, code, companyName, country, state } = req.body;
-    
-    if (!email || !code || !nom || !prenom) {
+    const { nom, prenom, email, telephone, companyName, country, state } = req.body;
+
+    if (!email || !nom || !prenom) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-    
+
+    // The access code is the demo account's password — it must be
+    // generated server-side. Trusting a client-supplied `code` would let
+    // anyone set their own demo password before the confirmation email
+    // even arrives.
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+
     // Create a new demo company and user in the database
     const db = req.db;
     const companyId = `demo-company-${Date.now()}`;
@@ -464,9 +576,9 @@ authRouter.post('/send-demo-email', async (req, res, next) => {
       const finalCompanyName = companyName ? `${companyName} (${country || 'Démo'})` : `Démo - ${prenom} ${nom}`;
       const defaults = regionalDefaultsFromCountry(country);
       await db.query(`
-        INSERT INTO companies (id, name, type, status, country, state, language, currency, "accountingStandard", "onboardingCompleted", "createdAt")
-        VALUES ($1, $2, 'demo', 'active', $3, $4, $5, $6, $7, FALSE, CURRENT_TIMESTAMP)
-      `, [companyId, finalCompanyName, country || 'CG', state || null, defaults.language, defaults.currency, defaults.accountingStandard]);
+        INSERT INTO companies (id, name, type, status, country, state, email, phone, language, currency, "accountingStandard", "onboardingCompleted", "createdAt")
+        VALUES ($1, $2, 'demo', 'active', $3, $4, $5, $6, $7, $8, $9, FALSE, CURRENT_TIMESTAMP)
+      `, [companyId, finalCompanyName, country || 'CG', state || null, email, telephone || null, defaults.language, defaults.currency, defaults.accountingStandard]);
       
       // Bind the RLS session to this new tenant so subsequent INSERTs into
       // the isolated tables (roles, ...) pass the WITH CHECK policy.

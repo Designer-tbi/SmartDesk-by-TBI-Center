@@ -22,6 +22,7 @@ export type FiscalizationInput = {
     date?: string | null;
     dueDate?: string | null;
     totalHT?: number | null;
+    netFinancier?: number | null;
     tvaTotal?: number | null;
     total?: number | null;
     discount?: number | null;
@@ -86,29 +87,43 @@ function buildSfecPayload(input: FiscalizationInput) {
     buyer.contactType === 'etranger' ? 'foreign' :
     'individual';
 
+  // The invoice's remise/rabais/ristourne/escompte reductions are applied
+  // globally (see invoiceTotals.ts), not per line. Scale every line's
+  // subtotal down by the same ratio so the amount certified/declared to
+  // DGID matches what was actually invoiced — not the pre-discount gross.
+  const grossHT = Number(invoice.totalHT || 0);
+  const netHT = invoice.netFinancier != null ? Number(invoice.netFinancier) : grossHT;
+  const discountRatio = grossHT > 0 ? Math.min(1, Math.max(0, netHT / grossHT)) : 1;
+
   const items = (invoice.items || []).map((it) => {
     const quantity = Number(it.quantity || 0);
     const unitPrice = Number(it.price || 0);
     const subtotal = +(quantity * unitPrice).toFixed(2);
-    const taxRate = String(it.tvaRate ?? 18);
+    const netAmount = +(subtotal * discountRatio).toFixed(2);
+    const discountAmount = +(subtotal - netAmount).toFixed(2);
+    // `tvaRate` is stored as a decimal fraction (0.18, 0.05, 0) everywhere
+    // else in the app — convert to the whole-percent string SFEC expects.
+    const rateFraction = Number(it.tvaRate ?? 0.18);
+    const percent = Math.round(rateFraction > 1 ? rateFraction : rateFraction * 100);
+    const taxRate = String(percent);
     const safeRate = SFEC_TAX_RATES.has(taxRate) ? taxRate : '18';
-    const taxAmount = +(subtotal * (Number(safeRate) / 100)).toFixed(2);
+    const taxAmount = +(netAmount * (Number(safeRate) / 100)).toFixed(2);
     return {
       type: it.productType === 'product' ? 'product' : 'service',
       designation: it.name || it.description || 'Article',
       unit_price: unitPrice,
       quantity,
       subtotal,
-      discount_amount: 0,
+      discount_amount: discountAmount,
       discount_type: 'fixed' as const,
-      net_amount: subtotal,
+      net_amount: netAmount,
       tax_rate: safeRate,
       tax_amount: taxAmount,
-      total_amount: +(subtotal + taxAmount).toFixed(2),
+      total_amount: +(netAmount + taxAmount).toFixed(2),
     };
   });
 
-  const itemsSubtotal = items.reduce((s, it) => s + it.subtotal, 0);
+  const itemsSubtotal = items.reduce((s, it) => s + it.net_amount, 0);
   const totalTax = items.reduce((s, it) => s + it.tax_amount, 0);
   const totalAmount = +(itemsSubtotal + totalTax).toFixed(2);
 
@@ -131,8 +146,8 @@ function buildSfecPayload(input: FiscalizationInput) {
     payment_method: 'bank_transfer',
     items,
     subtotal: itemsSubtotal,
-    total_line_discount_amount: 0,
-    discount_amount: Number(invoice.discount || 0),
+    total_line_discount_amount: +(grossHT - netHT).toFixed(2),
+    discount_amount: +(grossHT - netHT).toFixed(2),
     total_tax_t_amount: totalTax,
     total_tax_r_amount: 0,
     total_exempt_amount: 0,

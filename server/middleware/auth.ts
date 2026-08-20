@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
+import { JWT_SECRET } from '../utils/jwtSecret.js';
 
 export const requireAuth = async (req: Request, res: Response, next: NextFunction) => {
   // Primary: read from HttpOnly cookie. Fallback to Authorization header so

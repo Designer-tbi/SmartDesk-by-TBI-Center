@@ -1,14 +1,26 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
 import { requireAuth, requireCompany } from '../middleware/auth.js';
 import { getMailerForCompany } from '../services/mailer.js';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { autoCreateDefaultContract, autoCreateFirstPayslip } from '../services/automations.js';
 import { broadcast } from '../activity.js';
+import { isManagerRole } from '../utils/roles.js';
 
 export const employeesRouter = Router();
 
 employeesRouter.use(requireAuth, requireCompany);
+
+// Payroll (payslips/salaries), contracts and employee records are
+// sensitive HR data — writes are admin-only. Leave requests and tasks stay
+// open to any tenant member since employees legitimately self-manage those.
+const requireManager = (req: Request, res: Response, next: NextFunction) => {
+  if (!isManagerRole(req.user!.role)) {
+    return res.status(403).json({ error: 'Forbidden: réservé aux administrateurs.' });
+  }
+  next();
+};
 
 employeesRouter.get('/leaves', async (req, res, next) => {
   try {
@@ -65,7 +77,7 @@ employeesRouter.get('/payslips', async (req, res, next) => {
   }
 });
 
-employeesRouter.post('/payslips', async (req, res, next) => {
+employeesRouter.post('/payslips', requireManager, async (req, res, next) => {
   try {
     const payslip = req.body;
     await req.db.query(
@@ -78,7 +90,7 @@ employeesRouter.post('/payslips', async (req, res, next) => {
   }
 });
 
-employeesRouter.put('/payslips/:id', async (req, res, next) => {
+employeesRouter.put('/payslips/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     const payslip = req.body;
@@ -92,7 +104,7 @@ employeesRouter.put('/payslips/:id', async (req, res, next) => {
   }
 });
 
-employeesRouter.delete('/payslips/:id', async (req, res, next) => {
+employeesRouter.delete('/payslips/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     await req.db.query('DELETE FROM payslips WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
@@ -221,7 +233,7 @@ employeesRouter.get('/contracts', async (req, res, next) => {
   }
 });
 
-employeesRouter.post('/contracts', async (req, res, next) => {
+employeesRouter.post('/contracts', requireManager, async (req, res, next) => {
   try {
     const contract = req.body;
     await req.db.query(
@@ -234,7 +246,7 @@ employeesRouter.post('/contracts', async (req, res, next) => {
   }
 });
 
-employeesRouter.put('/contracts/:id', async (req, res, next) => {
+employeesRouter.put('/contracts/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     const contract = req.body;
@@ -279,7 +291,7 @@ employeesRouter.put('/contracts/:id', async (req, res, next) => {
   }
 });
 
-employeesRouter.delete('/contracts/:id', async (req, res, next) => {
+employeesRouter.delete('/contracts/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     await req.db.query('DELETE FROM contracts WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
@@ -297,7 +309,7 @@ employeesRouter.delete('/contracts/:id', async (req, res, next) => {
  * contract status to 'Sent', and dispatches the message via the per-tenant
  * mailer (OVH SMTP for demo accounts, regular SMTP for production).
  */
-employeesRouter.post('/contracts/:id/send-email', async (req, res, next) => {
+employeesRouter.post('/contracts/:id/send-email', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
 
@@ -307,6 +319,12 @@ employeesRouter.post('/contracts/:id/send-email', async (req, res, next) => {
     );
     const contract = cRes.rows[0];
     if (!contract) return res.status(404).json({ error: 'Contrat introuvable' });
+    if (contract.status === 'Signed' || contract.status === 'Active') {
+      // Re-sending would flip the contract back to 'Sent', silently
+      // dropping it out of the payroll module's active-contract filter
+      // (which only considers Signed/Active contracts).
+      return res.status(409).json({ error: 'Ce contrat est déjà signé et ne peut plus être renvoyé.' });
+    }
 
     const eRes = await req.db.query(
       'SELECT * FROM employees WHERE id = $1 AND "companyId" = $2',
@@ -332,7 +350,18 @@ employeesRouter.post('/contracts/:id/send-email', async (req, res, next) => {
       process.env.PUBLIC_BASE_URL ||
       process.env.REACT_APP_BACKEND_URL ||
       'https://smart-desk.pro';
-    const signatureLink = `${baseUrl}/sign-contract/${id}`;
+    // The contract id alone is guessable — require an unguessable
+    // per-contract token in the link too, so /api/public/contracts can't
+    // be enumerated to read/sign other tenants' contracts.
+    let signingToken = contract.signingToken;
+    if (!signingToken) {
+      signingToken = crypto.randomBytes(24).toString('hex');
+      await req.db.query(
+        'UPDATE contracts SET "signingToken" = $1 WHERE id = $2 AND "companyId" = $3',
+        [signingToken, id, req.user!.companyId],
+      );
+    }
+    const signatureLink = `${baseUrl}/sign-contract/${id}?t=${signingToken}`;
 
     const { transporter, from } = getMailerForCompany(company.type, company.name);
     const fmt = (n: number) => `${Number(n || 0).toLocaleString()} ${company.currency || ''}`;
@@ -444,7 +473,7 @@ employeesRouter.get('/contract-templates', async (req, res, next) => {
   }
 });
 
-employeesRouter.post('/contract-templates', async (req, res, next) => {
+employeesRouter.post('/contract-templates', requireManager, async (req, res, next) => {
   try {
     const template = req.body;
     await req.db.query(
@@ -457,7 +486,7 @@ employeesRouter.post('/contract-templates', async (req, res, next) => {
   }
 });
 
-employeesRouter.put('/contract-templates/:id', async (req, res, next) => {
+employeesRouter.put('/contract-templates/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     const template = req.body;
@@ -471,7 +500,7 @@ employeesRouter.put('/contract-templates/:id', async (req, res, next) => {
   }
 });
 
-employeesRouter.delete('/contract-templates/:id', async (req, res, next) => {
+employeesRouter.delete('/contract-templates/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     await req.db.query('DELETE FROM contract_templates WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
@@ -540,7 +569,7 @@ employeesRouter.get('/', async (req, res, next) => {
   }
 });
 
-employeesRouter.post('/', async (req, res, next) => {
+employeesRouter.post('/', requireManager, async (req, res, next) => {
   try {
     const emp = req.body;
     const documentsStr = emp.documents ? JSON.stringify(emp.documents) : null;
@@ -566,7 +595,7 @@ employeesRouter.post('/', async (req, res, next) => {
   }
 });
 
-employeesRouter.put('/:id', async (req, res, next) => {
+employeesRouter.put('/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     const emp = req.body;
@@ -579,7 +608,7 @@ employeesRouter.put('/:id', async (req, res, next) => {
   }
 });
 
-employeesRouter.delete('/:id', async (req, res, next) => {
+employeesRouter.delete('/:id', requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     try {

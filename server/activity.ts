@@ -16,11 +16,27 @@ export const setWebSocketServer = (wss: any) => {
   wssInstance = wss;
 };
 
+/**
+ * Broadcast to connected clients, scoped to the tenant the payload belongs
+ * to. Every event we emit (ACTIVITY, RESOURCE_CHANGED, JOURNAL_AUTO_CREATED,
+ * PAYSLIP_AUTO_CREATED) carries `data.companyId`, and server.ts's WebSocket
+ * connection handler stamps each authenticated client with its own
+ * `companyId`/`isSuperAdmin` at handshake time.
+ *
+ * A client only receives an event when its companyId matches the event's,
+ * or it's a super-admin (who legitimately monitors all tenants — see
+ * SuperAdmin.tsx). Without this, every connected browser — including an
+ * unauthenticated one, since the WS handshake now rejects those — would
+ * see every other tenant's activity descriptions (customer/product names),
+ * invoice ids, etc.
+ */
 export const broadcast = (data: any) => {
   if (!wssInstance) return;
   try {
+    const targetCompanyId = data?.data?.companyId ?? null;
     wssInstance.clients.forEach((client: any) => {
-      if (client.readyState === 1 /* WebSocket.OPEN */) {
+      if (client.readyState !== 1 /* WebSocket.OPEN */) return;
+      if (!targetCompanyId || client.isSuperAdmin || client.companyId === targetCompanyId) {
         client.send(JSON.stringify(data));
       }
     });

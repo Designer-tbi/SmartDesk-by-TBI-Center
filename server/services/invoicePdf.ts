@@ -72,7 +72,7 @@ export async function buildInvoicePdfBuffer(
     (item.name || '') + (item.description ? `\n${item.description}` : ''),
     String(item.quantity ?? 0),
     `${Number(item.price || 0).toLocaleString()} ${company.currency || ''}`,
-    `${item.tvaRate ?? 0}%`,
+    `${Math.round(Number(item.tvaRate ?? 0) * 100)}%`,
     `${Number((item.quantity || 0) * (item.price || 0)).toLocaleString()} ${company.currency || ''}`,
   ]);
 

@@ -2,8 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { db } from '../../db.js';
 import { setTenantContext, clearTenantContext } from '../tenancy.js';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-dev';
+import { JWT_SECRET } from '../utils/jwtSecret.js';
 
 /**
  * Decode the JWT (best-effort) to find the acting user's companyId/role BEFORE

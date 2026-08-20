@@ -20,7 +20,7 @@ class TestSuperAdminLogin:
         """Test that super admin login returns preferences.selectedCompanyId='comp_default'"""
         response = requests.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "eden@tbi-center.fr", "password": "loub@ki2014D"}
+            json={"email": "eden@tbi-center.fr", "password": os.environ.get('SUPER_ADMIN_PASSWORD', '')}
         )
         assert response.status_code == 200, f"Login failed: {response.text}"
         
@@ -43,7 +43,7 @@ class TestSuperAdminLogin:
         session = requests.Session()
         login_response = session.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "eden@tbi-center.fr", "password": "loub@ki2014D"}
+            json={"email": "eden@tbi-center.fr", "password": os.environ.get('SUPER_ADMIN_PASSWORD', '')}
         )
         assert login_response.status_code == 200, f"Login failed: {login_response.text}"
         
@@ -72,7 +72,7 @@ class TestAuthLogout:
         # Login first
         login_response = session.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "eden@tbi-center.fr", "password": "loub@ki2014D"}
+            json={"email": "eden@tbi-center.fr", "password": os.environ.get('SUPER_ADMIN_PASSWORD', '')}
         )
         assert login_response.status_code == 200, f"Login failed: {login_response.text}"
         
@@ -95,7 +95,7 @@ class TestAuthLogout:
         # Login first
         login_response = session.post(
             f"{BASE_URL}/api/auth/login",
-            json={"email": "eden@tbi-center.fr", "password": "loub@ki2014D"}
+            json={"email": "eden@tbi-center.fr", "password": os.environ.get('SUPER_ADMIN_PASSWORD', '')}
         )
         assert login_response.status_code == 200, f"Login failed: {login_response.text}"
         

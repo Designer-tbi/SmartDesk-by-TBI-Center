@@ -13,11 +13,13 @@ import { useTranslation } from '../lib/i18n';
 export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: any, setUser: any }) => {
   const { t, setLanguage } = useTranslation();
   const [searchParams] = useSearchParams();
-  const validTabs = ['company', 'profile', 'security', 'notifications', 'help'] as const;
-  const tabFromUrl = searchParams.get('tab');
-  const [activeTab, setActiveTab] = useState<'company' | 'profile' | 'security' | 'notifications' | 'help'>(
-    (validTabs as readonly string[]).includes(tabFromUrl || '') ? (tabFromUrl as typeof validTabs[number]) : 'company',
-  );
+  const VALID_TABS = ['company', 'profile', 'security', 'notifications', 'help'] as const;
+  type SettingsTab = (typeof VALID_TABS)[number];
+  const requestedTab = searchParams.get('tab');
+  const initialTab: SettingsTab = (VALID_TABS as readonly string[]).includes(requestedTab || '')
+    ? (requestedTab as SettingsTab)
+    : 'company';
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [company, setCompany] = useState<CompanyInfo>({
     name: '',
     type: 'real',
@@ -51,20 +53,20 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   const [isAccountingResetConfirmOpen, setIsAccountingResetConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState(false);
   const [isDetectingGeo, setIsDetectingGeo] = useState(false);
   const [geoMessage, setGeoMessage] = useState<string | null>(null);
-
-  // Generate a stable API key for demo purposes based on company name or just once
-  const apiKey = React.useMemo(() => {
-    return `sk_live_${Math.random().toString(36).substring(2, 15)}${Math.random().toString(36).substring(2, 15)}`;
-  }, []);
-
-  const handleCopyApiKey = () => {
-    navigator.clipboard.writeText(apiKey);
-    setCopiedKey(true);
-    setTimeout(() => setCopiedKey(false), 2000);
-  };
+  const [notificationPrefs, setNotificationPrefs] = useState({
+    emailReports: true,
+    newLead: true,
+    invoicePaid: true,
+    projectUpdate: true,
+    ...(globalUser?.preferences?.notifications || {}),
+  });
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false);
+  // Write-only: never pre-filled from the server (the real key is never
+  // echoed back). Left empty, the backend keeps whatever key is already
+  // stored — only a non-empty value here rotates it.
+  const [fiscalizationKeyInput, setFiscalizationKeyInput] = useState('');
 
   const handleDetectCountry = async () => {
     setIsDetectingGeo(true);
@@ -116,6 +118,14 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           if (data) {
             setUser(data);
             setGlobalUser(data);
+            // notificationPrefs was seeded from `globalUser` at mount time,
+            // before this fetch resolved — sync it now that the persisted
+            // preferences have actually arrived, otherwise the toggles
+            // always show the hardcoded defaults instead of what was last
+            // saved (looked like saving silently did nothing).
+            if (data.preferences?.notifications) {
+              setNotificationPrefs((prev) => ({ ...prev, ...data.preferences.notifications }));
+            }
           }
         }
       } catch (error) {
@@ -143,14 +153,15 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       const response = await apiFetch('/api/company', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(company),
+        body: JSON.stringify({ ...company, fiscalizationApiKey: fiscalizationKeyInput || undefined }),
       });
-      
+
       if (response.ok) {
-        const updatedCompany = await response.json();
         // Never keep the plaintext SFEC key around client-side once saved —
         // the server never echoes it back either.
-        setCompany(updatedCompany);
+        const updated = await response.json().catch(() => null);
+        if (updated) setCompany(updated);
+        setFiscalizationKeyInput('');
         setIsSaved(true);
         if (company.language) {
           setLanguage(company.language as any);
@@ -163,7 +174,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           currency: company.currency,
           language: company.language,
           country: company.country,
-          hasFiscalizationKey: updatedCompany.hasFiscalizationKey,
+          hasFiscalizationKey: updated?.hasFiscalizationKey,
         }));
 
         setTimeout(() => setIsSaved(false), 3000);
@@ -243,6 +254,32 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       setError(t('settings.error.connection'));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSaveNotificationPrefs = async () => {
+    setIsSavingPrefs(true);
+    try {
+      const response = await apiFetch('/api/auth/preferences', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notifications: notificationPrefs }),
+      });
+      if (response.ok) {
+        setGlobalUser((prev: any) => prev ? {
+          ...prev,
+          preferences: { ...prev.preferences, notifications: notificationPrefs },
+        } : prev);
+        setSuccessMessage(t('settings.success.preferencesSaved'));
+        setTimeout(() => setSuccessMessage(null), 3000);
+      } else {
+        setError(t('settings.error.save'));
+      }
+    } catch (error) {
+      console.error('Failed to save notification preferences:', error);
+      setError(t('settings.error.connection'));
+    } finally {
+      setIsSavingPrefs(false);
     }
   };
 
@@ -693,25 +730,26 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
 
                   {company.country === 'CG' && (
                     <div className="space-y-1.5 md:col-span-2">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
-                        Clé API SFEC (DGID)
-                        {company.hasFiscalizationKey && (
-                          <span className="text-emerald-600 normal-case tracking-normal font-semibold">· configurée</span>
-                        )}
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">
+                        {t('settings.fiscalizationApiKey')}
                       </label>
                       <div className="relative">
                         <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                           type="password"
                           autoComplete="new-password"
+                          placeholder={company.hasFiscalizationKey ? '••••••••••••••••' : t('settings.fiscalizationApiKeyPlaceholder')}
                           className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
-                          value={company.fiscalizationApiKey || ''}
-                          onChange={(e) => setCompany({ ...company, fiscalizationApiKey: e.target.value })}
-                          placeholder={company.hasFiscalizationKey ? 'Laisser vide pour conserver la clé actuelle' : 'Coller votre clé API SFEC'}
-                          data-testid="settings-sfec-key-input"
+                          value={fiscalizationKeyInput}
+                          onChange={(e) => setFiscalizationKeyInput(e.target.value)}
+                          data-testid="settings-company-fiscalization-key-input"
                         />
                       </div>
-                      <p className="text-[10px] text-slate-400 ml-1">Requise pour certifier vos factures auprès de la DGID (SFEC). Obtenue via le portail e-Facture.</p>
+                      <p className="text-[11px] text-slate-400 ml-1">
+                        {company.hasFiscalizationKey
+                          ? t('settings.fiscalizationApiKeyConfiguredHint')
+                          : t('settings.fiscalizationApiKeyMissingHint')}
+                      </p>
                     </div>
                   )}
 
@@ -1038,7 +1076,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <p className="text-xs text-slate-500">{t('settings.emailReportsDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={notificationPrefs.emailReports}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, emailReports: e.target.checked })}
+                    />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
@@ -1049,7 +1092,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <p className="text-xs text-slate-500">{t('settings.newLeadDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={notificationPrefs.newLead}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, newLead: e.target.checked })}
+                    />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
@@ -1060,7 +1108,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <p className="text-xs text-slate-500">{t('settings.invoicePaidDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={notificationPrefs.invoicePaid}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, invoicePaid: e.target.checked })}
+                    />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
@@ -1071,7 +1124,12 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <p className="text-xs text-slate-500">{t('settings.projectUpdateDesc')}</p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
-                    <input type="checkbox" className="sr-only peer" defaultChecked />
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={notificationPrefs.projectUpdate}
+                      onChange={(e) => setNotificationPrefs({ ...notificationPrefs, projectUpdate: e.target.checked })}
+                    />
                     <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-red/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent-red"></div>
                   </label>
                 </div>
@@ -1080,13 +1138,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
               <div className="flex items-center justify-end pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSuccessMessage(t('settings.success.preferencesSaved'));
-                    setTimeout(() => setSuccessMessage(null), 3000);
-                  }}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95"
+                  disabled={isSavingPrefs}
+                  onClick={handleSaveNotificationPrefs}
+                  className="flex items-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95 disabled:opacity-50"
                 >
-                  <Save className="w-4 h-4" />
+                  {isSavingPrefs ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   {t('settings.savePreferences')}
                 </button>
               </div>

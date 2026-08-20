@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import crypto from 'crypto';
 import { requireAuth, requireCompany } from '../middleware/auth.js';
 import nodemailer from 'nodemailer';
 import { jsPDF } from 'jspdf';
@@ -9,7 +10,9 @@ import { getMailerForCompany } from '../services/mailer.js';
 import { computeInvoiceTotals } from '../services/invoiceTotals.js';
 import { autoPostPaidInvoiceJournal, autoConvertSignedQuoteToInvoice, autoCertifyInvoice } from '../services/automations.js';
 import { buildInvoicePdfBuffer } from '../services/invoicePdf.js';
-import { broadcast } from '../activity.js';
+import { broadcast, logActivity } from '../activity.js';
+import { decrementStockForItems, restoreStockForItems, adjustStockForItemChange } from '../services/stock.js';
+import { requirePermission } from '../middleware/permissions.js';
 
 export const invoicesRouter = Router();
 
@@ -31,36 +34,43 @@ invoicesRouter.get('/quote-templates', async (req, res, next) => {
   }
 });
 
-invoicesRouter.post('/quote-templates', async (req, res, next) => {
+invoicesRouter.post('/quote-templates', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const tmpl = req.body;
-    
+    if (!tmpl.name) {
+      return res.status(400).json({ error: 'Le nom du modèle est requis.' });
+    }
+    // Generated server-side — the client never sent one, which meant
+    // every save hit invoice_templates.id's NOT NULL constraint and
+    // failed with an unhandled 500.
+    const id = tmpl.id || `tmpl_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
+
     await req.db.query('BEGIN');
-    
+
     await req.db.query(
       'INSERT INTO quote_templates (id, "companyId", name, notes) VALUES ($1, $2, $3, $4)',
-      [tmpl.id, req.user!.companyId, tmpl.name, tmpl.notes || null]
+      [id, req.user!.companyId, tmpl.name, tmpl.notes || null]
     );
-    
+
     if (Array.isArray(tmpl.items)) {
       for (const item of tmpl.items) {
         const productId = item.productId && item.productId !== '' ? item.productId : null;
         await req.db.query(
           'INSERT INTO quote_template_items ("companyId", "templateId", "productId", name, description, quantity, price, "tvaRate", "tvaAmount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-          [req.user!.companyId, tmpl.id, productId, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount]
+          [req.user!.companyId, id, productId, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount]
         );
       }
     }
-    
+
     await req.db.query('COMMIT');
-    res.status(201).json(tmpl);
+    res.status(201).json({ ...tmpl, id });
   } catch (error) {
     await req.db.query('ROLLBACK');
     next(error);
   }
 });
 
-invoicesRouter.delete('/quote-templates/:id', async (req, res, next) => {
+invoicesRouter.delete('/quote-templates/:id', requirePermission('sales.delete'), async (req, res, next) => {
   try {
     const { id } = req.params;
     
@@ -92,7 +102,7 @@ invoicesRouter.get('/', async (req, res, next) => {
   }
 });
 
-invoicesRouter.post('/', async (req, res, next) => {
+invoicesRouter.post('/', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const inv = req.body;
     console.log('POST /api/invoices - Request body:', JSON.stringify(inv, null, 2));
@@ -100,6 +110,23 @@ invoicesRouter.post('/', async (req, res, next) => {
     if (!req.user?.companyId) {
       console.error('POST /api/invoices - Missing companyId in req.user');
       return res.status(400).json({ error: 'Missing company context' });
+    }
+
+    // Generate the document number server-side instead of trusting the
+    // client's `Math.random() * 1000` id (only 1000 possible suffixes per
+    // type+year — collisions were common past ~30 documents/year and
+    // surfaced only as a generic "creation failed"). Sequential per
+    // company/type/year is both collision-resistant and a more sensible
+    // invoice numbering scheme.
+    if (!inv.id) {
+      const prefix = inv.type === 'Invoice' ? 'INV' : 'DEV';
+      const year = new Date(inv.date || Date.now()).getFullYear();
+      const countRes = await req.db.query(
+        `SELECT COUNT(*) as count FROM invoices WHERE "companyId" = $1 AND type = $2 AND date_part('year', date::date) = $3`,
+        [req.user.companyId, inv.type, year],
+      );
+      const seq = Number(countRes.rows[0]?.count || 0) + 1;
+      inv.id = `${prefix}-${year}-${String(seq).padStart(3, '0')}`;
     }
 
     // Re-compute the totals server-side using the authoritative OHADA
@@ -140,7 +167,7 @@ invoicesRouter.post('/', async (req, res, next) => {
            "remise", "remiseType", "rabais", "rabaisType",
            "ristourne", "ristourneType", "escompte", "escompteType",
            "centimesAdditionnels", "netCommercial", "netFinancier",
-           "convertedFromQuoteId"
+           "convertedFromQuoteId", deposit
          ) VALUES (
            $1, $2, $3, $4, $5, $6,
            $7, $8, $9, $10, $11,
@@ -148,7 +175,7 @@ invoicesRouter.post('/', async (req, res, next) => {
            $14, $15, $16, $17,
            $18, $19, $20, $21,
            $22, $23, $24,
-           $25
+           $25, $26
          )`,
         [
           inv.id, req.user.companyId, inv.type, contactId, inv.date, inv.dueDate,
@@ -159,7 +186,7 @@ invoicesRouter.post('/', async (req, res, next) => {
           inv.ristourne ?? 0, inv.ristourneType || 'amount',
           inv.escompte ?? 0, inv.escompteType || 'percent',
           totals.centimesAdditionnels, totals.netCommercial, totals.netFinancier,
-          inv.convertedFromQuoteId || null,
+          inv.convertedFromQuoteId || null, Number(inv.deposit) || 0,
         ],
       );
       
@@ -172,14 +199,19 @@ invoicesRouter.post('/', async (req, res, next) => {
           );
         }
       }
-      
+
+      // A Quote doesn't consume stock — only a real Invoice does.
+      if (inv.type === 'Invoice' && Array.isArray(inv.items)) {
+        await decrementStockForItems(req.db, req.user.companyId, inv.items);
+      }
+
       await req.db.query('COMMIT');
       console.log('POST /api/invoices - Success');
 
-      // Auto-certify via SFEC whenever the company has configured a key
-      // (`companies.fiscalizationApiKey` — seeded for demo companies,
-      // entered by real companies via onboarding/Settings). Failures are
-      // non-fatal — the invoice still saves.
+      // Auto-certify via SFEC for any company (demo or real) that has a
+      // DGID key configured (`companies.fiscalizationApiKey` — seeded on
+      // demo creation, or entered by the tenant via onboarding/Settings for
+      // a real account). Failures are non-fatal — the invoice still saves.
       let certified: any = null;
       try {
         const companyRes = await req.db.query(
@@ -274,6 +306,11 @@ invoicesRouter.post('/', async (req, res, next) => {
                 type: 'JOURNAL_AUTO_CREATED',
                 data: { invoiceId: inv.id, entryId, companyId: req.user!.companyId },
               });
+              // Durable trail for clients that never see the WebSocket
+              // broadcast (no persistent connection on serverless hosts) —
+              // useAutomationNotifications polls this as a fallback.
+              logActivity(req.db, req.user!.id, req.user!.companyId, 'AUTO_JOURNAL_ENTRY',
+                `Écriture comptable enregistrée pour la facture ${inv.id}.`).catch(() => {});
             }
           })
           .catch((err) => console.error('POST /api/invoices - auto-journal failed', err));
@@ -290,11 +327,11 @@ invoicesRouter.post('/', async (req, res, next) => {
 });
 
 /**
- * Manually (re)certify an invoice via SFEC. Available to any company that
- * has configured a `fiscalizationApiKey` (demo companies get one seeded;
- * real Congo companies set theirs via onboarding or Settings).
+ * Manually (re)certify an invoice via SFEC/DGID. Available to any company —
+ * demo or real — that has configured a `fiscalizationApiKey` (auto-seeded
+ * for demo companies; entered via onboarding or Settings for real ones).
  */
-invoicesRouter.post('/:id/certify', async (req, res, next) => {
+invoicesRouter.post('/:id/certify', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     if (!req.user?.companyId) {
@@ -386,7 +423,7 @@ invoicesRouter.post('/:id/certify', async (req, res, next) => {
 });
 
 
-invoicesRouter.put('/:id', async (req, res, next) => {
+invoicesRouter.put('/:id', requirePermission('sales.edit'), async (req, res, next) => {
   const { id } = req.params;
   const inv = req.body;
   try {
@@ -404,10 +441,15 @@ invoicesRouter.put('/:id', async (req, res, next) => {
       // Certified invoices are frozen: editing them would break the DGID
       // signature. Only a small set of status transitions is allowed.
       const prevInvoiceRes = await req.db.query(
-        'SELECT status, "certificationNumber", "certificationStatus" FROM invoices WHERE id = $1 AND "companyId" = $2',
+        'SELECT type, status, "certificationNumber", "certificationStatus" FROM invoices WHERE id = $1 AND "companyId" = $2',
         [id, req.user.companyId],
       );
       const prevInvoice = prevInvoiceRes.rows[0];
+      // Needed to compute the stock delta below (items are replaced
+      // wholesale further down) — only fetched when it'll actually be used.
+      const prevItemsRes = prevInvoice?.type === 'Invoice'
+        ? await req.db.query('SELECT "productId", quantity FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2', [id, req.user.companyId])
+        : { rows: [] };
       const isLocked = !!prevInvoice?.certificationNumber;
       if (isLocked) {
         const allowedNextStatus = new Set(['Paid', 'Overdue', 'Sent', prevInvoice.status]);
@@ -438,6 +480,8 @@ invoicesRouter.put('/:id', async (req, res, next) => {
                 type: 'JOURNAL_AUTO_CREATED',
                 data: { invoiceId: id, entryId, companyId: req.user.companyId },
               });
+              await logActivity(req.db, req.user.id, req.user.companyId, 'AUTO_JOURNAL_ENTRY',
+                `Écriture comptable enregistrée pour la facture ${id}.`).catch(() => {});
             }
           } catch (err) {
             console.error('auto-post paid invoice journal (certified) failed', err);
@@ -488,7 +532,7 @@ invoicesRouter.put('/:id', async (req, res, next) => {
            "rabais" = $14, "rabaisType" = $15,
            "ristourne" = $16, "ristourneType" = $17,
            "escompte" = $18, "escompteType" = $19,
-           "centimesAdditionnels" = $20, "netCommercial" = $21, "netFinancier" = $22
+           "centimesAdditionnels" = $20, "netCommercial" = $21, "netFinancier" = $22, deposit = $25
          WHERE id = $23 AND "companyId" = $24`,
         [
           inv.type, contactId, inv.date, inv.dueDate,
@@ -499,7 +543,7 @@ invoicesRouter.put('/:id', async (req, res, next) => {
           inv.ristourne ?? 0, inv.ristourneType || 'amount',
           inv.escompte ?? 0, inv.escompteType || 'percent',
           totals.centimesAdditionnels, totals.netCommercial, totals.netFinancier,
-          id, req.user.companyId,
+          id, req.user.companyId, Number(inv.deposit) || 0,
         ],
       );
       
@@ -514,7 +558,19 @@ invoicesRouter.put('/:id', async (req, res, next) => {
           );
         }
       }
-      
+
+      // Reconcile stock against whichever side of the edit is (still) an
+      // Invoice — Quotes never held stock in the first place.
+      const wasInvoice = prevInvoice?.type === 'Invoice';
+      const isInvoice = inv.type === 'Invoice';
+      if (wasInvoice && isInvoice) {
+        await adjustStockForItemChange(req.db, req.user.companyId, prevItemsRes.rows, inv.items || []);
+      } else if (wasInvoice && !isInvoice) {
+        await restoreStockForItems(req.db, req.user.companyId, prevItemsRes.rows);
+      } else if (!wasInvoice && isInvoice) {
+        await decrementStockForItems(req.db, req.user.companyId, inv.items || []);
+      }
+
       await req.db.query('COMMIT');
       console.log(`PUT /api/invoices/${id} - Success`);
 
@@ -538,6 +594,8 @@ invoicesRouter.put('/:id', async (req, res, next) => {
             type: 'JOURNAL_AUTO_CREATED',
             data: { invoiceId: id, entryId, companyId: req.user.companyId },
           });
+          await logActivity(req.db, req.user.id, req.user.companyId, 'AUTO_JOURNAL_ENTRY',
+            `Écriture comptable enregistrée pour la facture ${id}.`).catch(() => {});
         }
       } catch (err) {
         console.error('auto-post paid invoice journal failed', err);
@@ -564,6 +622,8 @@ invoicesRouter.put('/:id', async (req, res, next) => {
             type: 'INVOICE_AUTO_CREATED',
             data: { quoteId: id, invoiceId: autoInvoiceIdInternal, companyId: req.user.companyId },
           });
+          await logActivity(req.db, req.user.id, req.user.companyId, 'AUTO_INVOICE_FROM_QUOTE',
+            `Facture ${autoInvoiceIdInternal} créée automatiquement depuis le devis signé ${id}.`).catch(() => {});
         }
       } catch (err) {
         console.error('auto-convert signed quote→invoice (internal) failed', err);
@@ -613,7 +673,7 @@ invoicesRouter.put('/:id', async (req, res, next) => {
               item.name + (item.description ? `\n${item.description}` : ''),
               String(qty),
               `${price.toLocaleString()} ${company.currency}`,
-              `${item.tvaRate ?? 0}%`,
+              `${Math.round(Number(item.tvaRate ?? 0) * 100)}%`,
               `${(qty * price).toLocaleString()} ${company.currency}`,
             ];
           });
@@ -739,7 +799,7 @@ invoicesRouter.put('/:id', async (req, res, next) => {
  *   - The Congo CAC is recomputed because the Net Financier may match
  *     between the two but the totals helper guarantees consistency.
  */
-invoicesRouter.post('/:id/convert-to-invoice', async (req, res, next) => {
+invoicesRouter.post('/:id/convert-to-invoice', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const quoteRes = await req.db.query(
@@ -838,6 +898,7 @@ invoicesRouter.post('/:id/convert-to-invoice', async (req, res, next) => {
          WHERE id = $2 AND "companyId" = $3`,
         [newInvoiceId, id, req.user!.companyId],
       );
+      await decrementStockForItems(req.db, req.user!.companyId, items);
       await req.db.query('COMMIT');
 
       // Best-effort post-commit automations: journal entry (the invoice
@@ -871,14 +932,14 @@ invoicesRouter.post('/:id/convert-to-invoice', async (req, res, next) => {
   }
 });
 
-invoicesRouter.delete('/:id', async (req, res, next) => {
+invoicesRouter.delete('/:id', requirePermission('sales.delete'), async (req, res, next) => {
   try {
     const { id } = req.params;
 
     // Block deletion of certified invoices — same fiscal-consistency rule
     // as the PUT handler above.
     const check = await req.db.query(
-      'SELECT "certificationNumber" FROM invoices WHERE id = $1 AND "companyId" = $2',
+      'SELECT type, "certificationNumber" FROM invoices WHERE id = $1 AND "companyId" = $2',
       [id, req.user!.companyId],
     );
     if (check.rows[0]?.certificationNumber) {
@@ -888,6 +949,13 @@ invoicesRouter.delete('/:id', async (req, res, next) => {
     }
 
     await req.db.query('BEGIN');
+    if (check.rows[0]?.type === 'Invoice') {
+      const itemsRes = await req.db.query(
+        'SELECT "productId", quantity FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2',
+        [id, req.user!.companyId],
+      );
+      await restoreStockForItems(req.db, req.user!.companyId, itemsRes.rows);
+    }
     await req.db.query('DELETE FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     await req.db.query('DELETE FROM invoices WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
     await req.db.query('COMMIT');
@@ -919,7 +987,7 @@ invoicesRouter.get('/:id/pdf', async (req, res, next) => {
 
 
 
-invoicesRouter.post('/:id/send-email', async (req, res, next) => {
+invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     
@@ -958,7 +1026,25 @@ invoicesRouter.post('/:id/send-email', async (req, res, next) => {
       process.env.PUBLIC_BASE_URL ||
       process.env.REACT_APP_BACKEND_URL ||
       'https://smart-desk.pro';
-    const signatureLink = invoice.signatureLink || (isQuote ? `${signatureBaseUrl}/sign-quote/${invoice.id}` : null);
+    let signatureLink: string | null = null;
+    if (isQuote) {
+      // The invoice id alone (e.g. DEV-2026-347) is guessable — require an
+      // unguessable per-quote token in the link too, so /api/public/quotes
+      // can't be enumerated to read/sign other tenants' quotes.
+      let signingToken = invoice.signingToken;
+      if (!signingToken) {
+        signingToken = crypto.randomBytes(24).toString('hex');
+        await req.db.query(
+          'UPDATE invoices SET "signingToken" = $1 WHERE id = $2 AND "companyId" = $3',
+          [signingToken, id, req.user!.companyId],
+        );
+      }
+      signatureLink = `${signatureBaseUrl}/sign-quote/${invoice.id}?t=${signingToken}`;
+      await req.db.query(
+        'UPDATE invoices SET "signatureLink" = $1 WHERE id = $2 AND "companyId" = $3',
+        [signatureLink, id, req.user!.companyId],
+      );
+    }
 
     // Preserve user-entered whitespace + newlines (matches the product
     // creation form). HTML emails collapse whitespace by default, so we
@@ -1054,7 +1140,7 @@ invoicesRouter.post('/:id/send-email', async (req, res, next) => {
  * Designed to be triggered manually by the SmartDesk operator from the
  * Sales UI once they've confirmed the payment was received.
  */
-invoicesRouter.post('/:id/mark-quote-paid', async (req, res, next) => {
+invoicesRouter.post('/:id/mark-quote-paid', requirePermission('sales.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const companyId = req.user!.companyId;

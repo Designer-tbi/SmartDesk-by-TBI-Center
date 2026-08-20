@@ -4,6 +4,7 @@ import http from 'http';
 import path from "path";
 import express from "express";
 import { setWebSocketServer, broadcast, logActivity } from './server/activity.js';
+import { tenantContextFromCookieHeader } from './server/utils/authFromCookie.js';
 
 // Re-export helpers for any lingering deep-imports. NOTE: new code should
 // import directly from './server/activity.js' to avoid the circular-import
@@ -16,6 +17,22 @@ const server = http.createServer(app);
 if (!process.env.VERCEL) {
   import('ws').then(({ WebSocketServer }) => {
     const wss = new WebSocketServer({ server });
+    // Authenticate at the handshake: same session cookie used by every
+    // REST call. Unauthenticated sockets are refused outright — previously
+    // ANY client (logged out, or another tenant) could connect and receive
+    // every broadcast (activity descriptions, invoice/journal events, …)
+    // for every company on the platform, since nothing scoped delivery.
+    // See server/activity.ts's broadcast() for the matching per-tenant
+    // filter on the send side.
+    wss.on('connection', (ws: any, req: any) => {
+      const { companyId, isSuperAdmin } = tenantContextFromCookieHeader(req.headers?.cookie);
+      if (!companyId && !isSuperAdmin) {
+        ws.close(4001, 'Unauthorized');
+        return;
+      }
+      ws.companyId = companyId;
+      ws.isSuperAdmin = isSuperAdmin;
+    });
     setWebSocketServer(wss);
     console.log('WebSocket server started');
   }).catch(err => {

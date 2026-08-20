@@ -25,7 +25,7 @@ if not BASE_URL:
 DEMO_CG_EMAIL = "admin@smartdesk.cg"
 DEMO_CG_PASSWORD = "admin"
 SUPER_ADMIN_EMAIL = "eden@tbi-center.fr"
-SUPER_ADMIN_PASSWORD = "loub@ki2014D"
+SUPER_ADMIN_PASSWORD = os.environ.get('SUPER_ADMIN_PASSWORD', '')
 
 
 class TestAuthTrialStamping:

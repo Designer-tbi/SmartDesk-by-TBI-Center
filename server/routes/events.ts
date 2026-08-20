@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireTenant } from '../middleware/auth.js';
+import { isManagerRole } from '../utils/roles.js';
 
 export const eventsRouter = Router();
 
@@ -7,7 +8,11 @@ eventsRouter.use(...requireTenant);
 
 eventsRouter.get('/', async (req, res, next) => {
   try {
-    const isAdmin = req.user!.role === 'admin' || req.user!.role === 'super_admin';
+    // Real tenant admins carry role_admin_<companyId>, not the literal
+    // 'admin' — isManagerRole is the actual check used elsewhere
+    // (schedules.ts, company.ts). The old literal check meant every
+    // real admin was treated as a regular user here.
+    const isAdmin = isManagerRole(req.user!.role);
     
     let query = `
       SELECT e.*, u.name as "userName", u.role as "userRole", target.name as "assignedToName"
@@ -23,11 +28,19 @@ eventsRouter.get('/', async (req, res, next) => {
       // Non-admins see:
       // 1. Events they created
       // 2. Events assigned to them
-      // 3. Public events NOT created by admins (as per previous requirement)
+      // 3. Public events NOT created by a manager (mirrors isManagerRole:
+      //    legacy literal roles + the real per-tenant role_admin_<id> /
+      //    role_rh_<id> / role_super_admin_<id> format)
       query += ` AND (
-        e."userId" = $2 
-        OR e."assignedTo" = $2 
-        OR (u.role NOT IN ('admin', 'super_admin') AND e."isPrivate" = FALSE)
+        e."userId" = $2
+        OR e."assignedTo" = $2
+        OR (
+          u.role NOT IN ('admin', 'super_admin', 'rh')
+          AND u.role NOT LIKE 'role_admin_%'
+          AND u.role NOT LIKE 'role_rh_%'
+          AND u.role NOT LIKE 'role_super_admin_%'
+          AND e."isPrivate" = FALSE
+        )
       )`;
       params.push(req.user!.id);
     }
@@ -72,7 +85,7 @@ eventsRouter.put('/:id', async (req, res, next) => {
     
     if (!event) return res.status(404).json({ error: 'Event not found' });
     
-    const isAdmin = req.user!.role === 'admin' || req.user!.role === 'super_admin';
+    const isAdmin = isManagerRole(req.user!.role);
     if (event.userId !== req.user!.id && !isAdmin) {
       return res.status(403).json({ error: 'Forbidden' });
     }
@@ -102,7 +115,7 @@ eventsRouter.delete('/:id', async (req, res, next) => {
     
     if (!event) return res.status(404).json({ error: 'Event not found' });
     
-    const isAdmin = req.user!.role === 'admin' || req.user!.role === 'super_admin';
+    const isAdmin = isManagerRole(req.user!.role);
     if (event.userId !== req.user!.id && !isAdmin) {
       return res.status(403).json({ error: 'Forbidden' });
     }

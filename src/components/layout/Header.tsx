@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Bell, HelpCircle, LogOut, PlayCircle, Menu, Building2 } from 'lucide-react';
+import { Search, HelpCircle, LogOut, PlayCircle, Menu, Building2 } from 'lucide-react';
 import { useTranslation } from '../../lib/i18n';
 import { apiFetch, setApiSession } from '../../lib/api';
+import { NotificationBell } from './NotificationBell';
 
 export const Header = ({
   title,
@@ -111,18 +112,14 @@ export const Header = ({
         </div>
 
         <div className="flex items-center gap-1 pl-1 lg:pl-3 lg:border-l border-slate-100">
+          <NotificationBell user={user} />
           <button
             onClick={() => navigate('/settings?tab=help')}
+            data-testid="header-help-button"
             className="p-2 text-slate-500 hover:bg-slate-100 hover:text-accent-red rounded-full transition-colors hidden sm:block"
             title={t('header.help')}
           >
             <HelpCircle className="w-5 h-5" />
-          </button>
-          <button
-            className="p-2 text-slate-500 hover:bg-slate-100 hover:text-accent-red rounded-full transition-colors"
-            title={t('header.notifications')}
-          >
-            <Bell className="w-5 h-5" />
           </button>
           {onLogout && (
             <button

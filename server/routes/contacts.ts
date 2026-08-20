@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireTenant } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/permissions.js';
 import { logActivity } from '../activity.js';
 
 export const contactsRouter = Router();
@@ -30,12 +31,13 @@ contactsRouter.get('/', async (req, res, next) => {
   }
 });
 
-contactsRouter.post('/', async (req, res, next) => {
+contactsRouter.post('/', requirePermission('crm.edit'), async (req, res, next) => {
   try {
     const {
       id, name, email, phone, company, role, notes, status, lastContact,
       niu, address, contactType, foreignCountry,
     } = req.body;
+    if (!name) return res.status(400).json({ error: 'Le nom du contact est requis.' });
     const type = normaliseType(contactType);
     await req.db.query(
       `INSERT INTO contacts
@@ -60,7 +62,7 @@ contactsRouter.post('/', async (req, res, next) => {
   }
 });
 
-contactsRouter.put('/:id', async (req, res, next) => {
+contactsRouter.put('/:id', requirePermission('crm.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const {
@@ -68,7 +70,7 @@ contactsRouter.put('/:id', async (req, res, next) => {
       niu, address, contactType, foreignCountry,
     } = req.body;
     const type = normaliseType(contactType);
-    await req.db.query(
+    const result = await req.db.query(
       `UPDATE contacts SET
          name = $1, email = $2, phone = $3, company = $4, role = $5,
          notes = $6, status = $7, "lastContact" = $8, niu = $9,
@@ -77,6 +79,7 @@ contactsRouter.put('/:id', async (req, res, next) => {
       [name, email, phone, company, role, notes, status, lastContact,
        niu, address, type, foreignCountry || null, id, req.user!.companyId],
     );
+    if (!result.rowCount) return res.status(404).json({ error: 'Contact introuvable.' });
 
     await logActivity(
       req.db, req.user!.id, req.user!.companyId, 'UPDATE_CONTACT',
@@ -92,19 +95,22 @@ contactsRouter.put('/:id', async (req, res, next) => {
   }
 });
 
-contactsRouter.delete('/:id', async (req, res, next) => {
+contactsRouter.delete('/:id', requirePermission('crm.delete'), async (req, res, next) => {
   try {
     const { id } = req.params;
+    let deleted = 0;
     try {
       await req.db.query('BEGIN');
       await req.db.query('UPDATE public.invoices SET "contactId" = NULL WHERE "contactId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
       await req.db.query('UPDATE public.projects SET "contactId" = NULL WHERE "contactId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
-      await req.db.query('DELETE FROM contacts WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+      const result = await req.db.query('DELETE FROM contacts WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
+      deleted = result.rowCount || 0;
       await req.db.query('COMMIT');
     } catch (e) {
       await req.db.query('ROLLBACK');
       throw e;
     }
+    if (!deleted) return res.status(404).json({ error: 'Contact introuvable.' });
 
     await logActivity(req.db, req.user!.id, req.user!.companyId, 'DELETE_CONTACT', `Contact supprimé (ID: ${id})`);
     res.status(204).send();

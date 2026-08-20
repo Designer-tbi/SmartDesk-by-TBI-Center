@@ -10,7 +10,7 @@ import React, { useEffect, useState } from 'react';
 import { apiFetch } from '../lib/api';
 import { useAuth } from '../lib/AuthContext';
 import { toast } from '../lib/toast';
-import { Loader2, LogOut, Check, CreditCard } from 'lucide-react';
+import { Loader2, LogOut, Check, CreditCard, Smartphone, Copy } from 'lucide-react';
 
 interface Status {
   access: 'allowed' | 'blocked';
@@ -23,13 +23,62 @@ interface Status {
   subscriptionId?: string | null;
 }
 
+interface MobileMoneyPending {
+  id: string;
+  provider: 'airtel' | 'mtn';
+  referenceCode: string;
+  amountLocal: string;
+  status: string;
+}
+
 interface Props { children: React.ReactNode }
 
 export const SubscriptionGate: React.FC<Props> = ({ children }) => {
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(true);
   const [subscribing, setSubscribing] = useState(false);
+  const [mobileMoneyOpen, setMobileMoneyOpen] = useState(false);
+  const [mobileMoneyProvider, setMobileMoneyProvider] = useState<'airtel' | 'mtn'>('airtel');
+  const [mobileMoneyPhone, setMobileMoneyPhone] = useState('');
+  const [mobileMoneySubmitting, setMobileMoneySubmitting] = useState(false);
+  const [mobileMoneyPending, setMobileMoneyPending] = useState<MobileMoneyPending | null>(null);
+  const [mobileMoneyInstructions, setMobileMoneyInstructions] = useState<{ payNumber: string; instructions: string } | null>(null);
   const { user, logout } = useAuth();
+
+  const fetchMobileMoneyPending = async () => {
+    try {
+      const r = await apiFetch('/api/subscription/mobile-money/pending');
+      if (r.ok) {
+        const d = await r.json();
+        setMobileMoneyPending(d.pending || null);
+      }
+    } catch { /* non-fatal */ }
+  };
+
+  const submitMobileMoney = async () => {
+    if (!mobileMoneyPhone.trim()) {
+      toast.error('Numéro de téléphone requis.');
+      return;
+    }
+    setMobileMoneySubmitting(true);
+    try {
+      const r = await apiFetch('/api/subscription/mobile-money/request', {
+        method: 'POST',
+        body: JSON.stringify({ provider: mobileMoneyProvider, phoneNumber: mobileMoneyPhone }),
+      });
+      const data = await r.json();
+      if (r.ok) {
+        setMobileMoneyInstructions({ payNumber: data.payNumber, instructions: data.instructions });
+        fetchMobileMoneyPending();
+      } else {
+        toast.error(data?.error || 'Impossible de créer la demande de paiement.');
+      }
+    } catch {
+      toast.error('Erreur réseau.');
+    } finally {
+      setMobileMoneySubmitting(false);
+    }
+  };
 
   const fetchStatus = async () => {
     try {
@@ -49,7 +98,7 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
     // Stamp trial on the first request (idempotent).
     apiFetch('/api/subscription/start-trial', { method: 'POST' })
       .catch(() => {})
-      .finally(() => fetchStatus());
+      .finally(() => { fetchStatus(); fetchMobileMoneyPending(); });
   }, [user]);
 
   // If we land back from PayPal approval (URL query ?subscription=return),
@@ -156,6 +205,55 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
                 </li>
               ))}
             </ul>
+            {mobileMoneyPending ? (
+              <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                <p className="font-bold flex items-center gap-2"><Smartphone className="w-4 h-4" /> Paiement {mobileMoneyPending.provider === 'airtel' ? 'Airtel Money' : 'MTN Mobile Money'} en attente de confirmation</p>
+                <p className="mt-1">Référence <strong>{mobileMoneyPending.referenceCode}</strong> — {mobileMoneyPending.amountLocal}. Votre abonnement sera activé dès la confirmation par notre équipe.</p>
+              </div>
+            ) : mobileMoneyInstructions ? (
+              <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-sm text-emerald-800 space-y-2">
+                <p className="font-bold">Demande enregistrée</p>
+                <p>{mobileMoneyInstructions.instructions}</p>
+                <button
+                  type="button"
+                  onClick={() => { navigator.clipboard?.writeText(mobileMoneyInstructions.payNumber); toast.success('Numéro copié.'); }}
+                  className="inline-flex items-center gap-1 text-xs font-bold underline"
+                >
+                  <Copy className="w-3 h-3" /> Copier le numéro {mobileMoneyInstructions.payNumber}
+                </button>
+              </div>
+            ) : mobileMoneyOpen && (isCG || status.country?.toUpperCase() === 'CD') ? (
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3">
+                <div className="flex gap-2">
+                  {(['airtel', 'mtn'] as const).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setMobileMoneyProvider(p)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold border ${mobileMoneyProvider === p ? 'bg-accent-red text-white border-accent-red' : 'bg-white text-slate-600 border-slate-200'}`}
+                    >
+                      {p === 'airtel' ? 'Airtel Money' : 'MTN Mobile Money'}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="tel"
+                  placeholder="Votre numéro Mobile Money (+242...)"
+                  value={mobileMoneyPhone}
+                  onChange={(e) => setMobileMoneyPhone(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/30"
+                />
+                <button
+                  type="button"
+                  onClick={submitMobileMoney}
+                  disabled={mobileMoneySubmitting}
+                  className="w-full py-3 bg-slate-900 text-white rounded-xl font-bold text-sm disabled:opacity-60"
+                >
+                  {mobileMoneySubmitting ? 'Envoi…' : 'Obtenir les instructions de paiement'}
+                </button>
+              </div>
+            ) : null}
+
             <div className="flex flex-col sm:flex-row gap-3">
               <button
                 onClick={startSubscribe}
@@ -166,6 +264,15 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
                 {subscribing ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
                 {subscribing ? 'Redirection sécurisée…' : 'S\'abonner par carte bancaire'}
               </button>
+              {(isCG || status.country?.toUpperCase() === 'CD') && !mobileMoneyPending && !mobileMoneyInstructions && (
+                <button
+                  onClick={() => setMobileMoneyOpen((v) => !v)}
+                  className="flex-1 py-4 bg-slate-900 text-white rounded-2xl font-bold hover:bg-slate-800 flex items-center justify-center gap-2"
+                  data-testid="subscription-mobile-money-btn"
+                >
+                  <Smartphone className="w-4 h-4" /> Payer par Mobile Money
+                </button>
+              )}
               <button
                 onClick={logout}
                 className="py-4 px-6 bg-slate-100 text-slate-600 rounded-2xl font-bold hover:bg-slate-200 flex items-center justify-center gap-2"
@@ -175,7 +282,7 @@ export const SubscriptionGate: React.FC<Props> = ({ children }) => {
               </button>
             </div>
             <p className="text-[11px] text-center text-slate-400">
-              Paiement sécurisé par carte bancaire (Visa, Mastercard). Vous pouvez annuler à tout moment depuis les paramètres.
+              Paiement sécurisé par carte bancaire (Visa, Mastercard) ou Mobile Money (Airtel/MTN). Vous pouvez annuler à tout moment depuis les paramètres.
             </p>
           </div>
         </div>

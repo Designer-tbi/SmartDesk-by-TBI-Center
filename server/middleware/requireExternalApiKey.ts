@@ -11,6 +11,14 @@
  * to avoid silently exposing the provisioning endpoint.
  */
 import type { Request, Response, NextFunction } from 'express';
+import crypto from 'crypto';
+
+function timingSafeEqual(a: string, b: string): boolean {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export const requireExternalApiKey = (
   req: Request,
@@ -27,7 +35,7 @@ export const requireExternalApiKey = (
   const auth = req.headers.authorization || '';
   const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   const presented = headerKey || bearer;
-  if (!presented || presented !== expected) {
+  if (!presented || !timingSafeEqual(presented, expected)) {
     return res.status(401).json({ error: 'Invalid or missing API key.' });
   }
   next();
