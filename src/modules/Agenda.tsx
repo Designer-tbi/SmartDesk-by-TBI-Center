@@ -284,64 +284,68 @@ export const Agenda = ({ user }: { user?: any }) => {
 
     return (
       <div className="flex flex-col border border-slate-200 rounded-xl overflow-hidden bg-white">
-        <div className="grid grid-cols-8 border-b border-slate-200 bg-slate-50">
-          <div className="p-2 border-r border-slate-200"></div>
-          {weekDays.map(day => (
-            <div key={day.toString()} className="p-2 text-center border-r border-slate-200 last:border-r-0">
-              <div className="text-[10px] font-bold text-slate-400 uppercase">{format(day, 'EEE', { locale })}</div>
-              <div className={`text-sm font-bold ${isSameDay(day, new Date()) ? 'text-accent-red' : 'text-slate-700'}`}>{format(day, 'd')}</div>
-            </div>
-          ))}
-        </div>
-        <div className="flex-1 overflow-y-auto max-h-[600px]">
-          <div className="grid grid-cols-8 relative">
-            <div className="col-span-1">
-              {hours.map(hour => (
-                <div key={hour} className="h-20 border-r border-b border-slate-100 text-[10px] text-slate-400 p-1 text-right">
-                  {hour}:00
+        <div className="overflow-x-auto">
+          <div className="min-w-[640px]">
+            <div className="grid grid-cols-8 border-b border-slate-200 bg-slate-50">
+              <div className="p-2 border-r border-slate-200"></div>
+              {weekDays.map(day => (
+                <div key={day.toString()} className="p-2 text-center border-r border-slate-200 last:border-r-0">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase">{format(day, 'EEE', { locale })}</div>
+                  <div className={`text-sm font-bold ${isSameDay(day, new Date()) ? 'text-accent-red' : 'text-slate-700'}`}>{format(day, 'd')}</div>
                 </div>
               ))}
             </div>
-            {weekDays.map(day => (
-              <div key={day.toString()} className="col-span-1 relative border-r border-slate-100 last:border-r-0">
-                {hours.map(hour => (
-                  <div key={hour} className="h-20 border-b border-slate-100" onClick={() => {
-                    const d = new Date(day);
-                    d.setHours(hour);
-                    openAddModal(d);
-                  }}></div>
-                ))}
-                {events.filter(e => {
-                  const start = startOfDay(new Date(e.startDate));
-                  const end = endOfDay(new Date(e.endDate));
-                  return day >= start && day <= end;
-                }).map(event => {
-                  const start = new Date(event.startDate);
-                  const end = new Date(event.endDate);
-                  
-                  const isStartDay = isSameDay(start, day);
-                  const isEndDay = isSameDay(end, day);
-                  
-                  const startHour = isStartDay ? start.getHours() + (start.getMinutes() / 60) : 0;
-                  const endHour = isEndDay ? end.getHours() + (end.getMinutes() / 60) : 24;
-                  
-                  const top = startHour * 80;
-                  const height = Math.max(20, (endHour - startHour) * 80);
-                  
-                  return (
-                    <div 
-                      key={event.id}
-                      onClick={() => openEditModal(event)}
-                      style={{ top: `${top}px`, height: `${height}px` }}
-                      className="absolute left-1 right-1 p-1.5 rounded bg-soft-red border border-red-200 text-accent-red text-[10px] font-medium overflow-hidden cursor-pointer z-10 hover:shadow-md transition-shadow"
-                    >
-                      <div className="font-bold">{event.title}</div>
-                      <div>{format(start, 'HH:mm')} - {format(end, 'HH:mm')}</div>
+            <div className="flex-1 overflow-y-auto max-h-[600px]">
+              <div className="grid grid-cols-8 relative">
+                <div className="col-span-1">
+                  {hours.map(hour => (
+                    <div key={hour} className="h-20 border-r border-b border-slate-100 text-[10px] text-slate-400 p-1 text-right">
+                      {hour}:00
                     </div>
-                  );
-                })}
+                  ))}
+                </div>
+                {weekDays.map(day => (
+                  <div key={day.toString()} className="col-span-1 relative border-r border-slate-100 last:border-r-0">
+                    {hours.map(hour => (
+                      <div key={hour} className="h-20 border-b border-slate-100" onClick={() => {
+                        const d = new Date(day);
+                        d.setHours(hour);
+                        openAddModal(d);
+                      }}></div>
+                    ))}
+                    {events.filter(e => {
+                      const start = startOfDay(new Date(e.startDate));
+                      const end = endOfDay(new Date(e.endDate));
+                      return day >= start && day <= end;
+                    }).map(event => {
+                      const start = new Date(event.startDate);
+                      const end = new Date(event.endDate);
+
+                      const isStartDay = isSameDay(start, day);
+                      const isEndDay = isSameDay(end, day);
+
+                      const startHour = isStartDay ? start.getHours() + (start.getMinutes() / 60) : 0;
+                      const endHour = isEndDay ? end.getHours() + (end.getMinutes() / 60) : 24;
+
+                      const top = startHour * 80;
+                      const height = Math.max(20, (endHour - startHour) * 80);
+
+                      return (
+                        <div
+                          key={event.id}
+                          onClick={() => openEditModal(event)}
+                          style={{ top: `${top}px`, height: `${height}px` }}
+                          className="absolute left-1 right-1 p-1.5 rounded bg-soft-red border border-red-200 text-accent-red text-[10px] font-medium overflow-hidden cursor-pointer z-10 hover:shadow-md transition-shadow"
+                        >
+                          <div className="font-bold">{event.title}</div>
+                          <div>{format(start, 'HH:mm')} - {format(end, 'HH:mm')}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </div>
@@ -465,35 +469,35 @@ export const Agenda = ({ user }: { user?: any }) => {
           </h2>
         </div>
 
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
-          <button 
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl p-1 shadow-sm overflow-x-auto max-w-full">
+          <button
             onClick={() => setView('day')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'day' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap shrink-0 ${view === 'day' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <CalendarIcon className="w-4 h-4" /> {t('agenda.view.day')}
           </button>
-          <button 
+          <button
             onClick={() => setView('week')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'week' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap shrink-0 ${view === 'week' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <CalendarRange className="w-4 h-4" /> {t('agenda.view.week')}
           </button>
-          <button 
+          <button
             onClick={() => setView('month')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'month' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap shrink-0 ${view === 'month' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <CalendarMonthIcon className="w-4 h-4" /> {t('agenda.view.month')}
           </button>
-          <button 
+          <button
             onClick={() => setView('year')}
-            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all ${view === 'year' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
+            className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-lg transition-all whitespace-nowrap shrink-0 ${view === 'year' ? 'bg-accent-red text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'}`}
           >
             <LayoutGrid className="w-4 h-4" /> {t('agenda.view.year')}
           </button>
-          <div className="w-px h-6 bg-slate-200 mx-1" />
-          <button 
+          <div className="w-px h-6 bg-slate-200 mx-1 shrink-0" />
+          <button
             onClick={() => openAddModal()}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all shadow-md active:scale-95"
+            className="flex items-center gap-2 px-4 py-2 text-xs font-bold bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all shadow-md active:scale-95 whitespace-nowrap shrink-0"
           >
             <Plus className="w-4 h-4" /> {t('agenda.newEvent')}
           </button>

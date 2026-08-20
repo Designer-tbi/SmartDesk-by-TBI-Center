@@ -1354,7 +1354,7 @@ export const Sales = ({ user }: { user: any }) => {
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               className="bg-white w-full max-w-3xl rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]"
             >
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
+            <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/50 shrink-0">
               <div className="flex items-center gap-3">
                 <div className={`p-2 rounded-lg ${viewInvoice.type === 'Invoice' ? 'bg-soft-red text-accent-red' : 'bg-amber-50 text-amber-600'}`}>
                   <FileText className="w-5 h-5" />
@@ -1367,7 +1367,7 @@ export const Sales = ({ user }: { user: any }) => {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={async () => {
                     try {
@@ -1449,7 +1449,8 @@ export const Sales = ({ user }: { user: any }) => {
                   </div>
                 </div>
 
-                <table className="w-full mb-8">
+                <div className="overflow-x-auto mb-8">
+                <table className="w-full">
                   <thead>
                     <tr className="border-b-2 border-slate-900">
                       <th className="py-3 text-left text-xs font-bold text-slate-900 uppercase tracking-wider">Description</th>
@@ -1481,6 +1482,7 @@ export const Sales = ({ user }: { user: any }) => {
                     ))}
                   </tbody>
                 </table>
+                </div>
 
                 <div className="flex justify-end mb-12">
                   <div className="w-72 space-y-2">

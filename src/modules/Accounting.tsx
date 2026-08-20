@@ -517,6 +517,7 @@ export const Accounting = ({ user }: { user?: any }) => {
             </button>
           </div>
           <div className="overflow-hidden rounded-xl border border-red-50">
+            <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead className="bg-soft-red/30 border-b border-red-50">
                 <tr>
@@ -566,11 +567,13 @@ export const Accounting = ({ user }: { user?: any }) => {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       );
       case 'PCG': return (
         <div className="overflow-hidden rounded-xl border border-red-50">
+          <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="bg-soft-red/30 border-b border-red-50">
               <tr>
@@ -593,6 +596,7 @@ export const Accounting = ({ user }: { user?: any }) => {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       );
       case 'Bilan': return (

@@ -210,6 +210,7 @@ export const Inventory = ({ user }: { user: any }) => {
             <p className="text-sm font-medium text-slate-500">{t('inventory.loadingCatalog')}</p>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-soft-red/30 border-b border-red-100">
@@ -267,6 +268,7 @@ export const Inventory = ({ user }: { user: any }) => {
               )}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
