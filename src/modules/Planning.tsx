@@ -667,7 +667,7 @@ export const Planning = ({ user }: { user?: any }) => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[2rem] shadow-2xl w-full md:w-[90vw] lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl w-full md:w-[90vw] lg:max-w-4xl max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
             >
               {/* Modal Header - Fixé */}
               <div className="px-6 sm:px-10 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
@@ -837,7 +837,7 @@ export const Planning = ({ user }: { user?: any }) => {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                      <div className="p-6 bg-slate-50 border-2 border-transparent rounded-[2rem] focus-within:bg-white focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/5 transition-all">
+                      <div className="p-6 bg-slate-50 border-2 border-transparent rounded-2xl focus-within:bg-white focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/5 transition-all">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{t('planning.modal.startLabel')}</label>
                         <input
                           type="datetime-local"
@@ -847,7 +847,7 @@ export const Planning = ({ user }: { user?: any }) => {
                           onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
                         />
                       </div>
-                      <div className="p-6 bg-slate-50 border-2 border-transparent rounded-[2rem] focus-within:bg-white focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/5 transition-all">
+                      <div className="p-6 bg-slate-50 border-2 border-transparent rounded-2xl focus-within:bg-white focus-within:border-emerald-500 focus-within:ring-4 focus-within:ring-emerald-500/5 transition-all">
                         <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">{t('planning.modal.endLabel')}</label>
                         <input
                           type="datetime-local"
@@ -935,7 +935,7 @@ export const Planning = ({ user }: { user?: any }) => {
                     </div>
                       <textarea
                         rows={4}
-                        className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-[2rem] text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-slate-300 focus:ring-4 focus:ring-slate-500/5 transition-all resize-none"
+                        className="w-full px-6 py-5 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-slate-300 focus:ring-4 focus:ring-slate-500/5 transition-all resize-none"
                         value={formData.description || ''}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         placeholder={t('planning.modal.notesPlaceholder')}

@@ -34,7 +34,7 @@ export const PayrollGenerateModal: React.FC<Props> = ({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4 backdrop-blur-sm"
       data-testid="hr-payroll-modal"
     >
       <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden">

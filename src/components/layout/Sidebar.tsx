@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Calendar,
@@ -36,6 +36,7 @@ const COLLAPSED_SECTIONS_KEY = 'sidebarCollapsedSections';
 
 export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolean, onClose?: () => void }) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>(
     () => user?.preferences?.[COLLAPSED_SECTIONS_KEY] || {},
@@ -149,12 +150,12 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
       />
 
       <aside className={cn(
-        "bg-primary-red flex flex-col h-screen sticky top-0 left-0 transition-all duration-300 z-50 shadow-2xl",
+        "bg-[linear-gradient(180deg,#5b0620_0%,var(--color-primary-red)_45%)] flex flex-col h-screen sticky top-0 left-0 transition-all duration-300 z-50 shadow-2xl",
         "fixed lg:sticky", // Fixed on mobile, sticky on desktop
         isOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0", // Toggle on mobile
         isCollapsed ? "w-20 shrink-0" : "w-64 shrink-0"
       )}>
-        <button 
+        <button
           onClick={() => setIsCollapsed(!isCollapsed)}
           data-testid="sidebar-collapse-toggle"
           className="absolute -right-3 top-8 bg-white border border-red-100 rounded-full p-1 text-slate-400 hover:text-accent-red hover:border-accent-red shadow-lg transition-colors z-30 hidden lg:block"
@@ -163,7 +164,7 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
         </button>
 
         <div className="p-6 flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
-          <div className={cn("flex items-center justify-between mb-10", isCollapsed ? "lg:justify-center" : "")}>
+          <div className={cn("flex items-center justify-between mb-8 pb-6 border-b border-white/10", isCollapsed ? "lg:justify-center" : "")}>
             <div className={cn("flex items-center gap-3", isCollapsed ? "lg:justify-center" : "")}>
               <div className="w-9 h-9 shrink-0 bg-accent-red rounded-xl flex items-center justify-center text-white font-bold overflow-hidden shadow-lg shadow-accent-red/20">
                 {user?.companyLogo ? (
@@ -265,8 +266,16 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
             navigator.standalone). */}
         <InstallAppButton collapsed={isCollapsed && !isOpen} />
 
-        <div className={cn("flex items-center", isCollapsed ? "lg:justify-center" : "gap-3")}>
-          <div className="w-10 h-10 shrink-0 rounded-full bg-white/10 flex items-center justify-center text-white font-bold border border-white/10" title={isCollapsed ? (user?.name || 'Admin') : undefined}>
+        <button
+          type="button"
+          onClick={() => navigate('/settings')}
+          title={isCollapsed ? (user?.name || 'Admin') : undefined}
+          className={cn(
+            "flex items-center rounded-xl transition-colors hover:bg-white/5 -mx-2 px-2 py-1.5",
+            isCollapsed ? "lg:justify-center" : "gap-3 w-full text-left",
+          )}
+        >
+          <div className="w-10 h-10 shrink-0 rounded-full bg-white/10 flex items-center justify-center text-white font-bold border border-white/10">
             {user?.name?.charAt(0) || 'A'}
           </div>
           {(!isCollapsed || isOpen) && (
@@ -275,7 +284,7 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
               <span className="text-xs text-red-300/50 truncate">{user?.role || 'Gérant PME'}</span>
             </div>
           )}
-        </div>
+        </button>
       </div>
     </aside>
     </>

@@ -36,9 +36,9 @@ export const connectionString = (rawConnectionString && rawConnectionString.star
 
 export const db = new Pool({
   connectionString,
-  ssl: {
-    rejectUnauthorized: false
-  },
+  ssl: connectionString.includes('localhost') || connectionString.includes('127.0.0.1')
+    ? false
+    : { rejectUnauthorized: false },
   // Aggressively short timeouts so a slow Neon cold-start never burns the
   // whole 10s Vercel serverless budget on a single connection attempt.
   connectionTimeoutMillis: 5000,

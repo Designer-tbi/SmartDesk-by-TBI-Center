@@ -17,6 +17,7 @@ import { useAuth } from '../lib/AuthContext';
 import { SignatureModal } from './sales/SignatureModal';
 import { useLiveSync } from '../lib/useLiveSync';
 import { currencySymbolFromCode } from '../lib/locale';
+import { PanelSpinner, EmptyState } from '../components/ui';
 
 export const Sales = ({ user }: { user: any }) => {
   const { t } = useTranslation();
@@ -773,7 +774,19 @@ export const Sales = ({ user }: { user: any }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredInvoices.map((invoice) => (
+                  {isLoading ? (
+                    <tr>
+                      <td colSpan={6} className="px-6 py-16">
+                        <PanelSpinner className="py-0" />
+                      </td>
+                    </tr>
+                  ) : filteredInvoices.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>
+                        <EmptyState icon={FileText} title={t('sales.noInvoices')} />
+                      </td>
+                    </tr>
+                  ) : filteredInvoices.map((invoice) => (
                     <tr key={invoice.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">

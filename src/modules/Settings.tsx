@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut, Upload, Check, PlayCircle, Star, HelpCircle, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Settings as SettingsIcon, Radar, Wallet, Percent } from 'lucide-react';
 import { HelpSection } from '../components/HelpSection';
 import { CompanyInfo, User as UserType } from '../types';
@@ -11,7 +12,12 @@ import { useTranslation } from '../lib/i18n';
 
 export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: any, setUser: any }) => {
   const { t, setLanguage } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'company' | 'profile' | 'security' | 'notifications' | 'help'>('company');
+  const [searchParams] = useSearchParams();
+  const validTabs = ['company', 'profile', 'security', 'notifications', 'help'] as const;
+  const tabFromUrl = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState<'company' | 'profile' | 'security' | 'notifications' | 'help'>(
+    (validTabs as readonly string[]).includes(tabFromUrl || '') ? (tabFromUrl as typeof validTabs[number]) : 'company',
+  );
   const [company, setCompany] = useState<CompanyInfo>({
     name: '',
     type: 'real',

@@ -6,6 +6,7 @@ import { Contact, Company } from '../types';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { ContactDetailModal } from './crm/ContactDetailModal';
 import { useLiveSync } from '../lib/useLiveSync';
+import { Badge, PanelSpinner } from '../components/ui';
 
 import { useTranslation } from '../lib/i18n';
 import { resolveLocale, formatAddressHint } from '../lib/locale';
@@ -245,7 +246,7 @@ export const CRM = ({ user }: { user?: any }) => {
       className="space-y-8"
     >
       {/* Company Header */}
-      <div className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
         <div className="p-4 bg-soft-red rounded-2xl">
           <Building2 className="w-8 h-8 text-accent-red" />
         </div>
@@ -375,13 +376,10 @@ export const CRM = ({ user }: { user?: any }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
           {isLoading ? (
-            <div className="flex flex-col items-center justify-center py-20 gap-4">
-              <Loader2 className="w-10 h-10 text-accent-red animate-spin" />
-              <p className="text-sm font-medium text-slate-500">{t('crm.loading')}</p>
-            </div>
+            <PanelSpinner />
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
@@ -436,13 +434,9 @@ export const CRM = ({ user }: { user?: any }) => {
                       </div>
                     </td>
                     <td className="hidden sm:table-cell px-6 py-6">
-                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                        contact.status === 'Client' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
-                        contact.status === 'Lead' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 
-                        'bg-red-50 text-red-600 border border-red-100'
-                      }`}>
+                      <Badge tone={contact.status === 'Client' ? 'success' : contact.status === 'Lead' ? 'warning' : 'danger'}>
                         {t(`crm.status.${(contact.status || 'Lead').toLowerCase()}`)}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="px-6 py-6">
                       <div className="space-y-1.5">
@@ -498,7 +492,7 @@ export const CRM = ({ user }: { user?: any }) => {
       {/* Slide-over Nouveau Contact */}
       <AnimatePresence>
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end bg-primary-red/20 backdrop-blur-sm transition-all">
+          <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm transition-all">
             <div className="absolute inset-0" onClick={resetForm}></div>
             
             <motion.div 

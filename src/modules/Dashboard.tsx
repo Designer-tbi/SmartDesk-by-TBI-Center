@@ -4,9 +4,9 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell, AreaChart, Area
 } from 'recharts';
-import { 
-  TrendingUp, Users, DollarSign, Package, ArrowUpRight, ArrowDownRight, 
-  Loader2, Calendar, Activity, Zap, Target, MoreHorizontal
+import {
+  TrendingUp, Users, DollarSign, Package, ArrowUpRight, ArrowDownRight,
+  Loader2, Calendar, Activity, Zap
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslation } from '../lib/i18n';
@@ -14,7 +14,9 @@ import { DashboardWidgets } from './dashboard/DashboardWidgets';
 import { useLiveSync } from '../lib/useLiveSync';
 import { currencySymbolFromCode } from '../lib/locale';
 
-const COLORS = ['#991b1b', '#dc2626', '#7f1d1d', '#ef4444'];
+// Rose-family palette matching the brand tokens (primary-red/accent-red)
+// instead of the plain Tailwind "red" scale that was previously mismatched.
+const COLORS = ['#be123c', '#e11d48', '#4c0519', '#fb7185'];
 
 const StatCard = ({ title, value, change, icon: Icon, trend, delay }: any) => (
   <motion.div 
@@ -57,23 +59,26 @@ export const Dashboard = ({ user }: { user: any }) => {
     activities: []
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [showAllActivity, setShowAllActivity] = useState(false);
+
+  const fetchStats = React.useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await apiFetch('/api/stats');
+      if (response.ok) {
+        const data = await response.json();
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchStats = async () => {
-      setIsLoading(true);
-      try {
-        const response = await apiFetch('/api/stats');
-        if (response.ok) {
-          const data = await response.json();
-          setStats(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch stats:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
     fetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   // Phase 3 + 4 — auto-refresh dashboard when any business entity
@@ -144,29 +149,13 @@ export const Dashboard = ({ user }: { user: any }) => {
           <p className="text-slate-500 text-sm font-medium mt-1">{t('dashboard.welcome', { name: user?.name || 'User' })}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button className="flex items-center gap-2 px-4 py-2 bg-white border border-red-100 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-600 hover:bg-soft-red transition-colors shadow-sm">
+          <div className="flex items-center gap-2 px-4 py-2 bg-white border border-red-100 rounded-xl text-xs font-bold uppercase tracking-wider text-slate-500 shadow-sm">
             <Calendar className="w-4 h-4" />
             {new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-          </button>
-          <button 
-            onClick={() => {
-              const fetchStats = async () => {
-                setIsLoading(true);
-                try {
-                  const response = await apiFetch('/api/stats');
-                  if (response.ok) {
-                    const data = await response.json();
-                    setStats(data);
-                  }
-                } catch (error) {
-                  console.error('Failed to fetch stats:', error);
-                } finally {
-                  setIsLoading(false);
-                }
-              };
-              fetchStats();
-            }}
-            className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-accent-red/90 transition-colors shadow-lg shadow-accent-red/20"
+          </div>
+          <button
+            onClick={fetchStats}
+            className="flex items-center gap-2 px-4 py-2 bg-accent-red text-white rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-primary-red transition-colors shadow-lg shadow-accent-red/20 active:scale-95"
           >
             <Zap className="w-4 h-4" />
             {t('common.refresh')}
@@ -212,8 +201,8 @@ export const Dashboard = ({ user }: { user: any }) => {
               <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#991b1b" stopOpacity={0.1}/>
-                    <stop offset="95%" stopColor="#991b1b" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#be123c" stopOpacity={0.15}/>
+                    <stop offset="95%" stopColor="#be123c" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eff6ff" />
@@ -241,10 +230,10 @@ export const Dashboard = ({ user }: { user: any }) => {
                   itemStyle={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}
                   labelStyle={{ fontSize: '10px', fontWeight: 900, color: '#94a3b8', marginBottom: '8px', textTransform: 'uppercase' }}
                 />
-                <Area 
-                  type="monotone" 
-                  dataKey="sales" 
-                  stroke="#991b1b" 
+                <Area
+                  type="monotone"
+                  dataKey="sales"
+                  stroke="#be123c"
                   strokeWidth={4}
                   fillOpacity={1} 
                   fill="url(#colorSales)" 
@@ -271,9 +260,6 @@ export const Dashboard = ({ user }: { user: any }) => {
         >
           <div className="flex items-center justify-between mb-10">
             <h3 className="text-xl font-bold text-primary-red tracking-tight">{t('dashboard.distribution')}</h3>
-            <button className="p-2 hover:bg-slate-50 rounded-xl transition-colors">
-              <MoreHorizontal className="w-5 h-5 text-slate-400" />
-            </button>
           </div>
           
           <div className="h-64 relative flex-shrink-0">
@@ -351,14 +337,19 @@ export const Dashboard = ({ user }: { user: any }) => {
               </div>
               <h3 className="text-xl font-bold text-primary-red tracking-tight">{t('dashboard.recentActivity')}</h3>
             </div>
-            <button className="text-sm font-medium text-accent-red hover:underline">
-              {t('common.viewAll')}
-            </button>
+            {stats.activities?.length > 5 && (
+              <button
+                onClick={() => setShowAllActivity((v) => !v)}
+                className="text-sm font-medium text-accent-red hover:underline"
+              >
+                {showAllActivity ? t('common.showLess') : t('common.viewAll')}
+              </button>
+            )}
           </div>
-          
+
           <div className="space-y-6">
             {stats.activities?.length > 0 ? (
-              stats.activities.slice(0, 5).map((activity: any, i) => (
+              stats.activities.slice(0, showAllActivity ? undefined : 5).map((activity: any, i) => (
                 <div key={i} className="flex items-start gap-4 p-4 rounded-2xl hover:bg-soft-red/10 transition-all border border-transparent hover:border-red-50 group">
                   <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-600 font-bold text-lg shadow-inner group-hover:bg-white group-hover:shadow-md transition-all">
                     {activity.user_name?.charAt(0) || 'A'}

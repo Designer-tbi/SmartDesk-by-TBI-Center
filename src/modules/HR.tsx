@@ -1919,7 +1919,7 @@ export const HR = ({ user }: { user: any }) => {
           return null;
         })();
         return (
-          <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4 backdrop-blur-sm" data-testid="contract-preview-modal">
+          <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4 backdrop-blur-sm" data-testid="contract-preview-modal">
             <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-hidden shadow-2xl">
               <div className="bg-gradient-to-r from-accent-red to-rose-600 p-6 text-white flex items-center justify-between">
                 <div>

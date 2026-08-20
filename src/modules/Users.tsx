@@ -5,6 +5,7 @@ import { Users as UsersIcon, Shield, Lock, Plus, Search, MoreVertical, Mail, Shi
 import { apiFetch } from '../lib/api';
 import { ConfirmModal } from '../components/ConfirmModal';
 import { useTranslation } from '../lib/i18n';
+import { EmptyState } from '../components/ui';
 
 export const Users = ({ user }: { user?: any }) => {
   const { t } = useTranslation();
@@ -12,6 +13,7 @@ export const Users = ({ user }: { user?: any }) => {
   const [roles, setRoles] = useState<Role[]>([]);
   const [activeTab, setActiveTab] = useState<'users' | 'roles'>('users');
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [isRoleModalOpen, setIsRoleModalOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -47,20 +49,32 @@ export const Users = ({ user }: { user?: any }) => {
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const id = Math.random().toString(36).substr(2, 9);
-      const response = await apiFetch('/api/company/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newUser, id, role: newUser.roleId })
-      });
+      const response = editingUserId
+        ? await apiFetch(`/api/company/users/${editingUserId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newUser.name, email: newUser.email, role: newUser.roleId, status: 'Active' }),
+          })
+        : await apiFetch('/api/company/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...newUser, id: Math.random().toString(36).substr(2, 9), role: newUser.roleId }),
+          });
       if (response.ok) {
         fetchData();
         setIsUserModalOpen(false);
+        setEditingUserId(null);
         setNewUser({ name: '', email: '', roleId: roles[0]?.id || '', password: '' });
       }
     } catch (error) {
-      console.error('Failed to add user:', error);
+      console.error('Failed to save user:', error);
     }
+  };
+
+  const openEditUser = (u: User) => {
+    setEditingUserId(u.id);
+    setNewUser({ name: u.name, email: u.email, roleId: (u as any).role || '', password: '' });
+    setIsUserModalOpen(true);
   };
 
   const handleDeleteUser = async (id: string) => {
@@ -164,6 +178,8 @@ export const Users = ({ user }: { user?: any }) => {
         <button 
           onClick={() => {
             if (activeTab === 'users') {
+              setEditingUserId(null);
+              setNewUser({ name: '', email: '', roleId: roles[0]?.id || '', password: '' });
               setIsUserModalOpen(true);
             } else {
               setEditingRole(null);
@@ -192,7 +208,13 @@ export const Users = ({ user }: { user?: any }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {users.map((user) => (
+                {users.length === 0 ? (
+                  <tr>
+                    <td colSpan={5}>
+                      <EmptyState icon={UsersIcon} title={t('users.noUsers')} />
+                    </td>
+                  </tr>
+                ) : users.map((user) => (
                   <tr key={user.id} className="hover:bg-slate-50 transition-colors group">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -207,7 +229,7 @@ export const Users = ({ user }: { user?: any }) => {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-lg text-xs font-bold">
-                        {getRoleName(user.roleId)}
+                        {getRoleName((user as any).role)}
                       </span>
                     </td>
                     <td className="px-6 py-4">
@@ -218,11 +240,11 @@ export const Users = ({ user }: { user?: any }) => {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-500">
-                      {user.lastLogin || t('users.never')}
+                      {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : t('users.never')}
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-all sm:translate-x-2 sm:group-hover:translate-x-0">
-                        <button className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm" title={t('common.edit')}>
+                        <button onClick={() => openEditUser(user)} className="p-2 text-slate-400 hover:text-accent-red hover:bg-white rounded-xl transition-all shadow-sm" title={t('common.edit')}>
                           <Edit2 className="w-4 h-4" />
                         </button>
                         <button onClick={() => { setDeleteConfirmId(user.id); setDeleteConfirmType('user'); }} className="p-2 text-slate-400 hover:text-red-600 hover:bg-white rounded-xl transition-all shadow-sm" title={t('common.delete')}>
@@ -298,8 +320,8 @@ export const Users = ({ user }: { user?: any }) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <form onSubmit={handleAddUser} className="bg-white w-full max-w-md rounded-3xl shadow-2xl p-6">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-xl font-bold">{t('users.newUser')}</h3>
-              <button type="button" onClick={() => setIsUserModalOpen(false)}><X className="w-6 h-6 text-slate-400" /></button>
+              <h3 className="text-xl font-bold">{editingUserId ? t('common.edit') : t('users.newUser')}</h3>
+              <button type="button" onClick={() => { setIsUserModalOpen(false); setEditingUserId(null); }}><X className="w-6 h-6 text-slate-400" /></button>
             </div>
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -310,17 +332,19 @@ export const Users = ({ user }: { user?: any }) => {
                 <label className="text-xs font-bold text-slate-400 uppercase">{t('users.email')}</label>
                 <input type="email" required value={newUser.email || ''} onChange={e => setNewUser({...newUser, email: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder={t('users.placeholder.email')} />
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-400 uppercase">{t('users.password')}</label>
-                <input type="password" required value={newUser.password || ''} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="••••••••" />
-              </div>
+              {!editingUserId && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-400 uppercase">{t('users.password')}</label>
+                  <input type="password" required value={newUser.password || ''} onChange={e => setNewUser({...newUser, password: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm" placeholder="••••••••" />
+                </div>
+              )}
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-400 uppercase">{t('users.role')}</label>
                 <select value={newUser.roleId || ''} onChange={e => setNewUser({...newUser, roleId: e.target.value})} className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
                   {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
-              <button type="submit" className="w-full py-3 bg-accent-red text-white rounded-xl font-bold mt-4 shadow-lg shadow-accent-red/20 active:scale-95 transition-all">{t('users.newUser')}</button>
+              <button type="submit" className="w-full py-3 bg-accent-red text-white rounded-xl font-bold mt-4 shadow-lg shadow-accent-red/20 active:scale-95 transition-all">{editingUserId ? t('common.save') : t('users.newUser')}</button>
             </div>
           </form>
         </div>

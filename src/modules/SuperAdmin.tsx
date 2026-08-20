@@ -559,7 +559,7 @@ export const SuperAdmin = () => {
                   placeholder={t('admin.searchUser')}
                   value={userSearch}
                   onChange={(e) => setUserSearch(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                  className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                 />
               </div>
             </div>
@@ -704,7 +704,7 @@ export const SuperAdmin = () => {
                       required
                       value={newUserForm.name}
                       onChange={(e) => setNewUserForm({ ...newUserForm, name: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -714,7 +714,7 @@ export const SuperAdmin = () => {
                       required
                       value={newUserForm.email}
                       onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -724,7 +724,7 @@ export const SuperAdmin = () => {
                       required
                       value={newUserForm.password}
                       onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -732,7 +732,7 @@ export const SuperAdmin = () => {
                     <select
                       value={newUserForm.role}
                       onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                     >
                       <option value="admin">{t('admin.admin')}</option>
                       <option value="user">{t('admin.user')}</option>
@@ -828,7 +828,7 @@ export const SuperAdmin = () => {
                     required
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                     placeholder={t('admin.placeholder.companyName')}
                   />
                 </div>
@@ -839,7 +839,7 @@ export const SuperAdmin = () => {
                     <select
                       value={formData.type}
                       onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                     >
                       <option value="real">{t('admin.real')}</option>
                       <option value="demo">{t('admin.demo')}</option>
@@ -850,7 +850,7 @@ export const SuperAdmin = () => {
                     <select
                       value={formData.status}
                       onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                     >
                       <option value="active">{t('admin.active')}</option>
                       <option value="inactive">{t('admin.inactive')}</option>
@@ -869,7 +869,7 @@ export const SuperAdmin = () => {
                       required={!editingCompany}
                       value={formData.adminName}
                       onChange={(e) => setFormData({ ...formData, adminName: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       placeholder={t('admin.placeholder.fullName')}
                     />
                   </div>
@@ -881,7 +881,7 @@ export const SuperAdmin = () => {
                         required={!editingCompany}
                         value={formData.adminEmail}
                         onChange={(e) => setFormData({ ...formData, adminEmail: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         placeholder={t('admin.placeholder.email')}
                       />
                     </div>
@@ -891,7 +891,7 @@ export const SuperAdmin = () => {
                         type="tel"
                         value={formData.adminPhone}
                         onChange={(e) => setFormData({ ...formData, adminPhone: e.target.value })}
-                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                        className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                         placeholder={t('admin.placeholder.phone')}
                       />
                     </div>
@@ -903,7 +903,7 @@ export const SuperAdmin = () => {
                       required={!editingCompany}
                       value={formData.adminPassword}
                       onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 transition-all"
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       placeholder="••••••••"
                     />
                   </div>

@@ -850,7 +850,7 @@ export const Accounting = ({ user }: { user?: any }) => {
       </div>
 
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-primary-red/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl p-8 space-y-6 border border-red-100">
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-bold text-primary-red">{editingEntryId ? t('accounting.editEntry') : t('accounting.newEntry')}</h3>

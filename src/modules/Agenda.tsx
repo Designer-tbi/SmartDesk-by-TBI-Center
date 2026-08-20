@@ -517,11 +517,11 @@ export const Agenda = ({ user }: { user?: any }) => {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden"
             >
               <div className="px-10 py-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 shrink-0">
                 <div className="flex items-center gap-5">
-                  <div className="p-4 bg-soft-red rounded-[1.5rem] shadow-sm">
+                  <div className="p-4 bg-soft-red rounded-2xl shadow-sm">
                     <CalendarIcon className="w-7 h-7 text-accent-red" />
                   </div>
                   <div>
@@ -675,7 +675,7 @@ export const Agenda = ({ user }: { user?: any }) => {
                       <label className="text-[11px] font-black text-slate-500 uppercase tracking-widest ml-1">{t('agenda.form.notes')}</label>
                       <textarea
                         rows={5}
-                        className="w-full px-8 py-6 bg-slate-50 border-2 border-transparent rounded-[2.5rem] text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-accent-red focus:ring-4 focus:ring-accent-red/5 transition-all resize-none shadow-sm"
+                        className="w-full px-8 py-6 bg-slate-50 border-2 border-transparent rounded-2xl text-sm font-bold text-slate-700 placeholder:text-slate-400 focus:bg-white focus:border-accent-red focus:ring-4 focus:ring-accent-red/5 transition-all resize-none shadow-sm"
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         placeholder={t('agenda.form.notesPlaceholder')}
