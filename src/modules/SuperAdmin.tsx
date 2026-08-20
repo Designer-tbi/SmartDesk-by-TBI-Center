@@ -3,14 +3,20 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useTranslation } from '../lib/i18n';
 import { apiFetch } from '../lib/api';
 import { useWebSocket } from '../lib/websocket';
-import { Building2, Users, Activity, Trash2, Edit2, Plus, CheckCircle2, XCircle, X, Search, Clock, PauseCircle, PlayCircle, Smartphone } from 'lucide-react';
+import { Building2, Users, Activity, Trash2, Edit2, Plus, CheckCircle2, XCircle, X, Search, Clock, PauseCircle, PlayCircle, Smartphone, Key, Copy, Loader2 } from 'lucide-react';
 import { ConfirmModal } from '../components/ConfirmModal';
 
 export const SuperAdmin = () => {
   const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState<'companies' | 'users' | 'activity' | 'mobileMoney'>('companies');
+  const [activeTab, setActiveTab] = useState<'companies' | 'users' | 'activity' | 'mobileMoney' | 'apiKeys'>('companies');
   const [mobileMoneyPayments, setMobileMoneyPayments] = useState<any[]>([]);
   const [mobileMoneyLoading, setMobileMoneyLoading] = useState(false);
+  const [apiKeys, setApiKeys] = useState<any[]>([]);
+  const [apiKeysLoading, setApiKeysLoading] = useState(false);
+  const [newPartnerName, setNewPartnerName] = useState('');
+  const [isCreatingKey, setIsCreatingKey] = useState(false);
+  const [newlyCreatedKey, setNewlyCreatedKey] = useState<string | null>(null);
+  const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [companyFilter, setCompanyFilter] = useState<'all' | 'real' | 'demo'>('all');
   const [userSearch, setUserSearch] = useState('');
   const [stats, setStats] = useState<any>(null);
@@ -113,6 +119,60 @@ export const SuperAdmin = () => {
     try {
       const res = await apiFetch(`/api/admin/mobile-money/${id}/reject`, { method: 'POST' });
       if (res.ok) fetchMobileMoneyPayments();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchApiKeys = async () => {
+    setApiKeysLoading(true);
+    try {
+      const res = await apiFetch('/api/admin/api-keys');
+      if (res.ok) setApiKeys(await res.json());
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setApiKeysLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'apiKeys') fetchApiKeys();
+  }, [activeTab]);
+
+  const handleCreateApiKey = async () => {
+    if (!newPartnerName.trim()) {
+      setApiKeyError('Nom du partenaire requis.');
+      return;
+    }
+    setIsCreatingKey(true);
+    setApiKeyError(null);
+    try {
+      const res = await apiFetch('/api/admin/api-keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ partnerName: newPartnerName.trim() }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) {
+        setApiKeyError(data?.error || 'Échec de la création de la clé.');
+        return;
+      }
+      setNewlyCreatedKey(data.apiKey);
+      setNewPartnerName('');
+      fetchApiKeys();
+    } catch (err) {
+      setApiKeyError('Erreur de connexion.');
+    } finally {
+      setIsCreatingKey(false);
+    }
+  };
+
+  const handleRevokeApiKey = async (id: string) => {
+    if (!confirm('Révoquer cette clé API ? Le partenaire ne pourra plus l\'utiliser.')) return;
+    try {
+      const res = await apiFetch(`/api/admin/api-keys/${id}/revoke`, { method: 'POST' });
+      if (res.ok) fetchApiKeys();
     } catch (err) {
       console.error(err);
     }
@@ -366,6 +426,14 @@ export const SuperAdmin = () => {
             }`}
           >
             <Smartphone className="w-3.5 h-3.5" /> Mobile Money
+          </button>
+          <button
+            onClick={() => setActiveTab('apiKeys')}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+              activeTab === 'apiKeys' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Key className="w-3.5 h-3.5" /> Clés API
           </button>
         </div>
       </div>
@@ -779,6 +847,111 @@ export const SuperAdmin = () => {
               {!mobileMoneyLoading && mobileMoneyPayments.length === 0 && (
                 <div className="text-center py-12 text-slate-500">Aucun paiement Mobile Money en attente.</div>
               )}
+            </div>
+          </motion.div>
+        )}
+
+        {activeTab === 'apiKeys' && (
+          <motion.div
+            key="apiKeys"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="space-y-6"
+          >
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+              <h2 className="text-lg font-bold text-slate-900">Clés API partenaires</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                Chaque partenaire externe (provisioning via /api/external/*) a sa propre clé, révocable
+                indépendamment. La clé complète n'est affichée qu'une seule fois, à la création.
+              </p>
+
+              {newlyCreatedKey && (
+                <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                  <p className="text-sm font-bold text-emerald-800">Clé créée — copiez-la maintenant, elle ne sera plus jamais affichée :</p>
+                  <div className="mt-2 flex items-center gap-2">
+                    <code className="flex-1 px-3 py-2 bg-white border border-emerald-200 rounded-lg text-xs font-mono break-all">{newlyCreatedKey}</code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(newlyCreatedKey); }}
+                      className="p-2 text-emerald-700 hover:bg-emerald-100 rounded-lg transition-all shrink-0"
+                      title="Copier"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => setNewlyCreatedKey(null)}
+                      className="p-2 text-slate-400 hover:text-slate-600 rounded-lg transition-all shrink-0"
+                      title="Fermer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                <input
+                  type="text"
+                  value={newPartnerName}
+                  onChange={(e) => setNewPartnerName(e.target.value)}
+                  placeholder="Nom du partenaire (ex: Acme Reseller)"
+                  className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red-600/20 focus:border-red-600 transition-all"
+                />
+                <button
+                  onClick={handleCreateApiKey}
+                  disabled={isCreatingKey}
+                  className="flex items-center justify-center gap-2 px-6 py-2.5 bg-red-600 text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-sm disabled:opacity-50 shrink-0"
+                >
+                  {isCreatingKey ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                  Générer une clé
+                </button>
+              </div>
+              {apiKeyError && <p className="mt-2 text-sm text-red-600">{apiKeyError}</p>}
+            </div>
+
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 text-slate-500 text-xs uppercase">
+                    <tr>
+                      <th className="text-left p-4">Partenaire</th>
+                      <th className="text-left p-4">Clé (préfixe)</th>
+                      <th className="text-left p-4">Statut</th>
+                      <th className="text-left p-4">Créée le</th>
+                      <th className="text-left p-4">Dernière utilisation</th>
+                      <th className="text-right p-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {apiKeys.map((k) => (
+                      <tr key={k.id} className="border-t border-slate-100">
+                        <td className="p-4 font-medium text-slate-900">{k.partnerName}</td>
+                        <td className="p-4 font-mono text-xs text-slate-500">{k.keyPrefix}…</td>
+                        <td className="p-4">
+                          <span className={`px-2 py-1 rounded-lg text-xs font-bold ${k.active ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'}`}>
+                            {k.active ? 'Active' : 'Révoquée'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-slate-500">{new Date(k.createdAt).toLocaleDateString('fr-FR')}</td>
+                        <td className="p-4 text-slate-500">{k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleString('fr-FR') : 'Jamais'}</td>
+                        <td className="p-4 text-right">
+                          {k.active && (
+                            <button
+                              onClick={() => handleRevokeApiKey(k.id)}
+                              className="px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-bold hover:bg-red-100 flex items-center gap-1 ml-auto"
+                            >
+                              <XCircle className="w-3.5 h-3.5" /> Révoquer
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {!apiKeysLoading && apiKeys.length === 0 && (
+                  <div className="text-center py-12 text-slate-500">Aucune clé API créée pour le moment.</div>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

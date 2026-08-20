@@ -73,6 +73,7 @@ externalRouter.post('/companies', async (req, res, next) => {
   // connection per call, so BEGIN/COMMIT wouldn't necessarily wrap the same
   // session as the INSERTs, and a connection released mid-transaction sits
   // in the pool "idle in transaction" until some other request reuses it.
+  console.log(`POST /api/external/companies — partner: ${(req as any).partnerName || 'unknown'}`);
   const db = await rootPool.connect();
   await db.query('BEGIN');
   try {

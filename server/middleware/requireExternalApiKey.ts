@@ -1,17 +1,24 @@
 /**
- * Authenticate partner-platform requests via a static API key.
+ * Authenticate partner-platform requests via a per-partner API key.
  *
- * The key is read from the `EXTERNAL_API_KEY` env var and must be
- * supplied either as an `X-API-Key` header OR an `Authorization:
- * Bearer <key>` header. We accept both so partners can use whichever
- * fits their existing HTTP client.
+ * Each partner has its own key (managed via /api/admin/api-keys, stored
+ * hashed in the `api_keys` table — see server/services/apiKeys.ts) so one
+ * partner's key can be revoked without affecting anyone else's, and every
+ * request can be attributed to the partner that made it (`req.partnerId`/
+ * `req.partnerName`).
  *
- * If `EXTERNAL_API_KEY` isn't set on the server, the route is
- * effectively disabled (returns 503). Never falls back to a default
- * to avoid silently exposing the provisioning endpoint.
+ * The key must be supplied either as an `X-API-Key` header OR an
+ * `Authorization: Bearer <key>` header. We accept both so partners can use
+ * whichever fits their existing HTTP client.
+ *
+ * `EXTERNAL_API_KEY` (a single static env-var key, the original scheme) is
+ * still accepted as a legacy fallback so an already-integrated partner
+ * isn't broken while everyone migrates to per-partner keys — new
+ * integrations should be issued a real key instead.
  */
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
+import { verifyApiKey } from '../services/apiKeys.js';
 
 function timingSafeEqual(a: string, b: string): boolean {
   const bufA = Buffer.from(a);
@@ -20,23 +27,34 @@ function timingSafeEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(bufA, bufB);
 }
 
-export const requireExternalApiKey = (
+export const requireExternalApiKey = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
-  const expected = process.env.EXTERNAL_API_KEY;
-  if (!expected) {
-    return res.status(503).json({
-      error: 'External provisioning disabled. Set EXTERNAL_API_KEY on the server.',
-    });
-  }
   const headerKey = (req.headers['x-api-key'] as string | undefined) || '';
   const auth = req.headers.authorization || '';
   const bearer = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   const presented = headerKey || bearer;
-  if (!presented || !timingSafeEqual(presented, expected)) {
+  if (!presented) {
     return res.status(401).json({ error: 'Invalid or missing API key.' });
   }
-  next();
+
+  const legacyKey = process.env.EXTERNAL_API_KEY;
+  if (legacyKey && timingSafeEqual(presented, legacyKey)) {
+    (req as any).partnerName = 'legacy-shared-key';
+    return next();
+  }
+
+  try {
+    const partner = await verifyApiKey(presented);
+    if (!partner) {
+      return res.status(401).json({ error: 'Invalid or missing API key.' });
+    }
+    (req as any).partnerId = partner.id;
+    (req as any).partnerName = partner.partnerName;
+    next();
+  } catch (error) {
+    next(error);
+  }
 };

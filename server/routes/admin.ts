@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { requireAuth, requireSuperAdmin } from '../middleware/auth.js';
 import bcrypt from 'bcryptjs';
 import { seedDefaultRoles } from '../../db.js';
+import { createApiKey, listApiKeys, revokeApiKey } from '../services/apiKeys.js';
 
 export const adminRouter = Router();
 
@@ -405,6 +406,51 @@ adminRouter.post('/mobile-money/:id/reject', async (req, res, next) => {
       [req.user!.id, id],
     );
     if (!r.rowCount) return res.status(404).json({ error: 'Paiement introuvable ou déjà traité.' });
+    res.json({ ok: true });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/* -------------------------------------------------------------- */
+/* Per-partner API keys (/api/external/* provisioning API)          */
+/* -------------------------------------------------------------- */
+
+adminRouter.get('/api-keys', async (req, res, next) => {
+  try {
+    const keys = await listApiKeys();
+    res.json(keys);
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * Creates a new partner + API key. The plaintext key is returned ONCE in
+ * this response — only its hash is stored, so it can never be shown
+ * again. The caller (super-admin UI) must surface/copy it immediately.
+ */
+adminRouter.post('/api-keys', async (req, res, next) => {
+  try {
+    const partnerName = String(req.body?.partnerName || '').trim();
+    if (!partnerName) {
+      return res.status(400).json({ error: 'partnerName requis.' });
+    }
+    const { record, plainKey } = await createApiKey(partnerName);
+    res.status(201).json({
+      ...record,
+      apiKey: plainKey,
+      note: 'Cette clé ne sera plus jamais affichée — copiez-la et transmettez-la au partenaire maintenant.',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+adminRouter.post('/api-keys/:id/revoke', async (req, res, next) => {
+  try {
+    const revoked = await revokeApiKey(req.params.id);
+    if (!revoked) return res.status(404).json({ error: 'Clé introuvable ou déjà révoquée.' });
     res.json({ ok: true });
   } catch (error) {
     next(error);

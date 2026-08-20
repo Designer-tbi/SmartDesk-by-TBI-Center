@@ -594,6 +594,23 @@ export async function initializeDatabase() {
           );
         }
 
+        // Per-partner API keys for the external provisioning API
+        // (/api/external/*) — replaces the single shared EXTERNAL_API_KEY
+        // env var so each partner can be identified and revoked
+        // independently. See server/services/apiKeys.ts.
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS api_keys (
+            id TEXT PRIMARY KEY,
+            "partnerName" TEXT NOT NULL,
+            "keyHash" TEXT NOT NULL UNIQUE,
+            "keyPrefix" TEXT NOT NULL,
+            active BOOLEAN NOT NULL DEFAULT TRUE,
+            "createdAt" TIMESTAMPTZ DEFAULT NOW(),
+            "lastUsedAt" TIMESTAMPTZ,
+            "revokedAt" TIMESTAMPTZ
+          )
+        `);
+
         // Key/value store used (so far) to persist the PayPal product +
         // plan ids generated on first bootstrap — avoids hard-coding
         // them or re-creating them on every deploy.
@@ -618,8 +635,8 @@ export async function initializeDatabase() {
         `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
       );
       // Bumped so existing deploys re-run the incremental migrations once
-      // and pick up the unique journal-entry idempotency index.
-      const TARGET_SCHEMA = '2026-08-20-journal-idempotency';
+      // and pick up the per-partner api_keys table.
+      const TARGET_SCHEMA = '2026-08-20-api-keys';
       if (flag.rows[0]?.value === TARGET_SCHEMA) {
         console.log('Database schema already up-to-date, skipping init.');
         return;
