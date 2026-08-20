@@ -1728,4 +1728,79 @@ Permettre d'installer SmartDesk depuis le menu (sidebar) sur mobile, tablette et
 - PUT Draft→Paid régression OK ✅
 - UI Journal affiche les codes OHADA (49 testids vérifiés) ✅
 - Sync TVA observée en temps réel : 22 614 000 FC → 22 630 000 FC après création facture ✅
+
+## Certification SFEC ouverte aux sociétés réelles + audit complet (2026-08-20)
+
+### Demande utilisateur
+Intégrer le *Guide d'intégration SFEC v1.2.1* (2026.03.04, DGID Congo) et
+vérifier que l'intégration existante (construite lors des itérations 9-10)
+est complète.
+
+### Constat
+Le guide (section 5, Mode API) correspond exactement à ce qui était déjà
+implémenté dans `/app/server/services/fiscalization.ts` : endpoint
+`POST {DGID_API_URL}/invoices/report/api`, header `X-API-Key`, structure du
+payload (items, totaux, `recipient_type`…) et de la réponse
+(`sfec_certification_number`, `certification_signature`, `qr_code`…) — champ
+par champ identiques. Aucun écart structurel avec ce que couvre le PDF fourni
+(pages 1-11 ; les sections 6-10, terminaux TCC/TFC hors-ligne et structure
+détaillée des enums, n'étaient pas incluses dans le fichier transmis).
+
+En revanche, l'intégration n'était **jamais utilisable en dehors du mode
+démo** — un vrai blocage de complétude pour un système dont toute la raison
+d'être est la conformité fiscale des agents économiques réels :
+- `POST /api/invoices`, `POST /api/invoices/:id/certify` et
+  `autoCertifyInvoice` (paiement/conversion auto) exigeaient tous les trois
+  `company.type === 'demo'`, alors que l'assistant d'onboarding permet déjà à
+  une société réelle congolaise de saisir sa propre `fiscalizationApiKey`.
+  Résultat : cette clé n'était jamais utilisée en pratique.
+- `PUT /api/company` (Settings) n'acceptait pas `fiscalizationApiKey` du
+  tout — impossible de la saisir ou de la faire évoluer après l'onboarding,
+  malgré la promesse « complétable plus tard depuis Paramètres » (iter 11).
+- Chaque ligne de facture envoyée au SFEC portait `"type": "service"` en
+  dur, sans tenir compte du champ `Product.type: 'product' | 'service'`
+  déjà présent dans le modèle de données.
+
+### Fixes
+**Backend**
+- `server/routes/invoices.ts` (POST `/` et POST `/:id/certify`) et
+  `server/services/automations.ts` (`autoCertifyInvoice`) : le déclencheur de
+  certification est désormais `!!company.fiscalizationApiKey` (au lieu de
+  `company.type === 'demo'`). Toute société — démo ou réelle — dont la clé
+  SFEC est configurée est certifiée automatiquement.
+- `server/routes/company.ts` PUT `/` : accepte et persiste
+  `fiscalizationApiKey` (validation 16+ caractères si le pays est Congo),
+  avec le même motif « chaîne vide = conserver la clé existante » que
+  l'onboarding (`CASE WHEN $x = '' THEN ... ELSE $x END`) — la clé brute
+  n'est jamais renvoyée au client.
+- `server/services/fiscalization.ts` : nouveau champ optionnel
+  `items[].productType`, mappé sur `type: 'product'` (au lieu du `'service'`
+  fixe) quand l'article référence un `Product` de type `product`.
+- Les deux endpoints de (re)certification enrichissent désormais les items
+  via `LEFT JOIN products` pour connaître ce type ; `POST /api/invoices`
+  (items venant du body, pas encore en base) résout les types via
+  `SELECT id, type FROM products WHERE id = ANY(...)`.
+
+**Frontend**
+- `src/lib/AuthContext.tsx` / `src/types.ts` : `hasFiscalizationKey` et
+  `fiscalizationApiKey` (write-only) typés sur `AuthUser`/`CompanyInfo`.
+- `src/modules/Sales.tsx` : bouton « Certifier maintenant » et message
+  d'aide visibles dès que `companyType === 'demo'` **ou**
+  `hasFiscalizationKey` est vrai (au lieu de démo uniquement).
+- `src/modules/Settings.tsx` : nouveau champ « Clé API SFEC (DGID) »
+  (masqué type password, affiché uniquement si `country === 'CG'`),
+  laissé vide = clé inchangée, badge « configurée » si une clé existe déjà.
+  Après sauvegarde, le state `company`/`user` est rafraîchi depuis la
+  réponse serveur (la clé en clair ne reste jamais dans le state React).
+
+### Validation
+- `npx tsc --noEmit` : aucune nouvelle erreur (11 erreurs pré-existantes
+  identiques avant/après, toutes dans des fichiers non touchés).
+- `npx eslint` sur les 8 fichiers modifiés : aucune nouvelle erreur/warning.
+- Test unitaire direct de `certifyInvoice` (sans DB ni réseau, clé absente
+  → chemin de repli local) : items `product`/`service`/non renseigné
+  traités sans exception, certificat + QR payload générés correctement.
+- Environnement sandbox sans accès réseau sortant vers
+  `docs.sfec.gouv.cg` ni base Neon → pas de test end-to-end réel possible
+  ici ; à valider en environnement avec accès DB/réseau complet.
 - WebSocket fail en preview, polling 10s compense (cas connu non bloquant) ✅

@@ -254,6 +254,7 @@ export interface CompanyInfo {
   cnssEmployerRate?: number;   // % patronal CNSS
   cnssEmployeeRate?: number;   // % salarié CNSS
   hasFiscalizationKey?: boolean;
+  fiscalizationApiKey?: string; // write-only: never populated from GET, blank = keep existing
 }
 
 export interface User {

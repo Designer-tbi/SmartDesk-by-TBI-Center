@@ -176,9 +176,10 @@ invoicesRouter.post('/', async (req, res, next) => {
       await req.db.query('COMMIT');
       console.log('POST /api/invoices - Success');
 
-      // Auto-certify via SFEC for demo companies only. The per-company API
-      // key is stored in `companies.fiscalizationApiKey` (seeded on demo
-      // creation). Failures are non-fatal — the invoice still saves.
+      // Auto-certify via SFEC whenever the company has configured a key
+      // (`companies.fiscalizationApiKey` — seeded for demo companies,
+      // entered by real companies via onboarding/Settings). Failures are
+      // non-fatal — the invoice still saves.
       let certified: any = null;
       try {
         const companyRes = await req.db.query(
@@ -186,7 +187,7 @@ invoicesRouter.post('/', async (req, res, next) => {
           [req.user.companyId],
         );
         const company = companyRes.rows[0];
-        if (company?.type === 'demo' && inv.type === 'Invoice' && company.fiscalizationApiKey) {
+        if (inv.type === 'Invoice' && company?.fiscalizationApiKey) {
           let buyer: any = { name: null, niu: null, address: null, email: null, phone: null, contactType: 'individual' };
           if (contactId) {
             const cRes = await req.db.query(
@@ -195,8 +196,21 @@ invoicesRouter.post('/', async (req, res, next) => {
             );
             buyer = cRes.rows[0] || buyer;
           }
+          const items = inv.items || [];
+          const productIds = items.map((it: any) => it.productId).filter((id: any) => id);
+          const typeById: Record<string, string> = {};
+          if (productIds.length) {
+            const prodRes = await req.db.query(
+              'SELECT id, type FROM products WHERE id = ANY($1) AND "companyId" = $2',
+              [productIds, req.user.companyId],
+            );
+            for (const p of prodRes.rows) typeById[p.id] = p.type;
+          }
           const result = await certifyInvoice({
-            invoice: { ...inv, items: inv.items || [] },
+            invoice: {
+              ...inv,
+              items: items.map((it: any) => ({ ...it, productType: typeById[it.productId] })),
+            },
             company,
             buyer,
           });
@@ -276,8 +290,9 @@ invoicesRouter.post('/', async (req, res, next) => {
 });
 
 /**
- * Manually (re)certify an invoice via DGID. Restricted to demo companies —
- * this is a demo-only feature until the real API is wired.
+ * Manually (re)certify an invoice via SFEC. Available to any company that
+ * has configured a `fiscalizationApiKey` (demo companies get one seeded;
+ * real Congo companies set theirs via onboarding or Settings).
  */
 invoicesRouter.post('/:id/certify', async (req, res, next) => {
   try {
@@ -291,9 +306,6 @@ invoicesRouter.post('/:id/certify', async (req, res, next) => {
     );
     const company = companyRes.rows[0];
     if (!company) return res.status(404).json({ error: 'Company not found' });
-    if (company.type !== 'demo') {
-      return res.status(403).json({ error: 'Certification SFEC réservée aux sociétés démo pour l\'instant.' });
-    }
     if (!company.fiscalizationApiKey) {
       return res.status(400).json({ error: "Clé API SFEC absente pour cette entreprise." });
     }
@@ -306,7 +318,10 @@ invoicesRouter.post('/:id/certify', async (req, res, next) => {
     if (!invoice) return res.status(404).json({ error: 'Invoice not found' });
 
     const itemsRes = await req.db.query(
-      'SELECT * FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2',
+      `SELECT ii.*, p.type AS "productType"
+         FROM invoice_items ii
+         LEFT JOIN products p ON p.id = ii."productId" AND p."companyId" = ii."companyId"
+        WHERE ii."invoiceId" = $1 AND ii."companyId" = $2`,
       [id, req.user.companyId],
     );
     let buyer: any = { name: null, niu: null, address: null, email: null, phone: null, contactType: 'individual' };

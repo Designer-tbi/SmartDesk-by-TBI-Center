@@ -1791,7 +1791,7 @@ export const Sales = ({ user }: { user: any }) => {
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                         Certification DGID
                       </h3>
-                      {user?.companyType === 'demo' && (
+                      {(user?.companyType === 'demo' || user?.hasFiscalizationKey) && (
                         <button
                           type="button"
                           onClick={() => handleCertify(viewInvoice)}
@@ -1846,7 +1846,7 @@ export const Sales = ({ user }: { user: any }) => {
                               ? 'API SFEC (DGID Congo)'
                               : viewInvoice.certificationPayload?.source === 'dgid'
                                 ? 'API DGID (Congo)'
-                                : 'Signature locale (mode démo)'}
+                                : 'Signature locale (secours)'}
                           </div>
                           <div className="text-[10px] text-emerald-700 font-semibold pt-1">
                             ✓ Document fiscalement authentifié — ne plus modifier après certification.
@@ -1855,9 +1855,9 @@ export const Sales = ({ user }: { user: any }) => {
                       </div>
                     ) : (
                       <div className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-lg border border-slate-100">
-                        {user?.companyType === 'demo'
+                        {(user?.companyType === 'demo' || user?.hasFiscalizationKey)
                           ? 'Facture non certifiée — cliquez « Certifier maintenant » pour la soumettre à la DGID.'
-                          : 'Facture non certifiée. La certification SFEC/DGID sera disponible dès que votre clé API aura été configurée.'}
+                          : 'Facture non certifiée. La certification SFEC/DGID sera disponible dès que votre clé API aura été configurée dans Paramètres.'}
                       </div>
                     )}
                   </div>

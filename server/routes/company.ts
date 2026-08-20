@@ -115,9 +115,19 @@ companyRouter.put('/', async (req, res, next) => {
       name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address,
       country, state, city, logo, accountingStandard, language, currency,
       legalForm, capital, representativeName, representativeRole,
-      cnssEmployerRate, cnssEmployeeRate,
+      cnssEmployerRate, cnssEmployeeRate, fiscalizationApiKey,
     } = req.body;
     console.log('Updating company for user:', req.user!.id, 'companyId:', req.user!.companyId);
+
+    // SFEC key is Congo-specific and optional — an empty string means
+    // "leave the existing key untouched" (Settings never receives the raw
+    // key back from GET, so a blank field must not wipe it out).
+    const trimmedKey = fiscalizationApiKey ? String(fiscalizationApiKey).trim() : '';
+    const isCongo = String(country || '').toUpperCase() === 'CG' || String(country || '').toUpperCase() === 'CONGO';
+    if (isCongo && trimmedKey && trimmedKey.length < 16) {
+      return res.status(400).json({ error: 'Clé API SFEC invalide (16+ caractères requis).' });
+    }
+
     const result = await req.db.query(
       `UPDATE public.companies SET
         name = $1, "taxId" = $2, rccm = $3, "idNat" = $4, niu = $5, siren = $6, siret = $7,
@@ -125,8 +135,9 @@ companyRouter.put('/', async (req, res, next) => {
         logo = $14, "accountingStandard" = $15, language = $16, currency = $17, city = $18,
         "legalForm" = $19, capital = $20,
         "representativeName" = $21, "representativeRole" = $22,
-        "cnssEmployerRate" = $23, "cnssEmployeeRate" = $24
-      WHERE id = $25`,
+        "cnssEmployerRate" = $23, "cnssEmployeeRate" = $24,
+        "fiscalizationApiKey" = CASE WHEN $25 = '' THEN "fiscalizationApiKey" ELSE $25 END
+      WHERE id = $26`,
       [
         name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address,
         country || 'AFRIQUE', state, logo || null, accountingStandard || 'OHADA',
@@ -136,6 +147,7 @@ companyRouter.put('/', async (req, res, next) => {
         representativeName || null, representativeRole || null,
         Number.isFinite(Number(cnssEmployerRate)) && cnssEmployerRate !== '' && cnssEmployerRate !== null ? Number(cnssEmployerRate) : null,
         Number.isFinite(Number(cnssEmployeeRate)) && cnssEmployeeRate !== '' && cnssEmployeeRate !== null ? Number(cnssEmployeeRate) : null,
+        trimmedKey,
         req.user!.companyId,
       ],
     );
@@ -149,8 +161,8 @@ companyRouter.put('/', async (req, res, next) => {
       return res.status(404).json({ error: 'Company not found' });
     }
     // Never echo the raw fiscalization API key.
-    const { fiscalizationApiKey, ...safe } = updatedCompany;
-    res.json({ ...safe, hasFiscalizationKey: !!fiscalizationApiKey });
+    const { fiscalizationApiKey: storedKey, ...safe } = updatedCompany;
+    res.json({ ...safe, hasFiscalizationKey: !!storedKey });
   } catch (error) {
     console.error('Error updating company:', error);
     next(error);

@@ -141,11 +141,15 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       });
       
       if (response.ok) {
+        const updatedCompany = await response.json();
+        // Never keep the plaintext SFEC key around client-side once saved —
+        // the server never echoes it back either.
+        setCompany(updatedCompany);
         setIsSaved(true);
         if (company.language) {
           setLanguage(company.language as any);
         }
-        
+
         // Update global user state to reflect currency/language/country changes
         // so downstream modules (CRM locale, Accounting, etc.) react immediately.
         setGlobalUser((prev: any) => ({
@@ -153,6 +157,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
           currency: company.currency,
           language: company.language,
           country: company.country,
+          hasFiscalizationKey: updatedCompany.hasFiscalizationKey,
         }));
 
         setTimeout(() => setIsSaved(false), 3000);
@@ -679,6 +684,30 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                       </select>
                     </div>
                   </div>
+
+                  {company.country === 'CG' && (
+                    <div className="space-y-1.5 md:col-span-2">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                        Clé API SFEC (DGID)
+                        {company.hasFiscalizationKey && (
+                          <span className="text-emerald-600 normal-case tracking-normal font-semibold">· configurée</span>
+                        )}
+                      </label>
+                      <div className="relative">
+                        <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                          value={company.fiscalizationApiKey || ''}
+                          onChange={(e) => setCompany({ ...company, fiscalizationApiKey: e.target.value })}
+                          placeholder={company.hasFiscalizationKey ? 'Laisser vide pour conserver la clé actuelle' : 'Coller votre clé API SFEC'}
+                          data-testid="settings-sfec-key-input"
+                        />
+                      </div>
+                      <p className="text-[10px] text-slate-400 ml-1">Requise pour certifier vos factures auprès de la DGID (SFEC). Obtenue via le portail e-Facture.</p>
+                    </div>
+                  )}
 
                   {company.accountingStandard === 'OHADA' && (
                     <>

@@ -24,6 +24,7 @@ export type AuthUser = {
   currency?: string;
   companyType?: string | null;
   isDemo?: boolean;
+  hasFiscalizationKey?: boolean;
   preferences?: any;
 } | null;
 

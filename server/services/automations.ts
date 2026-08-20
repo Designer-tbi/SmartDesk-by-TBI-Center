@@ -155,11 +155,11 @@ export async function autoConvertSignedQuoteToInvoice(
 
 /**
  * Submit a freshly created invoice to the SFEC/DGID certification
- * service for demo Congo companies. Mirrors the inline certification
- * block in `POST /api/invoices` so converted/auto-generated invoices
- * also receive an authentic certification number + QR code.
+ * service. Mirrors the inline certification block in `POST /api/invoices`
+ * so converted/auto-generated invoices also receive an authentic
+ * certification number + QR code.
  *
- * No-op when the company is not demo, has no API key, or the invoice
+ * No-op when the company has no API key configured, or the invoice
  * has already been certified.
  */
 export async function autoCertifyInvoice(
@@ -173,7 +173,7 @@ export async function autoCertifyInvoice(
     [companyId],
   );
   const company = compRes.rows[0];
-  if (!company || company.type !== 'demo' || !company.fiscalizationApiKey) return false;
+  if (!company || !company.fiscalizationApiKey) return false;
 
   const invRes = await db.query(
     `SELECT * FROM invoices WHERE id = $1 AND "companyId" = $2 AND type = 'Invoice'`,
@@ -183,7 +183,10 @@ export async function autoCertifyInvoice(
   if (!inv || inv.certificationNumber) return false;
 
   const itemsRes = await db.query(
-    `SELECT * FROM invoice_items WHERE "invoiceId" = $1 AND "companyId" = $2`,
+    `SELECT ii.*, p.type AS "productType"
+       FROM invoice_items ii
+       LEFT JOIN products p ON p.id = ii."productId" AND p."companyId" = ii."companyId"
+      WHERE ii."invoiceId" = $1 AND ii."companyId" = $2`,
     [invoiceId, companyId],
   );
 

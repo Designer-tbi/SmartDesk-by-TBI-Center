@@ -35,6 +35,7 @@ export type FiscalizationInput = {
       price?: number;
       tvaRate?: number | string;
       tvaAmount?: number;
+      productType?: 'product' | 'service';
     }>;
   };
   company: {
@@ -93,7 +94,7 @@ function buildSfecPayload(input: FiscalizationInput) {
     const safeRate = SFEC_TAX_RATES.has(taxRate) ? taxRate : '18';
     const taxAmount = +(subtotal * (Number(safeRate) / 100)).toFixed(2);
     return {
-      type: 'service',
+      type: it.productType === 'product' ? 'product' : 'service',
       designation: it.name || it.description || 'Article',
       unit_price: unitPrice,
       quantity,
