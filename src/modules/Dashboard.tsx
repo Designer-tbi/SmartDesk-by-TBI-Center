@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import {
   TrendingUp, Users, DollarSign, Package, ArrowUpRight, ArrowDownRight,
-  Loader2, Calendar, Activity, Zap
+  Loader2, Calendar, Activity, Zap, CalendarRange, CalendarClock, Hourglass
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useTranslation } from '../lib/i18n';
@@ -33,10 +33,12 @@ const StatCard = ({ title, value, change, icon: Icon, trend, delay }: any) => (
       <div className="p-3 bg-luxury-gray rounded-2xl group-hover:bg-accent-red group-hover:text-white transition-all shadow-inner">
         <Icon className="w-5 h-5" />
       </div>
-      <div className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${trend === 'up' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
-        {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-        {change}
-      </div>
+      {change && (
+        <div className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${trend === 'up' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
+          {trend === 'up' ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+          {change}
+        </div>
+      )}
     </div>
     
     <div className="relative z-10">
@@ -49,10 +51,14 @@ const StatCard = ({ title, value, change, icon: Icon, trend, delay }: any) => (
 export const Dashboard = ({ user }: { user: any }) => {
   const { t } = useTranslation();
   const currencySymbol = currencySymbolFromCode(user?.currency || 'XAF');
-  const [stats, setStats] = useState({ 
-    contacts: 0, 
-    revenue: 0, 
-    orders: 0, 
+  const [stats, setStats] = useState({
+    contacts: 0,
+    revenue: 0,
+    revenueWeek: 0,
+    revenueMonth: 0,
+    revenueYear: 0,
+    revenueInProgress: 0,
+    orders: 0,
     products: 0,
     monthlyData: [],
     categoryData: [],
@@ -163,12 +169,23 @@ export const Dashboard = ({ user }: { user: any }) => {
         </div>
       </div>
 
+      {/* Chiffre d'affaires: week / month / year / in progress */}
+      <div>
+        <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 ml-0.5">{t('dashboard.revenueBreakdown')}</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard title={t('dashboard.revenueWeek')} value={`${(stats.revenueWeek || 0).toLocaleString()} ${currencySymbol}`} icon={CalendarRange} delay={0.1} />
+          <StatCard title={t('dashboard.revenueMonth')} value={`${(stats.revenueMonth || 0).toLocaleString()} ${currencySymbol}`} icon={Calendar} delay={0.15} />
+          <StatCard title={t('dashboard.revenueYear')} value={`${(stats.revenueYear || 0).toLocaleString()} ${currencySymbol}`} icon={CalendarClock} delay={0.2} />
+          <StatCard title={t('dashboard.revenueInProgress')} value={`${(stats.revenueInProgress || 0).toLocaleString()} ${currencySymbol}`} icon={Hourglass} delay={0.25} />
+        </div>
+      </div>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard title={t('dashboard.revenue')} value={`${(stats.revenue || 0).toLocaleString()} ${currencySymbol}`} change="+12.5%" icon={DollarSign} trend="up" delay={0.1} />
-        <StatCard title={t('dashboard.contacts')} value={(stats.contacts || 0).toString()} change="+3.2%" icon={Users} trend="up" delay={0.2} />
-        <StatCard title={t('dashboard.orders')} value={(stats.orders || 0).toString()} change="-1.4%" icon={Package} trend="down" delay={0.3} />
-        <StatCard title={t('dashboard.products')} value={(stats.products || 0).toString()} change="+5.7%" icon={TrendingUp} trend="up" delay={0.4} />
+        <StatCard title={t('dashboard.revenue')} value={`${(stats.revenue || 0).toLocaleString()} ${currencySymbol}`} icon={DollarSign} delay={0.3} />
+        <StatCard title={t('dashboard.contacts')} value={(stats.contacts || 0).toString()} icon={Users} delay={0.35} />
+        <StatCard title={t('dashboard.orders')} value={(stats.orders || 0).toString()} icon={Package} delay={0.4} />
+        <StatCard title={t('dashboard.products')} value={(stats.products || 0).toString()} icon={TrendingUp} delay={0.45} />
       </div>
 
       {/* Main Charts Section */}

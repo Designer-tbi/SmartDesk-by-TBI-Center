@@ -13,6 +13,28 @@ statsRouter.get('/', async (req, res, next) => {
     const invoicesCountRes = await req.db.query('SELECT COUNT(*) as count FROM invoices WHERE "companyId" = $1', [companyId]);
     const productsCountRes = await req.db.query('SELECT COUNT(*) as count FROM products WHERE "companyId" = $1', [companyId]);
 
+    // Chiffre d'affaires (Paid invoices) for the current week/month/year
+    // to date, plus what's still pending collection ("en cours" — not
+    // yet paid, excluding drafts/cancelled).
+    const revenuePeriodsRes = await req.db.query(`
+      SELECT
+        COALESCE(SUM(total) FILTER (
+          WHERE status = 'Paid' AND date::date >= date_trunc('week', current_date)
+        ), 0) as week,
+        COALESCE(SUM(total) FILTER (
+          WHERE status = 'Paid' AND date::date >= date_trunc('month', current_date)
+        ), 0) as month,
+        COALESCE(SUM(total) FILTER (
+          WHERE status = 'Paid' AND date::date >= date_trunc('year', current_date)
+        ), 0) as year,
+        COALESCE(SUM(total) FILTER (
+          WHERE status NOT IN ('Paid', 'Cancelled', 'Draft')
+        ), 0) as "inProgress"
+      FROM invoices
+      WHERE "companyId" = $1 AND type = 'Invoice'
+    `, [companyId]);
+    const revenuePeriods = revenuePeriodsRes.rows[0] || {};
+
     // 12-month revenue trend (was 6 months).
     const monthlyDataRes = await req.db.query(`
       WITH months AS (
@@ -139,6 +161,10 @@ statsRouter.get('/', async (req, res, next) => {
     res.json({
       contacts: parseInt(contactsCountRes.rows[0]?.count || '0', 10),
       revenue: parseFloat(invoicesTotalRes.rows[0]?.total || '0'),
+      revenueWeek: parseFloat(revenuePeriods.week || '0'),
+      revenueMonth: parseFloat(revenuePeriods.month || '0'),
+      revenueYear: parseFloat(revenuePeriods.year || '0'),
+      revenueInProgress: parseFloat(revenuePeriods.inProgress || '0'),
       orders: parseInt(invoicesCountRes.rows[0]?.count || '0', 10),
       products: parseInt(productsCountRes.rows[0]?.count || '0', 10),
       monthlyData: monthlyDataRes.rows.map(row => ({
