@@ -332,20 +332,20 @@ export const SuperAdmin = () => {
       animate={{ opacity: 1 }}
       className="space-y-6"
     >
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h1 className="text-2xl font-bold text-slate-900">{t('admin.dashboard')}</h1>
-        <div className="flex bg-slate-100 p-1 rounded-lg">
-          <button 
+        <div className="flex bg-slate-100 p-1 rounded-lg overflow-x-auto max-w-full">
+          <button
             onClick={() => setActiveTab('companies')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'companies' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
             {t('admin.companies')}
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('users')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'users' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -353,7 +353,7 @@ export const SuperAdmin = () => {
           </button>
           <button
             onClick={() => setActiveTab('activity')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all whitespace-nowrap shrink-0 ${
               activeTab === 'activity' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >
@@ -361,7 +361,7 @@ export const SuperAdmin = () => {
           </button>
           <button
             onClick={() => setActiveTab('mobileMoney')}
-            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5 ${
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'mobileMoney' ? 'bg-white text-red-600 shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
           >

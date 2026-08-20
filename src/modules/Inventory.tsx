@@ -185,9 +185,9 @@ export const Inventory = ({ user }: { user: any }) => {
         </div>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <h2 className="text-lg font-semibold text-slate-900">{t('inventory.productCatalog')}</h2>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <button onClick={() => setIsCategoryManagerOpen(true)} className="flex items-center gap-2 px-4 py-2 border border-red-100 rounded-lg text-sm font-medium text-accent-red hover:bg-soft-red transition-colors">
             <Tag className="w-4 h-4" />
             {t('inventory.manageCategories')}
