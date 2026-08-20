@@ -547,6 +547,18 @@ export async function initializeDatabase() {
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "cnssEmployerRate" REAL`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "cnssEmployeeRate" REAL`);
 
+        // Per-company SMTP override so a real company's signature-request
+        // e-mails (quotes/invoices/documents sent for signature) go out
+        // from their own mailbox instead of the shared TBI-center one.
+        // Falls back to the platform default mailboxes when not set
+        // (see server/services/mailer.ts).
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpHost" TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpPort" INTEGER`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpSecure" BOOLEAN DEFAULT TRUE`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpUser" TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpPass" TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpFromName" TEXT`);
+
         // Key/value store used (so far) to persist the PayPal product +
         // plan ids generated on first bootstrap — avoids hard-coding
         // them or re-creating them on every deploy.
@@ -570,10 +582,9 @@ export async function initializeDatabase() {
       const flag = await db.query(
         `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
       );
-      // Bumped to 2026-05-02-ohada so existing deploys (which were marked
-      // up-to-date with 2026-04-29-onboarding) re-run the incremental
-      // migrations exactly once and pick up the OHADA columns.
-      const TARGET_SCHEMA = '2026-05-13-external-origin';
+      // Bumped so existing deploys re-run the incremental migrations once
+      // and pick up the per-company SMTP columns.
+      const TARGET_SCHEMA = '2026-08-20-company-smtp';
       if (flag.rows[0]?.value === TARGET_SCHEMA) {
         console.log('Database schema already up-to-date, skipping init.');
         return;
@@ -708,6 +719,13 @@ export async function initializeDatabase() {
     // FALSE (see /api/auth/send-demo-email).
     await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "onboardingCompleted" BOOLEAN DEFAULT TRUE`);
     await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS city TEXT`);
+    // Per-company SMTP override for signature-request e-mails.
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpHost" TEXT`);
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpPort" INTEGER`);
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpSecure" BOOLEAN DEFAULT TRUE`);
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpUser" TEXT`);
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpPass" TEXT`);
+    await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "smtpFromName" TEXT`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationNumber" TEXT`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certifiedAt" TIMESTAMPTZ`);
     await db.query(`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS "certificationStatus" TEXT`);

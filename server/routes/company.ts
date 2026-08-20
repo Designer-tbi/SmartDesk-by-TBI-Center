@@ -24,9 +24,14 @@ companyRouter.get('/', async (req, res, next) => {
     if (!company) {
       return res.status(404).json({ error: 'Company not found' });
     }
-    // Never echo the raw fiscalization API key — return only a flag.
-    const { fiscalizationApiKey, ...safe } = company;
-    res.json({ ...safe, hasFiscalizationKey: !!fiscalizationApiKey });
+    // Never echo the raw fiscalization API key or SMTP password — return
+    // only flags indicating whether each is configured.
+    const { fiscalizationApiKey, smtpPass, ...safe } = company;
+    res.json({
+      ...safe,
+      hasFiscalizationKey: !!fiscalizationApiKey,
+      hasSmtpConfig: !!(company.smtpHost && company.smtpUser && smtpPass),
+    });
   } catch (error) {
     next(error);
   }
@@ -127,6 +132,7 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
       country, state, city, logo, accountingStandard, language, currency,
       legalForm, capital, representativeName, representativeRole,
       cnssEmployerRate, cnssEmployeeRate, fiscalizationApiKey,
+      smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass, smtpFromName,
     } = req.body;
     console.log('Updating company for user:', req.user!.id, 'companyId:', req.user!.companyId);
 
@@ -141,6 +147,10 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
       return res.status(400).json({ error: 'Clé API SFEC invalide (16+ caractères requis).' });
     }
 
+    // SMTP password is write-only for the same reason — GET never returns
+    // it, so a blank field on save must mean "keep the existing password".
+    const trimmedSmtpPass = smtpPass ? String(smtpPass).trim() : '';
+
     const result = await req.db.query(
       `UPDATE public.companies SET
         name = $1, "taxId" = $2, rccm = $3, "idNat" = $4, niu = $5, siren = $6, siret = $7,
@@ -149,8 +159,11 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
         "legalForm" = $19, capital = $20,
         "representativeName" = $21, "representativeRole" = $22,
         "cnssEmployerRate" = $23, "cnssEmployeeRate" = $24,
-        "fiscalizationApiKey" = CASE WHEN $25 = '' THEN "fiscalizationApiKey" ELSE $25 END
-      WHERE id = $26`,
+        "fiscalizationApiKey" = CASE WHEN $25 = '' THEN "fiscalizationApiKey" ELSE $25 END,
+        "smtpHost" = $26, "smtpPort" = $27, "smtpSecure" = $28, "smtpUser" = $29,
+        "smtpPass" = CASE WHEN $30 = '' THEN "smtpPass" ELSE $30 END,
+        "smtpFromName" = $31
+      WHERE id = $32`,
       [
         name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address,
         country || 'AFRIQUE', state, logo || null, accountingStandard || 'OHADA',
@@ -161,10 +174,16 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
         Number.isFinite(Number(cnssEmployerRate)) && cnssEmployerRate !== '' && cnssEmployerRate !== null ? Number(cnssEmployerRate) : null,
         Number.isFinite(Number(cnssEmployeeRate)) && cnssEmployeeRate !== '' && cnssEmployeeRate !== null ? Number(cnssEmployeeRate) : null,
         trimmedKey,
+        smtpHost || null,
+        Number.isFinite(Number(smtpPort)) && smtpPort !== '' && smtpPort !== null ? Number(smtpPort) : null,
+        smtpSecure !== false,
+        smtpUser || null,
+        trimmedSmtpPass,
+        smtpFromName || null,
         req.user!.companyId,
       ],
     );
-    
+
     console.log('Update result rows affected:', result.rowCount);
 
     const updatedCompanyRes = await req.db.query('SELECT * FROM public.companies WHERE id = $1', [req.user!.companyId]);
@@ -173,9 +192,13 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
       console.error('Company not found after update for id:', req.user!.companyId);
       return res.status(404).json({ error: 'Company not found' });
     }
-    // Never echo the raw fiscalization API key.
-    const { fiscalizationApiKey: storedKey, ...safe } = updatedCompany;
-    res.json({ ...safe, hasFiscalizationKey: !!storedKey });
+    // Never echo the raw fiscalization API key or SMTP password.
+    const { fiscalizationApiKey: storedKey, smtpPass: storedSmtpPass, ...safe } = updatedCompany;
+    res.json({
+      ...safe,
+      hasFiscalizationKey: !!storedKey,
+      hasSmtpConfig: !!(updatedCompany.smtpHost && updatedCompany.smtpUser && storedSmtpPass),
+    });
   } catch (error) {
     console.error('Error updating company:', error);
     next(error);

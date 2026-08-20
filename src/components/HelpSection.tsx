@@ -33,14 +33,14 @@ export const HelpSection = () => {
 
   return (
     <div className="space-y-8">
-      <div className="flex space-x-4 border-b border-slate-200">
+      <div className="flex space-x-4 border-b border-slate-200 overflow-x-auto">
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 py-4 px-6 font-bold transition-colors ${
-              activeTab === tab.id 
-                ? 'text-accent-red border-b-2 border-accent-red' 
+            className={`flex items-center gap-2 py-4 px-6 font-bold transition-colors whitespace-nowrap shrink-0 ${
+              activeTab === tab.id
+                ? 'text-accent-red border-b-2 border-accent-red'
                 : 'text-slate-500 hover:text-slate-700'
             }`}
           >

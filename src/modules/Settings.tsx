@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut, Upload, Check, PlayCircle, Star, HelpCircle, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Settings as SettingsIcon, Radar, Wallet, Percent } from 'lucide-react';
+import { Building2, Mail, Phone, Globe, MapPin, FileText, Save, CheckCircle, Loader2, XCircle, Trash2, BookOpen, User, Shield, Bell, Key, Eye, EyeOff, LogOut, Upload, Check, PlayCircle, Star, HelpCircle, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Settings as SettingsIcon, Radar, Wallet, Percent, Server, Lock, Hash } from 'lucide-react';
 import { HelpSection } from '../components/HelpSection';
 import { CompanyInfo, User as UserType } from '../types';
 import { apiFetch } from '../lib/api';
@@ -67,6 +67,9 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   // echoed back). Left empty, the backend keeps whatever key is already
   // stored — only a non-empty value here rotates it.
   const [fiscalizationKeyInput, setFiscalizationKeyInput] = useState('');
+  // Same write-only pattern as the SFEC key: never pre-filled from the
+  // server, blank on save = keep the currently stored SMTP password.
+  const [smtpPassInput, setSmtpPassInput] = useState('');
 
   const handleDetectCountry = async () => {
     setIsDetectingGeo(true);
@@ -153,7 +156,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       const response = await apiFetch('/api/company', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...company, fiscalizationApiKey: fiscalizationKeyInput || undefined }),
+        body: JSON.stringify({
+          ...company,
+          fiscalizationApiKey: fiscalizationKeyInput || undefined,
+          smtpPass: smtpPassInput || undefined,
+        }),
       });
 
       if (response.ok) {
@@ -162,6 +169,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
         const updated = await response.json().catch(() => null);
         if (updated) setCompany(updated);
         setFiscalizationKeyInput('');
+        setSmtpPassInput('');
         setIsSaved(true);
         if (company.language) {
           setLanguage(company.language as any);
@@ -331,7 +339,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   return (
     <div className="max-w-5xl mx-auto space-y-6">
       {/* Tabs Navigation */}
-      <div className="flex items-center gap-1 p-1 bg-soft-red/30 rounded-2xl w-fit overflow-x-auto">
+      <div className="flex items-center gap-1 p-1 bg-soft-red/30 rounded-2xl max-w-full overflow-x-auto">
         <button
           onClick={() => setActiveTab('company')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all whitespace-nowrap ${
@@ -802,6 +810,112 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
                 </div>
 
+                <div className="pt-6 mt-2 border-t border-slate-100 space-y-4">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <Mail className="w-4 h-4 text-accent-red" />
+                      {t('settings.smtpTitle')}
+                    </h4>
+                    <p className="text-xs text-slate-400 mt-1">{t('settings.smtpDesc')}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.smtpHost')}</label>
+                      <div className="relative">
+                        <Server className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                          value={(company as any).smtpHost || ''}
+                          onChange={(e) => setCompany({ ...company, smtpHost: e.target.value } as any)}
+                          data-testid="settings-smtp-host"
+                          placeholder="smtp.exemple.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.smtpPort')}</label>
+                      <div className="relative">
+                        <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="number" min="1" max="65535"
+                          className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                          value={(company as any).smtpPort ?? ''}
+                          onChange={(e) => setCompany({ ...company, smtpPort: e.target.value === '' ? undefined : Number(e.target.value) } as any)}
+                          data-testid="settings-smtp-port"
+                          placeholder="465"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.smtpUser')}</label>
+                      <div className="relative">
+                        <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                          value={(company as any).smtpUser || ''}
+                          onChange={(e) => setCompany({ ...company, smtpUser: e.target.value } as any)}
+                          data-testid="settings-smtp-user"
+                          placeholder="contact@monentreprise.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.smtpPass')}</label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          placeholder={(company as any).hasSmtpConfig ? '••••••••••••••••' : t('settings.smtpPassPlaceholder')}
+                          className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                          value={smtpPassInput}
+                          onChange={(e) => setSmtpPassInput(e.target.value)}
+                          data-testid="settings-smtp-pass"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.smtpFromName')}</label>
+                      <div className="relative">
+                        <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                          value={(company as any).smtpFromName || ''}
+                          onChange={(e) => setCompany({ ...company, smtpFromName: e.target.value } as any)}
+                          data-testid="settings-smtp-from-name"
+                          placeholder={company.name || 'Mon Entreprise'}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-6">
+                      <input
+                        type="checkbox"
+                        id="smtp-secure"
+                        checked={(company as any).smtpSecure !== false}
+                        onChange={(e) => setCompany({ ...company, smtpSecure: e.target.checked } as any)}
+                        className="w-4 h-4 rounded border-red-200 text-accent-red focus:ring-accent-red/20"
+                        data-testid="settings-smtp-secure"
+                      />
+                      <label htmlFor="smtp-secure" className="text-sm text-slate-600">{t('settings.smtpSecure')}</label>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 ml-1">
+                    {(company as any).hasSmtpConfig
+                      ? t('settings.smtpConfiguredHint')
+                      : t('settings.smtpMissingHint')}
+                  </p>
+                </div>
+
                 <div className="flex items-center justify-between pt-4 border-t border-slate-100">
                   <div className="flex items-center gap-2">
                     {isSaved && (
@@ -899,7 +1013,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-slate-100">
                 <div className="flex items-center gap-2">
                   {successMessage && (
                     <div className="flex items-center gap-1.5 text-emerald-600 animate-in fade-in slide-in-from-left-2">
@@ -914,7 +1028,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     </div>
                   )}
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-3">
                   <button
                     type="button"
                     onClick={async () => {

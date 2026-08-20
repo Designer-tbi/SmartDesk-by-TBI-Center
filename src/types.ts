@@ -83,22 +83,6 @@ export interface Invoice {
   };
 }
 
-export interface QuoteTemplate {
-  id: string;
-  name: string;
-  items: { 
-    productId: string; 
-    quantity: number; 
-    price: number; 
-    name?: string; 
-    description?: string;
-    tvaRate?: number;
-    tvaAmount?: number;
-  }[];
-  notes?: string;
-  lastModified: string;
-}
-
 export interface ProjectExpenseItem {
   id: string;
   description: string;
@@ -269,6 +253,14 @@ export interface CompanyInfo {
   cnssEmployeeRate?: number;   // % salarié CNSS
   hasFiscalizationKey?: boolean;
   fiscalizationApiKey?: string; // write-only: never populated from GET, blank = keep existing
+  // Per-company SMTP override for signature-request e-mails (quotes/invoices)
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpSecure?: boolean;
+  smtpUser?: string;
+  smtpFromName?: string;
+  hasSmtpConfig?: boolean;
+  smtpPass?: string; // write-only: never populated from GET, blank = keep existing
 }
 
 export interface User {

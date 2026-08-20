@@ -2,12 +2,12 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { apiFetch } from '../lib/api';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Plus, Download, FileText, CheckCircle, Clock, AlertCircle, Eye, Pencil, Trash2, Mail, X, 
+import {
+  Plus, Download, FileText, CheckCircle, Clock, AlertCircle, Eye, Pencil, Trash2, Mail, X,
   FileEdit, User, Calendar, Tag, Building2, PlusCircle, Link as LinkIcon, FileSignature, Eraser,
-  Copy, Layout, Send, Check, ShieldCheck, Repeat, DollarSign
+  Send, Check, ShieldCheck, Repeat, DollarSign
 } from 'lucide-react';
-import { Invoice, Contact, Product, QuoteTemplate } from '../types';
+import { Invoice, Contact, Product } from '../types';
 import { QRCodeSVG } from 'qrcode.react';
 
 import { useTranslation } from '../lib/i18n';
@@ -40,17 +40,14 @@ export const Sales = ({ user }: { user: any }) => {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [deletingTemplateId, setDeletingTemplateId] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [filter, setFilter] = useState<'Tous' | 'Invoice' | 'Quote'>('Tous');
-  const [quoteSubTab, setQuoteSubTab] = useState<'list' | 'templates' | 'signed'>('list');
-  const [templates, setTemplates] = useState<QuoteTemplate[]>([]);
+  const [quoteSubTab, setQuoteSubTab] = useState<'list' | 'signed'>('list');
   // Mirror the AuthContext company so we keep a single `companyInfo` symbol
   // — minimises diff with the existing JSX consumers.
   const companyInfo = ctxCompany;
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [editingInvoiceId, setEditingInvoiceId] = useState<string | null>(null);
   const [viewInvoice, setViewInvoice] = useState<Invoice | null>(null);
   const [signingQuote, setSigningQuote] = useState<Invoice | null>(null);
@@ -73,16 +70,14 @@ export const Sales = ({ user }: { user: any }) => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [invRes, conRes, prodRes, tmplRes] = await Promise.all([
+      const [invRes, conRes, prodRes] = await Promise.all([
         apiFetch('/api/invoices'),
         apiFetch('/api/contacts'),
         apiFetch('/api/products'),
-        apiFetch('/api/invoices/quote-templates'),
       ]);
       if (invRes.ok) setInvoices(await invRes.json());
       if (conRes.ok) setContacts(await conRes.json());
       if (prodRes.ok) setProducts(await prodRes.json());
-      if (tmplRes.ok) setTemplates(await tmplRes.json());
       // Make sure we have fresh company data (NIU, address, accounting
       // standard…) when the user navigates here from Settings.
       refreshCompany();
@@ -607,35 +602,6 @@ export const Sales = ({ user }: { user: any }) => {
     return null;
   };
 
-  const applyTemplate = (template: QuoteTemplate) => {
-    const totals = calculateTotals(template.items, newInvoice);
-    setNewInvoice({
-      ...newInvoice,
-      type: 'Quote',
-      items: template.items,
-      notes: template.notes,
-      ...totals
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteTemplate = async (id: string) => {
-    try {
-      const response = await apiFetch(`/api/invoices/quote-templates/${id}`, {
-        method: 'DELETE',
-      });
-      if (response.ok) {
-        setDeletingTemplateId(null);
-        fetchData();
-      } else {
-        setError(t('sales.errorDeleteTemplate'));
-      }
-    } catch (error) {
-      console.error('Failed to delete template:', error);
-      setError(t('sales.errorConnection'));
-    }
-  };
-
   const getContactName = (id: string) => contacts.find(c => c.id === id)?.name || t('sales.unknownClient');
   const getContact = (id: string) => contacts.find(c => c.id === id);
 
@@ -682,41 +648,25 @@ export const Sales = ({ user }: { user: any }) => {
         </div>
         
         <div className="flex gap-2">
-          {filter === 'Quote' && quoteSubTab === 'templates' ? (
-            <button 
-              onClick={() => setIsTemplateModalOpen(true)}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95"
-            >
-              <Plus className="w-5 h-5" />
-              {t('sales.newTemplate')}
-            </button>
-          ) : (
-            <button 
-              onClick={() => { resetForm(); setIsModalOpen(true); }}
-              className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95"
-            >
-              <Plus className="w-5 h-5" />
-              {t('sales.new')} {filter === 'Quote' ? t('sales.quote') : filter === 'Invoice' ? t('sales.invoice') : t('sales.document')}
-            </button>
-          )}
+          <button
+            onClick={() => { resetForm(); setIsModalOpen(true); }}
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95"
+          >
+            <Plus className="w-5 h-5" />
+            {t('sales.new')} {filter === 'Quote' ? t('sales.quote') : filter === 'Invoice' ? t('sales.invoice') : t('sales.document')}
+          </button>
         </div>
       </div>
 
       {filter === 'Quote' && (
         <div className="flex gap-4 border-b border-red-100">
-          <button 
+          <button
             onClick={() => setQuoteSubTab('list')}
             className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'list' ? 'border-accent-red text-accent-red' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
             {t('sales.quoteList')}
           </button>
-          <button 
-            onClick={() => setQuoteSubTab('templates')}
-            className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'templates' ? 'border-accent-red text-accent-red' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-          >
-            {t('sales.quoteTemplates')}
-          </button>
-          <button 
+          <button
             onClick={() => setQuoteSubTab('signed')}
             className={`pb-3 text-sm font-bold transition-all border-b-2 ${quoteSubTab === 'signed' ? 'border-accent-red text-accent-red' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
@@ -916,44 +866,6 @@ export const Sales = ({ user }: { user: any }) => {
             </div>
           </div>
         </>
-      ) : quoteSubTab === 'templates' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {templates.map((template) => (
-            <div key={template.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all group">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-2 bg-soft-red text-accent-red rounded-lg">
-                  <Layout className="w-5 h-5" />
-                </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                  {deletingTemplateId === template.id ? (
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => handleDeleteTemplate(template.id)} className="p-1.5 text-white bg-red-500 hover:bg-red-600 rounded-lg transition-all text-[10px] font-bold">Oui</button>
-                      <button onClick={() => setDeletingTemplateId(null)} className="p-1.5 text-slate-600 bg-slate-200 hover:bg-slate-300 rounded-lg transition-all text-[10px] font-bold">Non</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => setDeletingTemplateId(template.id)} className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
-                  )}
-                </div>
-              </div>
-              <h4 className="font-bold text-slate-900 mb-1">{template.name}</h4>
-              <div className="p-3 bg-slate-50 rounded-xl mb-4">
-                <p className="text-xs text-slate-500 mb-1">{template.items.length} articles</p>
-                <p className="text-sm font-bold text-accent-red">
-                  {template.items.reduce((sum, i) => sum + (i.price * i.quantity), 0).toLocaleString()} {currencySymbol}
-                </p>
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-widest">
-                <span>Modifié le {template.lastModified}</span>
-                <button 
-                  onClick={() => applyTemplate(template)}
-                  className="flex items-center gap-1 text-accent-red hover:underline"
-                >
-                  <Copy className="w-3 h-3" /> Utiliser
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="p-12 flex flex-col items-center justify-center text-center">
@@ -1138,23 +1050,6 @@ export const Sales = ({ user }: { user: any }) => {
                       <option value="Quote">{t('sales.quote')}</option>
                     </select>
                   </div>
-                  {newInvoice.type === 'Quote' && (
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.useTemplate')}</label>
-                      <select 
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
-                        onChange={(e) => {
-                          const template = templates.find(t => t.id === e.target.value);
-                          if (template) applyTemplate(template);
-                        }}
-                      >
-                        <option value="">{t('sales.chooseTemplate')}</option>
-                        {templates.map(t => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.status')}</label>
                     <select 
@@ -1448,135 +1343,6 @@ export const Sales = ({ user }: { user: any }) => {
       )}
       </AnimatePresence>
 
-      {/* Template Modal */}
-      <AnimatePresence>
-        {isTemplateModalOpen && (
-          <div className="fixed inset-0 z-50 flex justify-end bg-slate-900/40 backdrop-blur-sm transition-all">
-            <div className="absolute inset-0" onClick={() => setIsTemplateModalOpen(false)}></div>
-            
-            <motion.div 
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative w-full max-w-2xl bg-white h-full shadow-2xl flex flex-col"
-            >
-            <div className="px-6 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-              <div>
-                <h3 className="text-xl font-bold text-slate-900">{t('sales.newQuoteTemplate')}</h3>
-                <p className="text-sm text-slate-500">{t('sales.createTemplate')}</p>
-              </div>
-              <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-white rounded-xl text-slate-400 hover:text-slate-600 transition-all shadow-sm">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6">
-              <form id="template-form" onSubmit={async (e) => {
-                e.preventDefault();
-                try {
-                  const response = await apiFetch('/api/invoices/quote-templates', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      name: newInvoice.notes || t('sales.newTemplate'), // using notes field temporarily for name
-                      items: newInvoice.items || []
-                    })
-                  });
-                  if (response.ok) {
-                    fetchData();
-                    setIsTemplateModalOpen(false);
-                    resetForm();
-                  } else {
-                    const data = await response.json().catch(() => null);
-                    setError(data?.error || t('sales.errorConnection'));
-                  }
-                } catch (error) {
-                  console.error('Failed to save template', error);
-                  setError(t('sales.errorConnection'));
-                }
-              }} className="space-y-6">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.templateName')}</label>
-                  <input 
-                    type="text" 
-                    required
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
-                    value={newInvoice.notes || ''}
-                    onChange={(e) => setNewInvoice({...newInvoice, notes: e.target.value})}
-                    placeholder={t('sales.templateNamePlaceholder')}
-                  />
-                </div>
-
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('sales.items')}</label>
-                    <button type="button" onClick={handleAddItem} className="text-xs font-bold text-accent-red hover:text-primary-red flex items-center gap-1">
-                      <PlusCircle className="w-3 h-3" /> {t('sales.addItem')}
-                    </button>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    {(newInvoice.items || []).map((item, index) => (
-                      <div key={index} className="flex items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
-                        <div className="flex-1">
-                          <select 
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
-                            value={item.productId || ''}
-                            onChange={(e) => handleUpdateItem(index, 'productId', e.target.value)}
-                          >
-                            <option value="">{t('sales.selectProduct')}</option>
-                            {products.map(p => (
-                              <option key={p.id} value={p.id}>{p.name} - {p.price} {currencySymbol}</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="w-24">
-                          <input 
-                            type="number" 
-                            min="1"
-                            placeholder={t('sales.qty')}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
-                            value={item.quantity || 0}
-                            onChange={(e) => handleUpdateItem(index, 'quantity', parseInt(e.target.value) || 0)}
-                          />
-                        </div>
-                        <div className="w-32">
-                          <input 
-                            type="number" 
-                            placeholder={t('sales.price')}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red"
-                            value={item.price || 0}
-                            onChange={(e) => handleUpdateItem(index, 'price', parseFloat(e.target.value) || 0)}
-                          />
-                        </div>
-                        <button type="button" onClick={() => handleRemoveItem(index)} className="p-2 text-slate-400 hover:text-red-600 transition-colors">
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                    {(newInvoice.items || []).length === 0 && (
-                      <div className="text-center py-6 bg-slate-50 border border-slate-200 border-dashed rounded-xl text-sm text-slate-500">
-                        {t('sales.noItemsAdded')}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </form>
-            </div>
-
-            <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex gap-3">
-              <button type="button" onClick={() => setIsTemplateModalOpen(false)} className="flex-1 py-3 bg-white border border-slate-200 text-slate-600 rounded-2xl text-sm font-bold hover:bg-slate-50 transition-all active:scale-95">
-                {t('common.cancel')}
-              </button>
-              <button type="submit" form="template-form" className="flex-1 py-3 bg-accent-red text-white rounded-2xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95">
-                {t('sales.saveTemplate')}
-              </button>
-            </div>
-          </motion.div>
-        </div>
-      )}
-      </AnimatePresence>
 
       {/* Preview Modal */}
       <AnimatePresence>

@@ -18,74 +18,6 @@ export const invoicesRouter = Router();
 
 invoicesRouter.use(requireAuth, requireCompany);
 
-invoicesRouter.get('/quote-templates', async (req, res, next) => {
-  try {
-    const templatesRes = await req.db.query('SELECT * FROM quote_templates WHERE "companyId" = $1', [req.user!.companyId]);
-    const templates = templatesRes.rows;
-    
-    const templatesWithItems = await Promise.all(templates.map(async (tmpl: any) => {
-      const itemsRes = await req.db.query('SELECT * FROM quote_template_items WHERE "templateId" = $1 AND "companyId" = $2', [tmpl.id, req.user!.companyId]);
-      return { ...tmpl, items: itemsRes.rows };
-    }));
-    
-    res.json(templatesWithItems);
-  } catch (error) {
-    next(error);
-  }
-});
-
-invoicesRouter.post('/quote-templates', requirePermission('sales.edit'), async (req, res, next) => {
-  try {
-    const tmpl = req.body;
-    if (!tmpl.name) {
-      return res.status(400).json({ error: 'Le nom du modèle est requis.' });
-    }
-    // Generated server-side — the client never sent one, which meant
-    // every save hit invoice_templates.id's NOT NULL constraint and
-    // failed with an unhandled 500.
-    const id = tmpl.id || `tmpl_${Date.now()}_${crypto.randomBytes(3).toString('hex')}`;
-
-    await req.db.query('BEGIN');
-
-    await req.db.query(
-      'INSERT INTO quote_templates (id, "companyId", name, notes) VALUES ($1, $2, $3, $4)',
-      [id, req.user!.companyId, tmpl.name, tmpl.notes || null]
-    );
-
-    if (Array.isArray(tmpl.items)) {
-      for (const item of tmpl.items) {
-        const productId = item.productId && item.productId !== '' ? item.productId : null;
-        await req.db.query(
-          'INSERT INTO quote_template_items ("companyId", "templateId", "productId", name, description, quantity, price, "tvaRate", "tvaAmount") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)',
-          [req.user!.companyId, id, productId, item.name, item.description || null, item.quantity, item.price, item.tvaRate, item.tvaAmount]
-        );
-      }
-    }
-
-    await req.db.query('COMMIT');
-    res.status(201).json({ ...tmpl, id });
-  } catch (error) {
-    await req.db.query('ROLLBACK');
-    next(error);
-  }
-});
-
-invoicesRouter.delete('/quote-templates/:id', requirePermission('sales.delete'), async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    
-    await req.db.query('BEGIN');
-    await req.db.query('DELETE FROM quote_template_items WHERE "templateId" = $1 AND "companyId" = $2', [id, req.user!.companyId]);
-    await req.db.query('DELETE FROM quote_templates WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);
-    await req.db.query('COMMIT');
-    
-    res.status(204).send();
-  } catch (error) {
-    await req.db.query('ROLLBACK');
-    next(error);
-  }
-});
-
 invoicesRouter.get('/', async (req, res, next) => {
   try {
     const invoicesRes = await req.db.query('SELECT * FROM invoices WHERE "companyId" = $1', [req.user!.companyId]);
@@ -741,7 +673,7 @@ invoicesRouter.put('/:id', requirePermission('sales.edit'), async (req, res, nex
           
           const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
           
-          const { transporter, from } = getMailerForCompany(company.type, company.name);
+          const { transporter, from } = getMailerForCompany(company.type, company.name, company);
           
           await transporter.sendMail({
             from,
@@ -1009,7 +941,7 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
     const company = companyRes.rows[0];
     
     // 4. Configure nodemailer (per-company tenant — demo mailbox for demos)
-    const { transporter, from } = getMailerForCompany(company.type, company.name);
+    const { transporter, from } = getMailerForCompany(company.type, company.name, company);
     
     const isQuote = invoice.type === 'Quote';
     const subject = isQuote ? `Devis ${invoice.id} - ${company.name}` : `Facture ${invoice.id} - ${company.name}`;
@@ -1194,7 +1126,7 @@ invoicesRouter.post('/:id/mark-quote-paid', requirePermission('sales.edit'), asy
       if (built) {
         const compRes = await req.db.query('SELECT * FROM companies WHERE id = $1', [companyId]);
         const company = compRes.rows[0] || {};
-        const { transporter, from } = getMailerForCompany(company.type, company.name);
+        const { transporter, from } = getMailerForCompany(company.type, company.name, company);
         const cur = company.currency || '';
         const total = built.invoice.total;
         const certBadge = built.invoice.certificationNumber

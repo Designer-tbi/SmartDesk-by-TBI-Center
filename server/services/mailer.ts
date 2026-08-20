@@ -29,19 +29,49 @@ const PROD_SECURE = process.env.SMTP_SECURE !== 'false';
 const PROD_USER = process.env.SMTP_USER || 'demo@tbi-center.fr';
 const PROD_PASS = process.env.SMTP_PASS;
 
+export type CompanySmtpConfig = {
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpSecure?: boolean | null;
+  smtpUser?: string | null;
+  smtpPass?: string | null;
+  smtpFromName?: string | null;
+} | null;
+
 /**
  * Build an SMTP transporter appropriate for the given company.
- * `companyType === 'demo'` → OVH `demo@smart-desk.pro`.
- * Anything else            → the production / TBI-center mailbox.
+ *
+ * If the company has configured its own SMTP credentials (Settings →
+ * envoi de documents), those take priority so signature-request e-mails
+ * go out from the company's own mailbox instead of the shared one.
+ * Otherwise: `companyType === 'demo'` → OVH `demo@smart-desk.pro`;
+ * anything else → the production / TBI-center mailbox.
  *
  * Pass an optional `displayName` (typically the sending company's name)
  * so the recipient sees `"Acme Corp" <demo@smart-desk.pro>` rather than
- * a raw mailbox.
+ * a raw mailbox — overridden by the company's own `smtpFromName` when set.
  */
 export function getMailerForCompany(
   companyType: CompanyType,
   displayName?: string | null,
+  customSmtp?: CompanySmtpConfig,
 ): MailerHandle {
+  if (customSmtp?.smtpHost && customSmtp?.smtpUser && customSmtp?.smtpPass) {
+    const host = customSmtp.smtpHost;
+    const port = customSmtp.smtpPort || 465;
+    const secure = customSmtp.smtpSecure !== false;
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure,
+      auth: { user: customSmtp.smtpUser, pass: customSmtp.smtpPass },
+    });
+    const fromAddress = customSmtp.smtpUser;
+    const name = customSmtp.smtpFromName || displayName;
+    const from = name ? `"${name}" <${fromAddress}>` : fromAddress;
+    return { transporter, from, fromAddress, isDemo: false };
+  }
+
   const isDemo = companyType === 'demo';
   const host = isDemo ? DEMO_HOST : PROD_HOST;
   const port = isDemo ? DEMO_PORT : PROD_PORT;
