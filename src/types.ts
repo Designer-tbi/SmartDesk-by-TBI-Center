@@ -122,6 +122,13 @@ export interface Employee {
   salary: number;
   profilePicture?: string;
   documents?: { name: string; url: string }[];
+  // CNSS/TUS monthly declaration fields (Congo-Brazzaville) — `name` stays
+  // the single free-text source of truth elsewhere; these are additive and
+  // only used to populate the official CNSS/TUS declaration templates.
+  postNom?: string;
+  cnssNumber?: string;
+  matriculeSolde?: string;
+  workerType?: 'Travailleur' | 'Stagiaire';
 }
 
 export interface LeaveRequest {
@@ -251,6 +258,7 @@ export interface CompanyInfo {
   representativeRole?: string; // Gérant, DG, Président…
   cnssEmployerRate?: number;   // % patronal CNSS
   cnssEmployeeRate?: number;   // % salarié CNSS
+  cnssEmployerNumber?: string; // Matricule / N° d'affiliation employeur CNSS
   hasFiscalizationKey?: boolean;
   fiscalizationApiKey?: string; // write-only: never populated from GET, blank = keep existing
   // Per-company SMTP override for signature-request e-mails (quotes/invoices)

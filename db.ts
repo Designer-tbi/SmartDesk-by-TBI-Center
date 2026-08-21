@@ -622,6 +622,18 @@ export async function initializeDatabase() {
           )
         `);
 
+        // CNSS monthly declaration (Congo-Brazzaville) — per-employee fields
+        // required by the official CNSS/TUS declaration templates, not
+        // covered by the generic `name` field. See server/routes/cnss.ts.
+        await db.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS "postNom" TEXT`);
+        await db.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS "cnssNumber" TEXT`);
+        await db.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS "matriculeSolde" TEXT`);
+        await db.query(`ALTER TABLE employees ADD COLUMN IF NOT EXISTS "workerType" TEXT DEFAULT 'Travailleur'`);
+        // Employer's CNSS affiliation number ("Matricule employeur" on the
+        // Déclaration Globale de Cotisation header) — company-wide, so it
+        // lives on `companies` rather than being repeated per employee.
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "cnssEmployerNumber" TEXT`);
+
         if (process.env.DGID_DEMO_API_KEY) {
           await db.query(
             `UPDATE companies SET "fiscalizationApiKey" = $1
@@ -635,8 +647,8 @@ export async function initializeDatabase() {
         `SELECT value FROM _app_meta WHERE key = 'schema_version'`,
       );
       // Bumped so existing deploys re-run the incremental migrations once
-      // and pick up the per-partner api_keys table.
-      const TARGET_SCHEMA = '2026-08-20-api-keys';
+      // and pick up the CNSS declaration fields on `employees`.
+      const TARGET_SCHEMA = '2026-08-21-cnss-declaration';
       if (flag.rows[0]?.value === TARGET_SCHEMA) {
         console.log('Database schema already up-to-date, skipping init.');
         return;

@@ -39,6 +39,7 @@ import {
   Legend,
 } from 'recharts';
 import { useTranslation } from '../lib/i18n';
+import { CnssModule } from './declarations/CnssModule';
 
 /* ------------------------------------------------------------------ *
  * Data model — 2026 Congo Finance Law declarations
@@ -1011,17 +1012,7 @@ export const Declarations = () => {
           />
         }
       />
-      <Route
-        path="cnss"
-        element={
-          <ComingSoonModule
-            title="CNSS — Caisse Nationale de Sécurité Sociale"
-            icon={HeartHandshake}
-            description="Préparez, signez et transmettez vos Déclarations Nominatives Trimestrielles (DNT) et cotisations mensuelles employeur/salarié. Module en cours de développement."
-            testid="declarations-cnss-coming-soon"
-          />
-        }
-      />
+      <Route path="cnss" element={<CnssModule />} />
       <Route
         path="ins"
         element={

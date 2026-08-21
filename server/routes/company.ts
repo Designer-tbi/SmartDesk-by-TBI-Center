@@ -135,7 +135,7 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
       name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address,
       country, state, city, logo, accountingStandard, language, currency,
       legalForm, capital, representativeName, representativeRole,
-      cnssEmployerRate, cnssEmployeeRate, fiscalizationApiKey,
+      cnssEmployerRate, cnssEmployeeRate, cnssEmployerNumber, fiscalizationApiKey,
       smtpHost, smtpPort, smtpSecure, smtpUser, smtpPass, smtpFromName,
       paypalClientId, paypalClientSecret,
     } = req.body;
@@ -171,7 +171,8 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
         "smtpPass" = CASE WHEN $30 = '' THEN "smtpPass" ELSE $30 END,
         "smtpFromName" = $31,
         "paypalClientId" = $32,
-        "paypalClientSecret" = CASE WHEN $33 = '' THEN "paypalClientSecret" ELSE $33 END
+        "paypalClientSecret" = CASE WHEN $33 = '' THEN "paypalClientSecret" ELSE $33 END,
+        "cnssEmployerNumber" = $35
       WHERE id = $34`,
       [
         name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address,
@@ -192,6 +193,7 @@ companyRouter.put('/', requireManager, async (req, res, next) => {
         paypalClientId || null,
         trimmedPaypalSecret,
         req.user!.companyId,
+        cnssEmployerNumber || null,
       ],
     );
 

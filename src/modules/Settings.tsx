@@ -872,6 +872,22 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                           />
                         </div>
                       </div>
+
+                      <div className="space-y-1.5 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">N° affiliation employeur CNSS</label>
+                        <div className="relative">
+                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                          <input
+                            type="text"
+                            className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                            value={(company as any).cnssEmployerNumber ?? ''}
+                            onChange={(e) => setCompany({ ...company, cnssEmployerNumber: e.target.value } as any)}
+                            data-testid="settings-cnss-employer-number"
+                            placeholder="Matricule CNSS employeur"
+                          />
+                        </div>
+                        <p className="text-[11px] text-slate-400 ml-1">Utilisé sur la Déclaration Globale de Cotisation CNSS (Déclarations &gt; CNSS).</p>
+                      </div>
                     </>
                   )}
 

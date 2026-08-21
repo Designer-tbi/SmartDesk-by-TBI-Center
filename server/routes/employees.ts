@@ -579,8 +579,8 @@ employeesRouter.post('/', requireManager, async (req, res, next) => {
   try {
     const emp = req.body;
     const documentsStr = emp.documents ? JSON.stringify(emp.documents) : null;
-    await req.db.query('INSERT INTO employees (id, "companyId", name, role, department, email, phone, address, status, "contractType", "joinDate", salary, "profilePicture", documents) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)',
-      [emp.id, req.user!.companyId, emp.name, emp.role, emp.department, emp.email, emp.phone, emp.address, emp.status, emp.contractType, emp.joinDate, emp.salary, emp.profilePicture || null, documentsStr]);
+    await req.db.query('INSERT INTO employees (id, "companyId", name, role, department, email, phone, address, status, "contractType", "joinDate", salary, "profilePicture", documents, "postNom", "cnssNumber", "matriculeSolde", "workerType") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)',
+      [emp.id, req.user!.companyId, emp.name, emp.role, emp.department, emp.email, emp.phone, emp.address, emp.status, emp.contractType, emp.joinDate, emp.salary, emp.profilePicture || null, documentsStr, emp.postNom || null, emp.cnssNumber || null, emp.matriculeSolde || null, emp.workerType || 'Travailleur']);
 
     // Automation: seed a Draft contract matching the employee's
     // contractType so the HR manager just opens & sends it.
@@ -606,8 +606,8 @@ employeesRouter.put('/:id', requireManager, async (req, res, next) => {
     const { id } = req.params;
     const emp = req.body;
     const documentsStr = emp.documents ? JSON.stringify(emp.documents) : null;
-    await req.db.query('UPDATE employees SET name = $1, role = $2, department = $3, email = $4, phone = $5, address = $6, status = $7, "contractType" = $8, "joinDate" = $9, salary = $10, "profilePicture" = $11, documents = $12 WHERE id = $13 AND "companyId" = $14',
-      [emp.name, emp.role, emp.department, emp.email, emp.phone, emp.address, emp.status, emp.contractType, emp.joinDate, emp.salary, emp.profilePicture || null, documentsStr, id, req.user!.companyId]);
+    await req.db.query('UPDATE employees SET name = $1, role = $2, department = $3, email = $4, phone = $5, address = $6, status = $7, "contractType" = $8, "joinDate" = $9, salary = $10, "profilePicture" = $11, documents = $12, "postNom" = $13, "cnssNumber" = $14, "matriculeSolde" = $15, "workerType" = $16 WHERE id = $17 AND "companyId" = $18',
+      [emp.name, emp.role, emp.department, emp.email, emp.phone, emp.address, emp.status, emp.contractType, emp.joinDate, emp.salary, emp.profilePicture || null, documentsStr, emp.postNom || null, emp.cnssNumber || null, emp.matriculeSolde || null, emp.workerType || 'Travailleur', id, req.user!.companyId]);
     res.json(emp);
   } catch (error) {
     next(error);

@@ -35,6 +35,7 @@ import { schedulesRouter } from './server/routes/schedules.js';
 import { publicSignatureRouter } from './server/routes/publicSignature.js';
 import { subscriptionRouter } from './server/routes/subscription.js';
 import { declarationsRouter } from './server/routes/declarations.js';
+import { cnssRouter } from './server/routes/cnss.js';
 import { externalRouter } from './server/routes/external.js';
 import { enforceSubscription } from './server/middleware/enforceSubscription.js';
 
@@ -91,6 +92,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/company', companyRouter);
 app.use('/api/events', eventsRouter);
 app.use('/api/schedules', schedulesRouter);
+app.use('/api/declarations/cnss', cnssRouter);
 app.use('/api/declarations', declarationsRouter);
 // Public (no-auth) signature flow — recipients of quotes click a link and
 // land on /sign-quote/:id which calls these endpoints.
