@@ -158,6 +158,7 @@ export const HR = ({ user }: { user: any }) => {
   const [newTemplate, setNewTemplate] = useState<Partial<ContractTemplate>>({
     name: '', type: 'CDI', content: ''
   });
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
 
   const [isSending, setIsSending] = useState<string | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -614,25 +615,53 @@ export const HR = ({ user }: { user: any }) => {
   const handleSaveTemplate = async (e: React.FormEvent) => {
     e.preventDefault();
     const template: ContractTemplate = {
-      id: `TMP-${Date.now()}`,
+      id: editingTemplateId || `TMP-${Date.now()}`,
       name: newTemplate.name || '',
       type: newTemplate.type as any || 'CDI',
       content: newTemplate.content || '',
       lastModified: new Date().toISOString().split('T')[0]
     };
     try {
-      const response = await apiFetch('/api/employees/contract-templates', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(template),
-      });
+      const response = await apiFetch(
+        editingTemplateId ? `/api/employees/contract-templates/${editingTemplateId}` : '/api/employees/contract-templates',
+        {
+          method: editingTemplateId ? 'PUT' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(template),
+        }
+      );
       if (response.ok) {
         fetchData();
         setIsTemplateModalOpen(false);
+        setEditingTemplateId(null);
         setNewTemplate({ name: '', type: 'CDI', content: '' });
       }
     } catch (error) {
       console.error('Failed to save template:', error);
+    }
+  };
+
+  const handleDeleteContract = async (id: string) => {
+    if (!confirm('Supprimer définitivement ce contrat ?')) return;
+    try {
+      const response = await apiFetch(`/api/employees/contracts/${id}`, { method: 'DELETE' });
+      if (response.ok || response.status === 204) {
+        fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to delete contract:', error);
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    if (!confirm('Supprimer définitivement ce modèle de contrat ?')) return;
+    try {
+      const response = await apiFetch(`/api/employees/contract-templates/${id}`, { method: 'DELETE' });
+      if (response.ok || response.status === 204) {
+        fetchData();
+      }
+    } catch (error) {
+      console.error('Failed to delete template:', error);
     }
   };
 
@@ -831,7 +860,11 @@ export const HR = ({ user }: { user: any }) => {
             )}
             {contractSubTab === 'templates' && (
               <button
-                onClick={() => setIsTemplateModalOpen(true)}
+                onClick={() => {
+                  setEditingTemplateId(null);
+                  setNewTemplate({ name: '', type: 'CDI', content: '' });
+                  setIsTemplateModalOpen(true);
+                }}
                 className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20 active:scale-95"
               >
                 <Plus className="w-5 h-5" />
@@ -1068,6 +1101,15 @@ export const HR = ({ user }: { user: any }) => {
                                 )}
                               </button>
                             )}
+                            {contract.status !== 'Signed' && contract.status !== 'Active' && canManageEmployees && (
+                              <button
+                                onClick={() => handleDeleteContract(contract.id)}
+                                className="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                title={t('common.delete')}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1085,8 +1127,20 @@ export const HR = ({ user }: { user: any }) => {
                       <Layout className="w-5 h-5" />
                     </div>
                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                      <button className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"><Pencil className="w-4 h-4" /></button>
-                      <button className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
+                      <button
+                        onClick={() => {
+                          setEditingTemplateId(template.id);
+                          setNewTemplate({ name: template.name, type: template.type, content: template.content });
+                          setIsTemplateModalOpen(true);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-accent-red hover:bg-soft-red rounded-lg transition-all"
+                        title={t('common.edit')}
+                      ><Pencil className="w-4 h-4" /></button>
+                      <button
+                        onClick={() => handleDeleteTemplate(template.id)}
+                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                        title={t('common.delete')}
+                      ><Trash2 className="w-4 h-4" /></button>
                     </div>
                   </div>
                   <h4 className="font-bold text-slate-900 mb-1">{template.name}</h4>
@@ -1462,9 +1516,9 @@ export const HR = ({ user }: { user: any }) => {
           <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl p-8 max-h-[90vh] overflow-y-auto border border-slate-200">
             <div className="flex justify-between items-center mb-8">
               <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">
-                {t('hr.newTemplateTitle')}
+                {editingTemplateId ? 'Modifier le modèle' : t('hr.newTemplateTitle')}
               </h3>
-              <button onClick={() => setIsTemplateModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
+              <button onClick={() => { setIsTemplateModalOpen(false); setEditingTemplateId(null); }} className="p-2 hover:bg-slate-100 rounded-xl transition-all">
                 <X className="w-6 h-6 text-slate-400"/>
               </button>
             </div>
@@ -1502,7 +1556,7 @@ export const HR = ({ user }: { user: any }) => {
               </div>
               
               <div className="flex gap-4 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setIsTemplateModalOpen(false)} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
+                <button type="button" onClick={() => { setIsTemplateModalOpen(false); setEditingTemplateId(null); }} className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all">{t('common.cancel')}</button>
                 <button type="submit" className="flex-1 py-3 bg-accent-red text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-lg shadow-accent-red/20">{t('hr.saveTemplate')}</button>
               </div>
             </form>
