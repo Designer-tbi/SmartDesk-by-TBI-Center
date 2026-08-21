@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { apiFetch } from '../lib/api';
 import { 
   Plus, Mail, Phone, MapPin, Briefcase, Calendar, DollarSign, X, Pencil, Trash2, Eye, 
@@ -55,7 +55,48 @@ export const HR = ({ user }: { user: any }) => {
   const [templates, setTemplates] = useState<ContractTemplate[]>([]);
   const [tasks, setTasks] = useState<EmployeeTask[]>([]);
   const [companyInfo, setCompanyInfo] = useState<any | null>(null);
-  
+
+  // Directory search + filters. Memoized so typing in the search box (or
+  // an unrelated re-render elsewhere in this large component) doesn't
+  // re-filter the whole employee list every time — only when the inputs
+  // that actually affect the result change.
+  const [directorySearch, setDirectorySearch] = useState('');
+  const [directoryDeptFilter, setDirectoryDeptFilter] = useState('all');
+  const [directoryStatusFilter, setDirectoryStatusFilter] = useState('all');
+
+  const departments = useMemo(
+    () => Array.from(new Set(employees.map((e) => e.department).filter(Boolean))).sort(),
+    [employees],
+  );
+
+  const filteredEmployees = useMemo(() => {
+    const q = directorySearch.trim().toLowerCase();
+    return employees.filter((e) => {
+      if (directoryDeptFilter !== 'all' && e.department !== directoryDeptFilter) return false;
+      if (directoryStatusFilter !== 'all' && e.status !== directoryStatusFilter) return false;
+      if (!q) return true;
+      return (
+        e.name.toLowerCase().includes(q) ||
+        e.role.toLowerCase().includes(q) ||
+        e.email.toLowerCase().includes(q) ||
+        e.department.toLowerCase().includes(q)
+      );
+    });
+  }, [employees, directorySearch, directoryDeptFilter, directoryStatusFilter]);
+
+  // Contracts (CDD only — a CDI has no endDate to expire) ending within
+  // the next 30 days, so HR notices before a contract silently lapses.
+  const expiringContracts = useMemo(() => {
+    const now = new Date();
+    const in30Days = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    return contracts.filter((c) => {
+      if (c.type !== 'CDD' || !c.endDate) return false;
+      if (c.status === 'Terminated') return false;
+      const end = new Date(c.endDate);
+      return end >= now && end <= in30Days;
+    }).sort((a, b) => new Date(a.endDate!).getTime() - new Date(b.endDate!).getTime());
+  }, [contracts]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
@@ -810,13 +851,48 @@ export const HR = ({ user }: { user: any }) => {
 
       {/* Directory View */}
       {activeTab === 'directory' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+              <input
+                type="text"
+                value={directorySearch}
+                onChange={(e) => setDirectorySearch(e.target.value)}
+                placeholder={t('hr.searchPlaceholder')}
+                className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+                data-testid="hr-directory-search"
+              />
+            </div>
+            <select
+              value={directoryDeptFilter}
+              onChange={(e) => setDirectoryDeptFilter(e.target.value)}
+              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+              data-testid="hr-directory-dept-filter"
+            >
+              <option value="all">{t('hr.allDepartments')}</option>
+              {departments.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select
+              value={directoryStatusFilter}
+              onChange={(e) => setDirectoryStatusFilter(e.target.value)}
+              className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
+              data-testid="hr-directory-status-filter"
+            >
+              <option value="all">{t('hr.allStatuses')}</option>
+              <option value="Active">{t('hr.status.active')}</option>
+              <option value="On Leave">{t('hr.status.onLeave')}</option>
+              <option value="Terminated">{t('hr.status.terminated')}</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {isLoading ? (
             <div className="col-span-full flex flex-col items-center justify-center py-20 gap-4">
               <Loader2 className="w-10 h-10 text-accent-red animate-spin" />
               <p className="text-sm font-medium text-slate-500">{t('hr.loadingDirectory')}</p>
             </div>
-          ) : employees.length > 0 ? employees.map((employee) => (
+          ) : filteredEmployees.length > 0 ? filteredEmployees.map((employee) => (
             <div key={employee.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex gap-6 group hover:shadow-md transition-all">
               <div className="w-24 h-24 rounded-2xl bg-soft-red flex items-center justify-center text-3xl font-bold text-accent-red shrink-0 overflow-hidden border border-red-100">
                 {employee.profilePicture ? <img src={employee.profilePicture} alt="Profile" className="w-full h-full object-cover" /> : employee.name.charAt(0)}
@@ -859,9 +935,10 @@ export const HR = ({ user }: { user: any }) => {
             </div>
           )) : (
             <div className="col-span-full text-center py-20 text-slate-500">
-              {t('hr.noEmployeeFound')}
+              {employees.length === 0 ? t('hr.noEmployeeFound') : t('hr.noEmployeeMatchesFilters')}
             </div>
           )}
+          </div>
         </div>
       )}
 
@@ -881,13 +958,31 @@ export const HR = ({ user }: { user: any }) => {
             >
               {t('hr.contractTemplates')}
             </button>
-            <button 
+            <button
               onClick={() => setContractSubTab('signed')}
               className={`pb-3 text-sm font-bold transition-all border-b-2 ${contractSubTab === 'signed' ? 'border-accent-red text-accent-red' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
             >
               {t('hr.signedContracts')}
             </button>
           </div>
+
+          {contractSubTab === 'list' && expiringContracts.length > 0 && (
+            <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl">
+              <div className="flex items-center gap-2 text-amber-800">
+                <AlertTriangle className="w-4 h-4" />
+                <h4 className="font-bold text-sm">{t('hr.expiringContracts')} ({expiringContracts.length})</h4>
+              </div>
+              <p className="text-xs text-amber-700 mt-1">{t('hr.expiringContractsDesc')}</p>
+              <div className="mt-3 space-y-1.5">
+                {expiringContracts.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between text-sm bg-white/60 rounded-lg px-3 py-2">
+                    <span className="font-semibold text-slate-800">{getEmployeeName(c.employeeId)}</span>
+                    <span className="text-amber-700 font-medium">{t('hr.expiringOn')} {new Date(c.endDate!).toLocaleDateString('fr-FR')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {contractSubTab === 'list' ? (
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -1139,7 +1234,7 @@ export const HR = ({ user }: { user: any }) => {
 
       {/* Stats View */}
       {activeTab === 'stats' && (
-        <StatsTab employees={employees} leaves={leaves} currencySymbol={currencySymbol} t={t} />
+        <StatsTab employees={employees} leaves={leaves} currencySymbol={currencySymbol} t={t} expiringContractsCount={expiringContracts.length} />
       )}
 
       {/* Tasks View */}

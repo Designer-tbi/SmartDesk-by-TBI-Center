@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, Coffee, DollarSign, Briefcase } from 'lucide-react';
+import { Users, Coffee, DollarSign, Briefcase, AlertTriangle } from 'lucide-react';
 import { Employee, LeaveRequest } from '../../types';
 
 interface Props {
@@ -7,9 +7,10 @@ interface Props {
   leaves: LeaveRequest[];
   currencySymbol: string;
   t: (key: string) => string;
+  expiringContractsCount?: number;
 }
 
-export const StatsTab: React.FC<Props> = ({ employees, leaves, currencySymbol, t }) => {
+export const StatsTab: React.FC<Props> = ({ employees, leaves, currencySymbol, t, expiringContractsCount = 0 }) => {
   const activeLeaves = leaves.filter((l) => l.status === 'Approved').length;
   // employee.salary is a monthly figure (it's used unconverted as one
   // month's payslip base in HR.tsx's payroll generator) — summing it
@@ -60,6 +61,15 @@ export const StatsTab: React.FC<Props> = ({ employees, leaves, currencySymbol, t
         </div>
         <div className="text-2xl font-black text-slate-900">{departments}</div>
         <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.activeUnits')}</div>
+      </div>
+      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between mb-4">
+          <div className={`p-2 rounded-lg ${expiringContractsCount > 0 ? 'bg-amber-50 text-amber-600' : 'bg-slate-50 text-slate-400'}`}>
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+        </div>
+        <div className={`text-2xl font-black ${expiringContractsCount > 0 ? 'text-amber-600' : 'text-slate-900'}`}>{expiringContractsCount}</div>
+        <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">{t('hr.expiringContracts')}</div>
       </div>
     </div>
   );
