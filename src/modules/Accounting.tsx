@@ -159,10 +159,6 @@ export const Accounting = ({ user }: { user?: any }) => {
     }
   };
 
-  const totalIncome = transactions.filter(t => t.type === 'Income').reduce((sum, t) => sum + t.amount, 0);
-  const totalExpenses = transactions.filter(t => t.type === 'Expense').reduce((sum, t) => sum + t.amount, 0);
-  const netProfit = totalIncome - totalExpenses;
-
   const currentMonth = new Date().getMonth();
 
   // Calculate Bilan and Resultat
@@ -206,6 +202,16 @@ export const Accounting = ({ user }: { user?: any }) => {
     return acc;
   }, { revenue: 0, expenses: 0 });
 
+  // Dashboard KPI cards — derived from the same journal-entry account
+  // balances as the Résultat tab (Revenue/Expense accounts), not from the
+  // separate `transactions` table: nothing in the app ever writes a row
+  // there (no "add transaction" form, no auto-posting from paid invoices),
+  // so a dashboard built on it always read 0/0/0 regardless of how much
+  // real bookkeeping activity existed in the Journal.
+  const totalIncome = resultatTotals.revenue;
+  const totalExpenses = resultatTotals.expenses;
+  const netProfit = totalIncome - totalExpenses;
+
   const tvaData = journalEntries.reduce((acc, entry) => {
     entry.items.forEach(item => {
       if (item.accountId.startsWith('443')) acc.collected += item.credit;
@@ -221,21 +227,27 @@ export const Accounting = ({ user }: { user?: any }) => {
   
   tvaData.collected += tvaFromInvoices;
 
-  // Dynamic performance data for the last 6 months
+  // Dynamic performance data for the last 6 months — same journal-entry
+  // account balances as resultatDetails above, grouped by month instead of
+  // by account (see the note on totalIncome/totalExpenses for why this
+  // can't come from `transactions`).
   const performanceData = Array.from({ length: 6 }, (_, i) => {
     const monthIdx = (currentMonth - 5 + i + 12) % 12;
     const date = new Date();
     date.setMonth(monthIdx);
     const monthName = date.toLocaleString(language === 'fr' ? 'fr-FR' : 'en-US', { month: 'short' });
-    
-    const monthIncome = transactions
-      .filter(t => t.type === 'Income' && new Date(t.date).getMonth() === monthIdx)
-      .reduce((sum, t) => sum + t.amount, 0);
-      
-    const monthExpense = transactions
-      .filter(t => t.type === 'Expense' && new Date(t.date).getMonth() === monthIdx)
-      .reduce((sum, t) => sum + t.amount, 0);
-      
+
+    let monthIncome = 0;
+    let monthExpense = 0;
+    journalEntries.forEach((entry) => {
+      if (new Date(entry.date).getMonth() !== monthIdx) return;
+      entry.items.forEach((item) => {
+        const type = getAccountType(item.accountId);
+        if (type === 'Revenue') monthIncome += (item.credit - item.debit);
+        else if (type === 'Expense') monthExpense += (item.debit - item.credit);
+      });
+    });
+
     return { name: monthName, income: monthIncome, expense: monthExpense };
   });
 
