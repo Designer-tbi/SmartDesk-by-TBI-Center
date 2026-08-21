@@ -43,7 +43,7 @@ export async function buildInvoicePdfBuffer(
 
   const doc = new jsPDF();
   doc.setFontSize(20);
-  doc.text(invoice.type === 'Quote' ? 'DEVIS' : 'FACTURE', 14, 22);
+  doc.text(invoice.type === 'Quote' ? 'DEVIS' : invoice.type === 'PurchaseOrder' ? 'BON DE COMMANDE' : 'FACTURE', 14, 22);
   doc.setFontSize(10);
   doc.text(`N°: ${invoice.id}`, 14, 30);
   doc.text(`Date: ${invoice.date || '-'}`, 14, 35);

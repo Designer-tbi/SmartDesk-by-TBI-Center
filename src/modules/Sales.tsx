@@ -41,7 +41,7 @@ export const Sales = ({ user }: { user: any }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<'Tous' | 'Invoice' | 'Quote'>('Tous');
+  const [filter, setFilter] = useState<'Tous' | 'Invoice' | 'Quote' | 'PurchaseOrder'>('Tous');
   const [quoteSubTab, setQuoteSubTab] = useState<'list' | 'signed'>('list');
   // Mirror the AuthContext company so we keep a single `companyInfo` symbol
   // — minimises diff with the existing JSX consumers.
@@ -139,12 +139,20 @@ export const Sales = ({ user }: { user: any }) => {
     }
   };
 
+  // Document-type label/icon-color, shared everywhere a document's type is
+  // rendered (list row, preview header, PDF filename…) so Invoice / Quote /
+  // PurchaseOrder stay in sync in one place instead of scattered ternaries.
+  const docTypeLabel = (type?: string) =>
+    type === 'Invoice' ? t('sales.invoice') : type === 'PurchaseOrder' ? t('sales.purchaseOrder') : t('sales.quote');
+  const docTypeColorClass = (type?: string) =>
+    type === 'Invoice' ? 'bg-soft-red text-accent-red' : type === 'PurchaseOrder' ? 'bg-indigo-50 text-indigo-600' : 'bg-amber-50 text-amber-600';
+
   const getStatusText = (status: string, type?: string) => {
     switch (status) {
       case 'Paid': return t('sales.paid');
-      // For quotes sent for signature, surface a clearer
-      // "En attente de signature" label.
-      case 'Sent': return type === 'Quote' ? 'En attente' : t('sales.sent');
+      // For quotes/purchase orders sent for signature or confirmation,
+      // surface a clearer "En attente" label.
+      case 'Sent': return type !== 'Invoice' ? 'En attente' : t('sales.sent');
       case 'Overdue': return t('sales.overdue');
       case 'Draft': return t('sales.draft');
       case 'Accepted': return t('sales.accepted');
@@ -157,7 +165,7 @@ export const Sales = ({ user }: { user: any }) => {
 
   const resetForm = () => {
     setNewInvoice({
-      type: 'Invoice',
+      type: filter === 'Quote' || filter === 'PurchaseOrder' ? filter : 'Invoice',
       contactId: '',
       date: new Date().toISOString().split('T')[0],
       dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
@@ -580,7 +588,7 @@ export const Sales = ({ user }: { user: any }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${invoice.type === 'Quote' ? 'Devis' : 'Facture'}_${invoice.id}.pdf`;
+      a.download = `${invoice.type === 'Invoice' ? 'Facture' : invoice.type === 'PurchaseOrder' ? 'BonDeCommande' : 'Devis'}_${invoice.id}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -631,20 +639,20 @@ export const Sales = ({ user }: { user: any }) => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="flex bg-white border border-slate-200 rounded-xl p-1 shadow-sm">
-            {(['Tous', 'Invoice', 'Quote'] as const).map((f) => (
-              <button 
+            {(['Tous', 'Invoice', 'Quote', 'PurchaseOrder'] as const).map((f) => (
+              <button
                 key={f}
                 onClick={() => {
                   setFilter(f);
                   if (f !== 'Quote') setQuoteSubTab('list');
                 }}
                 className={`px-4 py-1.5 text-sm font-semibold rounded-lg transition-all ${
-                  filter === f 
-                    ? "bg-accent-red text-white shadow-md" 
+                  filter === f
+                    ? "bg-accent-red text-white shadow-md"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                 }`}
               >
-                {f === 'Tous' ? t('common.all') : f === 'Invoice' ? t('sales.invoices') : t('sales.quotes')}
+                {f === 'Tous' ? t('common.all') : f === 'Invoice' ? t('sales.invoices') : f === 'PurchaseOrder' ? t('sales.purchaseOrders') : t('sales.quotes')}
               </button>
             ))}
           </div>
@@ -656,7 +664,7 @@ export const Sales = ({ user }: { user: any }) => {
             className="flex items-center justify-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95"
           >
             <Plus className="w-5 h-5" />
-            {t('sales.new')} {filter === 'Quote' ? t('sales.quote') : filter === 'Invoice' ? t('sales.invoice') : t('sales.document')}
+            {t('sales.new')} {filter === 'Tous' ? t('sales.document') : docTypeLabel(filter)}
           </button>
         </div>
       </div>
@@ -746,12 +754,12 @@ export const Sales = ({ user }: { user: any }) => {
                     <tr key={invoice.id} className="hover:bg-slate-50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`p-2 rounded-lg ${invoice.type === 'Invoice' ? 'bg-soft-red text-accent-red' : 'bg-amber-50 text-amber-600'}`}>
+                          <div className={`p-2 rounded-lg ${docTypeColorClass(invoice.type)}`}>
                             <FileText className="w-4 h-4" />
                           </div>
                           <div>
                             <div className="text-sm font-bold text-slate-900">{invoice.id}</div>
-                            <div className="text-xs font-medium text-slate-500">{invoice.type === 'Invoice' ? t('sales.invoice') : t('sales.quote')}</div>
+                            <div className="text-xs font-medium text-slate-500">{docTypeLabel(invoice.type)}</div>
                           </div>
                         </div>
                       </td>
@@ -810,12 +818,12 @@ export const Sales = ({ user }: { user: any }) => {
                               )}
                             </button>
                           )}
-                          {invoice.type === 'Quote' && (invoice.status === 'Accepted' || invoice.status === 'Signed') && !invoice.convertedToInvoiceId && (
+                          {(invoice.type === 'Quote' || invoice.type === 'PurchaseOrder') && (invoice.status === 'Accepted' || invoice.status === 'Signed') && !invoice.convertedToInvoiceId && (
                             <button
                               onClick={() => handleConvertToInvoice(invoice)}
                               disabled={convertingId === invoice.id}
                               className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-xl transition-all shadow-sm hover:shadow-md"
-                              title="Convertir en facture (sans paiement)"
+                              title="Convertir en facture"
                               data-testid={`convert-to-invoice-${invoice.id}`}
                             >
                               {convertingId === invoice.id ? (
@@ -1047,10 +1055,11 @@ export const Sales = ({ user }: { user: any }) => {
                     <select 
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                       value={newInvoice.type || 'Invoice'}
-                      onChange={(e) => setNewInvoice({...newInvoice, type: e.target.value as 'Invoice' | 'Quote'})}
+                      onChange={(e) => setNewInvoice({...newInvoice, type: e.target.value as 'Invoice' | 'Quote' | 'PurchaseOrder'})}
                     >
                       <option value="Invoice">{t('sales.invoice')}</option>
                       <option value="Quote">{t('sales.quote')}</option>
+                      <option value="PurchaseOrder">{t('sales.purchaseOrder')}</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">
@@ -1064,8 +1073,8 @@ export const Sales = ({ user }: { user: any }) => {
                       <option value="Sent">{t('sales.sent')}</option>
                       {newInvoice.type === 'Invoice' && <option value="Paid">{t('sales.paid')}</option>}
                       {newInvoice.type === 'Invoice' && <option value="Overdue">{t('sales.overdue')}</option>}
-                      {newInvoice.type === 'Quote' && <option value="Accepted">{t('sales.accepted')}</option>}
-                      {newInvoice.type === 'Quote' && <option value="Rejected">{t('sales.rejected')}</option>}
+                      {newInvoice.type !== 'Invoice' && <option value="Accepted">{t('sales.accepted')}</option>}
+                      {newInvoice.type !== 'Invoice' && <option value="Rejected">{t('sales.rejected')}</option>}
                     </select>
                   </div>
                 </div>
@@ -1359,11 +1368,11 @@ export const Sales = ({ user }: { user: any }) => {
             >
             <div className="px-6 py-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/50 shrink-0">
               <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-lg ${viewInvoice.type === 'Invoice' ? 'bg-soft-red text-accent-red' : 'bg-amber-50 text-amber-600'}`}>
+                <div className={`p-2 rounded-lg ${docTypeColorClass(viewInvoice.type)}`}>
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">{viewInvoice.type === 'Invoice' ? 'Facture' : 'Devis'} {viewInvoice.id}</h3>
+                  <h3 className="text-lg font-bold text-slate-900">{docTypeLabel(viewInvoice.type)} {viewInvoice.id}</h3>
                   <div className="flex items-center gap-2 mt-1">
                     {getStatusIcon(viewInvoice.status)}
                     <span className="text-xs font-medium text-slate-600">{getStatusText(viewInvoice.status, viewInvoice.type)}</span>
@@ -1416,7 +1425,7 @@ export const Sales = ({ user }: { user: any }) => {
                 <div className="flex justify-between items-start mb-12">
                   <div>
                     <h1 className="text-3xl font-black text-slate-900 tracking-tight uppercase">
-                      {viewInvoice.type === 'Invoice' ? 'FACTURE' : 'DEVIS'}
+                      {viewInvoice.type === 'Invoice' ? 'FACTURE' : viewInvoice.type === 'PurchaseOrder' ? 'BON DE COMMANDE' : 'DEVIS'}
                     </h1>
                     <p className="text-sm font-medium text-slate-500 mt-1">{viewInvoice.id}</p>
                   </div>
@@ -1434,7 +1443,7 @@ export const Sales = ({ user }: { user: any }) => {
 
                 <div className="grid grid-cols-2 gap-8 mb-12">
                   <div>
-                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Facturé à</h3>
+                    <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">{viewInvoice.type === 'PurchaseOrder' ? 'Commandé pour' : 'Facturé à'}</h3>
                     <div className="font-bold text-slate-900 text-lg">{getContact(viewInvoice.contactId)?.name}</div>
                     <div className="text-sm text-slate-600 mt-1">{getContact(viewInvoice.contactId)?.company}</div>
                     <div className="text-sm text-slate-600 mt-1">{getContact(viewInvoice.contactId)?.email}</div>

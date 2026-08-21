@@ -57,7 +57,7 @@ invoicesRouter.post('/', requirePermission('sales.edit'), async (req, res, next)
     // unique-violation instead of failing the whole request.
     const needsAutoId = !inv.id;
     const generateNextInvoiceId = async () => {
-      const prefix = inv.type === 'Invoice' ? 'INV' : 'DEV';
+      const prefix = inv.type === 'Invoice' ? 'INV' : inv.type === 'PurchaseOrder' ? 'BC' : 'DEV';
       const year = new Date(inv.date || Date.now()).getFullYear();
       const countRes = await req.db.query(
         `SELECT COUNT(*) as count FROM invoices WHERE "companyId" = $1 AND type = $2 AND date_part('year', date::date) = $3`,
@@ -769,20 +769,20 @@ invoicesRouter.post('/:id/convert-to-invoice', requirePermission('sales.edit'), 
       [id, req.user!.companyId],
     );
     const quote = quoteRes.rows[0];
-    if (!quote) return res.status(404).json({ error: 'Devis introuvable' });
-    if (quote.type !== 'Quote') {
-      return res.status(400).json({ error: 'Seuls les devis peuvent être convertis.' });
+    if (!quote) return res.status(404).json({ error: 'Document introuvable' });
+    if (quote.type !== 'Quote' && quote.type !== 'PurchaseOrder') {
+      return res.status(400).json({ error: 'Seuls les devis et bons de commande peuvent être convertis en facture.' });
     }
     if (quote.convertedToInvoiceId) {
       return res.status(409).json({
-        error: 'Ce devis a déjà été converti en facture.',
+        error: `Ce ${quote.type === 'PurchaseOrder' ? 'bon de commande' : 'devis'} a déjà été converti en facture.`,
         invoiceId: quote.convertedToInvoiceId,
       });
     }
     const acceptedStatuses = new Set(['Accepted', 'Signed', 'Validé', 'Validated']);
     if (!acceptedStatuses.has(quote.status)) {
       return res.status(400).json({
-        error: 'Seuls les devis acceptés ou signés peuvent être convertis en facture.',
+        error: `Seul un ${quote.type === 'PurchaseOrder' ? 'bon de commande confirmé' : 'devis accepté ou signé'} peut être converti en facture.`,
       });
     }
 
@@ -834,7 +834,7 @@ invoicesRouter.post('/:id/convert-to-invoice', requirePermission('sales.edit'), 
         [
           newInvoiceId, req.user!.companyId, quote.contactId, today, dueDate,
           totals.brutHT, totals.tvaTotal, totals.total,
-          `Issu du devis ${id} — facture marquée payée automatiquement.`
+          `Issu ${quote.type === 'PurchaseOrder' ? 'du bon de commande' : 'du devis'} ${id} — facture marquée payée automatiquement.`
             + (quote.notes ? `\n\n${quote.notes}` : ''),
           quote.remise || 0, quote.remiseType || 'amount',
           quote.rabais || 0, quote.rabaisType || 'amount',
@@ -974,7 +974,9 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
     const { transporter, from } = getMailerForCompany(company.type, company.name, company);
     
     const isQuote = invoice.type === 'Quote';
-    const subject = isQuote ? `Devis ${invoice.id} - ${company.name}` : `Facture ${invoice.id} - ${company.name}`;
+    const docLabel = invoice.type === 'Quote' ? 'Devis' : invoice.type === 'PurchaseOrder' ? 'Bon de commande' : 'Facture';
+    const docLabelLower = invoice.type === 'Quote' ? 'devis' : invoice.type === 'PurchaseOrder' ? 'bon de commande' : 'facture';
+    const subject = `${docLabel} ${invoice.id} - ${company.name}`;
     
     // Use the public-facing base URL of the running deployment so the
     // signature link works in dev / preview / production. The `Origin` /
@@ -1057,9 +1059,9 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
       subject: subject,
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: auto; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
-          <h2 style="color: #4f46e5;">${isQuote ? 'Votre Devis' : 'Votre Facture'}</h2>
+          <h2 style="color: #4f46e5;">Votre ${docLabel}</h2>
           <p>Bonjour ${contact.name},</p>
-          <p>Veuillez trouver ci-joint les détails de votre ${isQuote ? 'devis' : 'facture'} <strong>${invoice.id}</strong>.</p>
+          <p>Veuillez trouver ci-joint les détails de votre ${docLabelLower} <strong>${invoice.id}</strong>.</p>
           
           <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
             <thead>

@@ -29,7 +29,7 @@ export interface Product {
 
 export interface Invoice {
   id: string;
-  type: 'Invoice' | 'Quote';
+  type: 'Invoice' | 'Quote' | 'PurchaseOrder';
   contactId: string;
   date: string;
   dueDate: string;
