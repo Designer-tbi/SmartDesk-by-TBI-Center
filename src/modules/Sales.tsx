@@ -311,7 +311,8 @@ export const Sales = ({ user }: { user: any }) => {
           fetchData();
           resetForm();
         } else {
-          setError(t('sales.errorUpdate'));
+          const d = await response.json().catch(() => null);
+          setError(d?.error || t('sales.errorUpdate'));
         }
       } else {
         // The id is now generated server-side (sequential per
@@ -325,7 +326,8 @@ export const Sales = ({ user }: { user: any }) => {
           fetchData();
           resetForm();
         } else {
-          setError(t('sales.errorCreate'));
+          const d = await response.json().catch(() => null);
+          setError(d?.error || t('sales.errorCreate'));
         }
       }
     } catch (error) {
