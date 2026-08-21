@@ -67,8 +67,11 @@ export const Sales = ({ user }: { user: any }) => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const fetchData = async () => {
-    setIsLoading(true);
+  // `showSpinner` is only true for the initial mount — background
+  // refreshes (10s poll, WebSocket RESOURCE_CHANGED) must update the
+  // data silently instead of blanking the whole table on every sync.
+  const fetchData = async (showSpinner = true) => {
+    if (showSpinner) setIsLoading(true);
     try {
       const [invRes, conRes, prodRes] = await Promise.all([
         apiFetch('/api/invoices'),
@@ -84,7 +87,7 @@ export const Sales = ({ user }: { user: any }) => {
     } catch (error) {
       console.error('Failed to fetch sales data:', error);
     } finally {
-      setIsLoading(false);
+      if (showSpinner) setIsLoading(false);
     }
   };
 
@@ -94,7 +97,7 @@ export const Sales = ({ user }: { user: any }) => {
 
   // Phase 3 — live sync: refetch sales data when invoices, contacts
   // or products mutate (could be auto-created by an automation).
-  useLiveSync(['invoices', 'contacts', 'products'], fetchData);
+  useLiveSync(['invoices', 'contacts', 'products'], () => fetchData(false));
 
   useEffect(() => {
     if (!invoices.length) return;
