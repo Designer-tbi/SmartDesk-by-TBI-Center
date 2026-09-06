@@ -566,6 +566,9 @@ export async function initializeDatabase() {
         // server/services/paypal.ts).
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalClientId" TEXT`);
         await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalClientSecret" TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalOptionStatus" TEXT NOT NULL DEFAULT 'inactive'`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalOptionSubscriptionId" TEXT`);
+        await db.query(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS "paypalOptionPeriodEnd" TIMESTAMPTZ`);
 
         // Tracks a customer's PayPal payment of a quote/invoice via the
         // public /pay/:id page (see server/routes/publicSignature.ts).
@@ -648,7 +651,7 @@ export async function initializeDatabase() {
       );
       // Bumped so existing deploys re-run the incremental migrations once
       // and pick up the CNSS declaration fields on `employees`.
-      const TARGET_SCHEMA = '2026-08-21-cnss-declaration';
+      const TARGET_SCHEMA = '2026-09-06-paypal-option-subscription';
       if (flag.rows[0]?.value === TARGET_SCHEMA) {
         console.log('Database schema already up-to-date, skipping init.');
         return;
