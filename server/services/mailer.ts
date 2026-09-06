@@ -18,6 +18,15 @@ export type MailerHandle = {
   isDemo: boolean;
 };
 
+export class MailConfigurationError extends Error {
+  status = 503;
+  code = 'SMTP_NOT_CONFIGURED';
+  constructor(message = "Aucune messagerie n'est configurée. Renseignez le serveur SMTP, le compte et son mot de passe dans Paramètres > Entreprise.") {
+    super(message);
+    this.name = 'MailConfigurationError';
+  }
+}
+
 const DEMO_HOST = process.env.SMTP_DEMO_HOST || 'ssl0.ovh.net';
 const DEMO_PORT = parseInt(process.env.SMTP_DEMO_PORT || '465', 10);
 const DEMO_USER = process.env.SMTP_DEMO_USER || 'demo@smart-desk.pro';
@@ -56,6 +65,10 @@ export function getMailerForCompany(
   displayName?: string | null,
   customSmtp?: CompanySmtpConfig,
 ): MailerHandle {
+  const customFields = [customSmtp?.smtpHost, customSmtp?.smtpUser, customSmtp?.smtpPass];
+  if (customFields.some(Boolean) && !customFields.every(Boolean)) {
+    throw new MailConfigurationError('La configuration SMTP est incomplète. Le serveur, le compte et le mot de passe sont obligatoires.');
+  }
   if (customSmtp?.smtpHost && customSmtp?.smtpUser && customSmtp?.smtpPass) {
     const host = customSmtp.smtpHost;
     const port = customSmtp.smtpPort || 465;
@@ -80,9 +93,7 @@ export function getMailerForCompany(
   const secure = isDemo ? port === 465 : PROD_SECURE;
 
   if (!pass) {
-    throw new Error(
-      `Missing ${isDemo ? 'SMTP_DEMO_PASS' : 'SMTP_PASS'} environment variable — cannot send mail for ${isDemo ? 'demo' : 'production'} mailbox.`,
-    );
+    throw new MailConfigurationError();
   }
 
   const transporter = nodemailer.createTransport({

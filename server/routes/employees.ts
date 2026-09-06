@@ -369,7 +369,7 @@ employeesRouter.post('/contracts/:id/send-email', requireManager, async (req, re
     }
     const signatureLink = `${baseUrl}/sign-contract/${id}?t=${signingToken}`;
 
-    const { transporter, from } = getMailerForCompany(company.type, company.name);
+    const { transporter, from } = getMailerForCompany(company.type, company.name, company);
     const fmt = (n: number) => `${Number(n || 0).toLocaleString()} ${company.currency || ''}`;
 
     // Validate the recipient before flipping the contract to "Sent" and

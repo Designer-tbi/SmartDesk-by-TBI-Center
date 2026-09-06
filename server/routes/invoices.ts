@@ -965,6 +965,9 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
     const contactRes = await req.db.query('SELECT * FROM contacts WHERE id = $1 AND "companyId" = $2', [invoice.contactId, req.user!.companyId]);
     const contact = contactRes.rows[0];
     if (!contact || !contact.email) return res.status(400).json({ error: 'Contact email not found' });
+    if (!/^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(contact.email)) {
+      return res.status(400).json({ error: `L’adresse e-mail du contact « ${contact.email} » est invalide.` });
+    }
     
     // 3. Fetch company
     const companyRes = await req.db.query('SELECT * FROM companies WHERE id = $1', [req.user!.companyId]);
@@ -1053,6 +1056,9 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
     `;
     }).join('');
 
+    const pdf = await buildInvoicePdfBuffer(req.db, id, req.user!.companyId!);
+    if (!pdf) return res.status(404).json({ error: 'Document introuvable lors de la génération du PDF.' });
+    const safeDocumentId = String(invoice.id).replace(/[^a-zA-Z0-9._-]/g, '_');
     const mailOptions = {
       from,
       to: contact.email,
@@ -1102,7 +1108,12 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
             ${company.phone || ''} | ${company.email || ''}
           </p>
         </div>
-      `
+      `,
+      attachments: [{
+        filename: `${safeDocumentId}.pdf`,
+        content: pdf.buffer,
+        contentType: 'application/pdf',
+      }],
     };
 
     await transporter.sendMail(mailOptions);
@@ -1113,7 +1124,15 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
     }
     
     res.json({ success: true });
-  } catch (error) {
+  } catch (error: any) {
+    if (error?.code && ['EAUTH', 'ECONNECTION', 'ETIMEDOUT', 'ESOCKET', 'EDNS'].includes(error.code)) {
+      console.error('Invoice email delivery failed:', error.code, error.message);
+      return res.status(502).json({
+        error: error.code === 'EAUTH'
+          ? "Connexion SMTP refusée : vérifiez l'adresse e-mail et le mot de passe dans les paramètres."
+          : "Le serveur SMTP est inaccessible. Vérifiez son adresse, son port et le réglage SSL/TLS.",
+      });
+    }
     next(error);
   }
 });

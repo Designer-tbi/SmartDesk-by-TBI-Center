@@ -75,6 +75,8 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   // Same write-only pattern as the SFEC key: never pre-filled from the
   // server, blank on save = keep the currently stored SMTP password.
   const [smtpPassInput, setSmtpPassInput] = useState('');
+  const [isTestingSmtp, setIsTestingSmtp] = useState(false);
+  const [smtpTestMessage, setSmtpTestMessage] = useState<string | null>(null);
   // Same write-only pattern for the PayPal client secret.
   const [paypalSecretInput, setPaypalSecretInput] = useState('');
   const [isTestingPaypal, setIsTestingPaypal] = useState(false);
@@ -275,6 +277,20 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
       setError(t('settings.error.connection'));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleSmtpTest = async () => {
+    setIsTestingSmtp(true);
+    setSmtpTestMessage(null);
+    try {
+      const response = await apiFetch('/api/company/smtp/verify', { method: 'POST' });
+      const data = await response.json().catch(() => null);
+      setSmtpTestMessage(response.ok ? data?.message : data?.error || t('settings.smtpTestError'));
+    } catch {
+      setSmtpTestMessage(t('settings.smtpTestError'));
+    } finally {
+      setIsTestingSmtp(false);
     }
   };
 
@@ -1010,6 +1026,14 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                       ? t('settings.smtpConfiguredHint')
                       : t('settings.smtpMissingHint')}
                   </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button type="button" onClick={handleSmtpTest}
+                      disabled={isTestingSmtp || !(company as any).hasSmtpConfig}
+                      className="px-4 py-2 rounded-xl border border-red-100 text-sm font-semibold text-accent-red disabled:opacity-40">
+                      {isTestingSmtp ? <Loader2 className="w-4 h-4 animate-spin" /> : t('settings.smtpTest')}
+                    </button>
+                    {smtpTestMessage && <p className="text-xs text-slate-600" role="status">{smtpTestMessage}</p>}
+                  </div>
                 </div>
 
                 <div className="pt-6 mt-2 border-t border-slate-100 space-y-4">

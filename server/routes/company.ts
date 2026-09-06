@@ -5,6 +5,7 @@ import { isManagerRole } from '../utils/roles.js';
 import bcrypt from 'bcryptjs';
 import { createOrder, captureOrder } from '../services/companyPaypal.js';
 import { xafToUsdAmount } from '../services/exchangeRate.js';
+import { getMailerForCompany } from '../services/mailer.js';
 
 export const companyRouter = Router();
 
@@ -123,8 +124,17 @@ companyRouter.post('/onboarding', async (req, res, next) => {
       ],
     );
     const r = await req.db.query('SELECT * FROM public.companies WHERE id = $1', [req.user!.companyId]);
-    const { fiscalizationApiKey: storedKey, ...safe } = r.rows[0] || {};
-    res.json({ ...safe, hasFiscalizationKey: !!storedKey, onboardingCompleted: true });
+    const {
+      fiscalizationApiKey: storedKey, smtpPass: storedSmtpPass,
+      paypalClientSecret: storedPaypalSecret, ...safe
+    } = r.rows[0] || {};
+    res.json({
+      ...safe,
+      hasFiscalizationKey: !!storedKey,
+      hasSmtpConfig: !!(safe.smtpHost && safe.smtpUser && storedSmtpPass),
+      hasPaypalConfig: !!(safe.paypalClientId && storedPaypalSecret),
+      onboardingCompleted: true,
+    });
   } catch (error) {
     next(error);
   }
@@ -217,6 +227,20 @@ companyRouter.put('/', requirePermission('settings.edit'), async (req, res, next
     });
   } catch (error) {
     console.error('Error updating company:', error);
+    next(error);
+  }
+});
+
+// Checks credentials and TLS negotiation only. No message is sent.
+companyRouter.post('/smtp/verify', requirePermission('settings.edit'), async (req, res, next) => {
+  try {
+    const result = await req.db.query('SELECT * FROM public.companies WHERE id = $1', [req.user!.companyId]);
+    const company = result.rows[0];
+    if (!company) return res.status(404).json({ error: 'Entreprise introuvable.' });
+    const { transporter } = getMailerForCompany(company.type, company.name, company);
+    await transporter.verify();
+    res.json({ success: true, message: 'Connexion SMTP vérifiée. Aucun e-mail envoyé.' });
+  } catch (error) {
     next(error);
   }
 });
