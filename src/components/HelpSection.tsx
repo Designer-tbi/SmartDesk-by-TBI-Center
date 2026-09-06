@@ -1,143 +1,57 @@
 import React, { useState } from 'react';
-import { useTranslation } from '../lib/i18n';
-import { 
-  BookOpen, LayoutDashboard, Calendar, Users, ShoppingCart, 
-  Package, Clock, Briefcase, UserCheck, Calculator, Shield, 
-  SettingsIcon, Bot, Zap, Crown, ListOrdered, CheckCircle2
-} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { BookOpen, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Shield, SettingsIcon, Bot, Zap, Crown, ListOrdered, CheckCircle2, FileCheck2, SlidersHorizontal, Sparkles, ArrowRight, Info, BellRing, Search } from 'lucide-react';
+
+type HelpTab = 'guide' | 'modules' | 'automation';
 
 export const HelpSection = () => {
-  const { t } = useTranslation();
-  const [activeTab, setActiveTab] = useState('guide');
-
+  const [activeTab, setActiveTab] = useState<HelpTab>('guide');
+  const [moduleSearch, setModuleSearch] = useState('');
+  const guideSteps = [
+    ['Configurer votre entreprise', '/settings?tab=company', 'Ouvrir les paramètres', 'Ajoutez le logo, les coordonnées, le NIU, le RCCM, le représentant légal, la devise et les paramètres comptables. Ces informations alimentent automatiquement vos documents.'],
+    ['Créer les rôles et les accès', '/users', 'Gérer les utilisateurs', 'Invitez les collaborateurs, attribuez un rôle et vérifiez les permissions module par module. Les déclarations restent réservées aux administrateurs et managers.'],
+    ['Préparer le catalogue', '/inventory', 'Ajouter les produits', 'Créez les catégories, produits et services avec leur prix, TVA, SKU et stock. Une ligne libre peut aussi être saisie directement dans un document commercial.'],
+    ['Centraliser clients et prospects', '/crm', 'Ouvrir le CRM', 'Enregistrez les coordonnées, le statut, le NIU et l’adresse de chaque contact avant de démarrer le cycle commercial.'],
+    ['Créer et envoyer un devis', '/sales', 'Créer un devis', 'Sélectionnez le client, ajoutez les articles ou lignes manuelles, appliquez les réductions puis envoyez le PDF et le lien de signature par e-mail.'],
+    ['Suivre paiement et comptabilité', '/accounting', 'Voir la comptabilité', 'Une facture payée crée son écriture comptable OHADA. Si PayPal est actif, le client peut régler depuis le lien sécurisé du document.'],
+    ['Organiser les salariés et le travail', '/hr', 'Ouvrir les RH', 'Ajoutez les employés, finalisez leurs contrats, gérez congés et bulletins, puis planifiez les missions dans Planning et Projets.'],
+    ['Préparer les déclarations', '/declarations', 'Voir les déclarations', 'Les administrateurs et managers suivent le calendrier et préparent les volets DGID, CNSS, INS et Greffe avec les données enregistrées.'],
+  ];
   const modules = [
-    { key: 'help.dashboard', icon: LayoutDashboard },
-    { key: 'help.agenda', icon: Calendar },
-    { key: 'help.crm', icon: Users },
-    { key: 'help.sales', icon: ShoppingCart },
-    { key: 'help.inventory', icon: Package },
-    { key: 'help.planning', icon: Clock },
-    { key: 'help.projects', icon: Briefcase },
-    { key: 'help.hr', icon: UserCheck },
-    { key: 'help.accounting', icon: Calculator },
-    { key: 'help.users', icon: Shield },
-    { key: 'help.settings', icon: SettingsIcon },
-    { key: 'help.superAdmin', icon: Crown },
-  ];
+    ['Tableau de bord', '/', LayoutDashboard, 'Vue synthétique de l’activité et des indicateurs récents.', ['Indicateurs clés', 'Activité récente', 'Accès rapides']],
+    ['Agenda', '/agenda', Calendar, 'Rendez-vous, réunions et événements partagés.', ['Création d’événements', 'Statuts', 'Suivi chronologique']],
+    ['CRM / Clients', '/crm', Users, 'Fichier central des prospects, clients et partenaires.', ['Coordonnées et NIU', 'Statut commercial', 'Historique']],
+    ['Ventes / Factures', '/sales', ShoppingCart, 'Cycle des devis, bons de commande et factures.', ['Lignes catalogue ou manuelles', 'PDF et e-mail', 'Signature et paiement']],
+    ['Stocks / Produits', '/inventory', Package, 'Catalogue, catégories, services et quantités.', ['Catégories', 'Prix et TVA', 'Mouvements de stock']],
+    ['Planning', '/planning', Clock, 'Horaires et missions des employés et utilisateurs.', ['Jour, semaine et mois', 'Brouillon ou publié', 'Rapport d’heures']],
+    ['Projets', '/projects', Briefcase, 'Pilotage des budgets, échéances et équipes.', ['Progression', 'Priorités', 'Dépenses projet']],
+    ['RH / Employés', '/hr', UserCheck, 'Dossiers salariés, contrats, congés, tâches et paie.', ['Contrats signables', 'Bulletins de paie', 'Congés et documents']],
+    ['Comptabilité', '/accounting', Calculator, 'Transactions et écritures selon le référentiel choisi.', ['Journal comptable', 'Plan OHADA', 'Écritures automatiques']],
+    ['Mes déclarations', '/declarations', FileCheck2, 'Espace fiscal, social, statistique et juridique.', ['DGID', 'CNSS et INS', 'Greffe et calendrier'], 'Administrateurs et managers uniquement'],
+    ['Utilisateurs et rôles', '/users', Shield, 'Comptes et permissions par fonction.', ['Rôles personnalisés', 'Permissions détaillées', 'Activation des comptes']],
+    ['Mes options', '/my-options', SlidersHorizontal, 'Services additionnels de l’entreprise.', ['Paiement PayPal', 'État des options', 'Configuration guidée']],
+    ['Mes agents', '/my-agents', Sparkles, 'Assistants spécialisés disponibles ou à venir.', ['Agents métier', 'Disponibilité', 'Accès centralisé']],
+    ['Paramètres', '/settings', SettingsIcon, 'Entreprise, profil, sécurité et intégrations.', ['Identité légale', 'SMTP et PayPal', 'Préférences']],
+    ['Super administration', '/super-admin', Crown, 'Pilotage global des entreprises et abonnements.', ['Entreprises', 'Abonnements', 'Mobile Money'], 'Super administrateur uniquement'],
+  ] as const;
+  const automations = [
+    [UserCheck, 'Création d’un employé', 'Un projet de contrat est créé', 'SmartDesk prépare un contrat brouillon avec le type, la date d’entrée et le salaire.'],
+    [FileCheck2, 'Signature d’un contrat', 'Le premier bulletin est préparé', 'Un bulletin brouillon du mois est créé. Au Congo, les retenues CNSS et IRPP sont calculées.'],
+    [ShoppingCart, 'Signature d’un devis', 'La facture est générée', 'Les lignes et réductions sont reprises, le stock est mis à jour et la relation devis–facture est conservée.'],
+    [Calculator, 'Facture marquée payée', 'L’écriture comptable est créée', 'Le journal débite la banque et crédite les ventes et la TVA, avec un contrôle anti-doublon.'],
+    [Shield, 'Facture créée ou convertie', 'La certification DGID est tentée', 'Avec une clé SFEC/DGID configurée, le numéro de certification et le QR code rejoignent le document.'],
+    [BellRing, 'Action automatique terminée', 'L’équipe est informée', 'Une notification et le journal d’activité signalent les factures, écritures et bulletins créés.'],
+  ] as const;
+  const filteredModules = modules.filter((m) => `${m[0]} ${m[3]} ${m[4].join(' ')}`.toLowerCase().includes(moduleSearch.toLowerCase()));
+  const tabs = [['guide', 'Guide pas à pas', ListOrdered, guideSteps.length], ['modules', 'Fonctionnalités des modules', BookOpen, modules.length], ['automation', 'Automatisation CRM', Bot, automations.length]] as const;
 
-  const tabs = [
-    { id: 'guide', label: t('help.guideTitle'), icon: ListOrdered },
-    { id: 'modules', label: t('help.modulesTitle'), icon: BookOpen },
-    { id: 'automation', label: t('help.crmAutomationTitle'), icon: Bot },
-  ];
+  return <div className="space-y-6">
+    <div className="grid grid-cols-1 gap-2 rounded-2xl border border-slate-200 bg-white p-2 md:grid-cols-3">{tabs.map(([id,label,Icon,count]) => <button key={id} type="button" onClick={() => setActiveTab(id)} className={`flex items-center justify-between gap-3 rounded-xl px-4 py-3 text-left transition-all ${activeTab === id ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-600 hover:bg-slate-50'}`}><span className="flex items-center gap-2 text-sm font-bold"><Icon className="h-4 w-4" />{label}</span><span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${activeTab === id ? 'bg-white/15' : 'bg-slate-100'}`}>{count}</span></button>)}</div>
 
-  return (
-    <div className="space-y-8">
-      <div className="flex space-x-4 border-b border-slate-200 overflow-x-auto">
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center gap-2 py-4 px-6 font-bold transition-colors whitespace-nowrap shrink-0 ${
-              activeTab === tab.id
-                ? 'text-accent-red border-b-2 border-accent-red'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            <tab.icon className="w-5 h-5" />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+    {activeTab === 'guide' && <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"><div className="mb-7"><h3 className="flex items-center gap-2 text-xl font-black text-slate-900"><ListOrdered className="h-6 w-6 text-accent-red" />Démarrer avec SmartDesk</h3><p className="mt-2 text-sm text-slate-500">Suivez ce parcours dans l’ordre pour disposer d’une plateforme prête à travailler.</p></div><div className="grid gap-4 lg:grid-cols-2">{guideSteps.map(([title,path,action,desc], i) => <article key={title} className="rounded-2xl border border-slate-200 bg-slate-50/70 p-5 transition-all hover:border-red-200 hover:bg-white hover:shadow-md"><div className="flex gap-4"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-sm font-black text-white">{i+1}</div><div><h4 className="font-bold text-slate-900">{title}</h4><p className="mt-2 text-sm leading-relaxed text-slate-600">{desc}</p><Link to={path} className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold text-accent-red">{action}<ArrowRight className="h-3.5 w-3.5" /></Link></div></div></article>)}</div></section>}
 
-      {activeTab === 'automation' && (
-        <div className="bg-gradient-to-br from-primary-red to-accent-red rounded-3xl p-8 text-white shadow-xl">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 bg-white/20 rounded-2xl">
-              <Bot className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h2 className="text-2xl font-black">{t('help.crmAutomationTitle')}</h2>
-              <p className="text-soft-red">{t('help.crmAutomationSubtitle')}</p>
-            </div>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { title: t('help.crmAuto1'), desc: t('help.crmAuto1Desc') },
-              { title: t('help.crmAuto2'), desc: t('help.crmAuto2Desc') },
-              { title: t('help.crmAuto3'), desc: t('help.crmAuto3Desc') },
-              { title: t('help.crmAuto4'), desc: t('help.crmAuto4Desc') },
-            ].map((item, i) => (
-              <div key={i} className="bg-white/10 p-5 rounded-2xl backdrop-blur-sm border border-white/10">
-                <Zap className="w-5 h-5 text-yellow-300 mb-3" />
-                <h4 className="font-bold mb-1">{item.title}</h4>
-                <p className="text-sm text-soft-red">{item.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+    {activeTab === 'modules' && <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"><div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between"><div><h3 className="flex items-center gap-2 text-xl font-black text-slate-900"><BookOpen className="h-6 w-6 text-accent-red" />Tous les modules</h3><p className="mt-2 text-sm text-slate-500">Fonctions disponibles dans chaque espace de la plateforme.</p></div><label className="relative block md:w-72"><Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input value={moduleSearch} onChange={(e) => setModuleSearch(e.target.value)} placeholder="Rechercher un module…" className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-accent-red focus:ring-2 focus:ring-red-100" /></label></div><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{filteredModules.map(([title,path,Icon,desc,features,note]) => <article key={title} className="flex flex-col rounded-2xl border border-slate-200 bg-slate-50/70 p-5 transition-all hover:border-red-200 hover:bg-white hover:shadow-md"><div className="flex items-start gap-3"><div className="rounded-xl bg-red-50 p-2.5 text-accent-red"><Icon className="h-5 w-5" /></div><div><h4 className="font-bold text-slate-900">{title}</h4>{note && <p className="mt-1 text-[10px] font-bold uppercase tracking-wide text-amber-600">{note}</p>}</div></div><p className="mt-4 text-sm leading-relaxed text-slate-600">{desc}</p><ul className="mt-4 space-y-2">{features.map(f => <li key={f} className="flex items-center gap-2 text-xs text-slate-600"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />{f}</li>)}</ul><Link to={path} className="mt-5 inline-flex items-center gap-1.5 text-xs font-bold text-accent-red">Ouvrir le module<ArrowRight className="h-3.5 w-3.5" /></Link></article>)}</div>{!filteredModules.length && <div className="py-12 text-center text-sm text-slate-500">Aucun module trouvé.</div>}</section>}
 
-      {activeTab === 'guide' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
-          <div className="mb-8">
-            <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <ListOrdered className="w-6 h-6 text-accent-red" />
-              {t('help.guideTitle')}
-            </h3>
-            <p className="text-slate-500 mt-2">{t('help.guideDesc')}</p>
-          </div>
-          
-          <div className="space-y-6 relative before:absolute before:inset-0 before:ml-6 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-200 before:to-transparent">
-            {[
-              { title: t('help.guideStep1Title'), desc: t('help.guideStep1Desc') },
-              { title: t('help.guideStep2Title'), desc: t('help.guideStep2Desc') },
-              { title: t('help.guideStep3Title'), desc: t('help.guideStep3Desc') },
-              { title: t('help.guideStep4Title'), desc: t('help.guideStep4Desc') },
-              { title: t('help.guideStep5Title'), desc: t('help.guideStep5Desc') },
-            ].map((step, i) => (
-              <div key={i} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                <div className="flex items-center justify-center w-12 h-12 rounded-full border-4 border-white bg-soft-red text-accent-red shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 z-10">
-                  <CheckCircle2 className="w-6 h-6" />
-                </div>
-                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] p-5 rounded-2xl bg-slate-50 border border-slate-100 shadow-sm hover:shadow-md transition-all">
-                  <h4 className="font-bold text-slate-900 mb-2">{step.title}</h4>
-                  <p className="text-sm text-slate-600 leading-relaxed">{step.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'modules' && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-8">
-          <div className="mb-8">
-            <h3 className="text-xl font-black text-slate-900 flex items-center gap-2">
-              <BookOpen className="w-6 h-6 text-accent-red" />
-              {t('help.modulesTitle')}
-            </h3>
-            <p className="text-slate-500 mt-2">{t('help.modulesDesc')}</p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {modules.map((module) => {
-              const Icon = module.icon;
-              return (
-                <div key={module.key} className="flex items-start gap-4 p-5 bg-slate-50 rounded-2xl border border-slate-200 hover:border-accent-red/20 hover:shadow-md transition-all">
-                  <div className="p-2 bg-soft-red rounded-xl">
-                    <Icon className="w-5 h-5 text-accent-red" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-900 mb-1">{t(`${module.key}Title`)}</h4>
-                    <p className="text-sm text-slate-600">{t(module.key)}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-    </div>
-  );
+    {activeTab === 'automation' && <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="bg-gradient-to-r from-slate-950 to-red-950 p-6 text-white sm:p-8"><div className="flex items-start gap-4"><div className="rounded-2xl bg-white/10 p-3"><Zap className="h-7 w-7 text-amber-300" /></div><div><h3 className="text-xl font-black">Automatisations actives</h3><p className="mt-1 text-sm text-slate-300">Chaque scénario ci-dessous est déjà relié aux modules concernés.</p></div></div></div><div className="grid gap-4 bg-slate-50/70 p-5 sm:p-8 lg:grid-cols-2">{automations.map(([Icon,trigger,result,detail], i) => <article key={trigger} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="flex items-start gap-4"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-red-50 text-accent-red"><Icon className="h-5 w-5" /></div><div><p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Scénario {i+1}</p><h4 className="mt-1 font-bold text-slate-900">{trigger}</h4><div className="my-2 flex items-center gap-2 text-xs font-bold text-emerald-600"><ArrowRight className="h-3.5 w-3.5" />{result}</div><p className="text-sm leading-relaxed text-slate-600">{detail}</p></div></div></article>)}</div><div className="flex items-start gap-3 border-t border-slate-200 bg-white p-5 text-sm text-slate-600 sm:px-8"><Info className="mt-0.5 h-4 w-4 shrink-0 text-blue-500" /><p>Les automatisations respectent les permissions et l’entreprise active. Le résultat apparaît dans la cloche de notifications et le journal d’activité.</p></div></section>}
+  </div>;
 };
