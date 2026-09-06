@@ -274,6 +274,8 @@ export interface CompanyInfo {
   paypalClientId?: string;
   hasPaypalConfig?: boolean;
   paypalClientSecret?: string; // write-only: never populated from GET, blank = keep existing
+  canConfigurePaypal?: boolean;
+  paypalOptionStatus?: 'inactive' | 'pending' | 'active' | 'cancelled' | 'expired' | 'suspended';
 }
 
 export interface User {

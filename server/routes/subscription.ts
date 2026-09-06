@@ -11,6 +11,7 @@
 import { Router } from 'express';
 import crypto from 'crypto';
 import { requireAuth, requireCompany } from '../middleware/auth.js';
+import { requirePermission } from '../middleware/permissions.js';
 import {
   ensureProductAndPlans,
   resolvePlanForCountry,
@@ -21,6 +22,8 @@ import {
   getStoredWebhookId,
   verifyWebhookSignature,
   PLAN_SPECS,
+  PAYPAL_OPTION_PLAN,
+  ensurePaypalOptionPlan,
 } from '../services/paypal.js';
 
 export const subscriptionRouter = Router();
@@ -244,6 +247,92 @@ subscriptionRouter.post('/cancel', requireAuth, requireCompany, async (req, res,
 });
 
 /* -------------------------------------------------------------- */
+/* Optional PayPal checkout module — 3 000 XAF / month             */
+/* -------------------------------------------------------------- */
+
+subscriptionRouter.get('/paypal-option/status', requireAuth, requireCompany, async (req, res, next) => {
+  try {
+    const r = await req.db.query(
+      `SELECT "paypalOptionStatus", "paypalOptionSubscriptionId", "paypalOptionPeriodEnd"
+         FROM companies WHERE id = $1`,
+      [req.user!.companyId],
+    );
+    const company = r.rows[0];
+    if (!company) return res.status(404).json({ error: 'Company not found' });
+    res.json({
+      status: company.paypalOptionStatus || 'inactive',
+      active: company.paypalOptionStatus === 'active',
+      subscriptionId: company.paypalOptionSubscriptionId,
+      periodEnd: company.paypalOptionPeriodEnd,
+      plan: PAYPAL_OPTION_PLAN,
+    });
+  } catch (err) { next(err); }
+});
+
+subscriptionRouter.post('/paypal-option/create', requireAuth, requireCompany, requirePermission('settings.edit'), async (req, res, next) => {
+  try {
+    const cid = req.user!.companyId;
+    const r = await req.db.query(
+      `SELECT "paypalOptionSubscriptionId" FROM companies WHERE id = $1`, [cid],
+    );
+    const oldId = r.rows[0]?.paypalOptionSubscriptionId;
+    if (oldId) {
+      try { await cancelSubscription(oldId, 'Nouvel abonnement option PayPal'); } catch { /* already ended */ }
+    }
+    const planId = await ensurePaypalOptionPlan(req.db);
+    const base = process.env.PAYPAL_RETURN_URL_BASE || `${req.protocol}://${req.get('host')}`;
+    const subscription = await createSubscription(
+      planId,
+      { companyId: cid, userEmail: req.user!.email || 'admin@smartdesk.cg', customId: `paypal-option:${cid}` },
+      `${base}/settings?tab=company&paypalOption=return`,
+      `${base}/settings?tab=company&paypalOption=cancel`,
+    );
+    await req.db.query(
+      `UPDATE companies SET "paypalOptionSubscriptionId" = $1, "paypalOptionStatus" = 'pending' WHERE id = $2`,
+      [subscription.id, cid],
+    );
+    const approveUrl = (subscription.links || []).find((l: any) => l.rel === 'approve')?.href || null;
+    res.json({ subscriptionId: subscription.id, approveUrl, plan: PAYPAL_OPTION_PLAN });
+  } catch (err) { next(err); }
+});
+
+subscriptionRouter.post('/paypal-option/activate', requireAuth, requireCompany, requirePermission('settings.edit'), async (req, res, next) => {
+  try {
+    const cid = req.user!.companyId;
+    const r = await req.db.query(
+      `SELECT "paypalOptionSubscriptionId" FROM companies WHERE id = $1`, [cid],
+    );
+    const subId = r.rows[0]?.paypalOptionSubscriptionId;
+    if (!subId) return res.status(400).json({ error: "Aucun abonnement à l'option PayPal en cours." });
+    const sub = await getSubscription(subId);
+    const remote = String(sub.status || '').toUpperCase();
+    const status = ['ACTIVE', 'APPROVED'].includes(remote) ? 'active'
+      : remote === 'APPROVAL_PENDING' ? 'pending'
+        : ['CANCELLED', 'EXPIRED'].includes(remote) ? 'expired'
+          : remote.toLowerCase();
+    const periodEnd = sub.billing_info?.next_billing_time || null;
+    await req.db.query(
+      `UPDATE companies SET "paypalOptionStatus" = $1, "paypalOptionPeriodEnd" = $2 WHERE id = $3`,
+      [status, periodEnd, cid],
+    );
+    res.json({ ok: true, status, periodEnd });
+  } catch (err) { next(err); }
+});
+
+subscriptionRouter.post('/paypal-option/cancel', requireAuth, requireCompany, requirePermission('settings.edit'), async (req, res, next) => {
+  try {
+    const cid = req.user!.companyId;
+    const r = await req.db.query(
+      `SELECT "paypalOptionSubscriptionId" FROM companies WHERE id = $1`, [cid],
+    );
+    const subId = r.rows[0]?.paypalOptionSubscriptionId;
+    if (subId) await cancelSubscription(subId, 'Option PayPal annulée par le client');
+    await req.db.query(`UPDATE companies SET "paypalOptionStatus" = 'cancelled' WHERE id = $1`, [cid]);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+/* -------------------------------------------------------------- */
 /* Mobile Money (Airtel Money / MTN Mobile Money) — CG & CD         */
 /* -------------------------------------------------------------- */
 /**
@@ -400,14 +489,26 @@ subscriptionRouter.post('/webhook', async (req, res, next) => {
     }
 
     if (newStatus) {
-      await req.db.query(
-        `UPDATE companies
-            SET "subscriptionStatus" = $1,
-                "paypalSubscriptionId" = COALESCE($2, "paypalSubscriptionId"),
-                "subscriptionPeriodEnd" = COALESCE($3, "subscriptionPeriodEnd")
-          WHERE id = $4`,
-        [newStatus, subId, periodEnd, customId],
-      );
+      if (customId.startsWith('paypal-option:')) {
+        const companyId = customId.slice('paypal-option:'.length);
+        await req.db.query(
+          `UPDATE companies
+              SET "paypalOptionStatus" = $1,
+                  "paypalOptionSubscriptionId" = COALESCE($2, "paypalOptionSubscriptionId"),
+                  "paypalOptionPeriodEnd" = COALESCE($3, "paypalOptionPeriodEnd")
+            WHERE id = $4`,
+          [newStatus, subId, periodEnd, companyId],
+        );
+      } else {
+        await req.db.query(
+          `UPDATE companies
+              SET "subscriptionStatus" = $1,
+                  "paypalSubscriptionId" = COALESCE($2, "paypalSubscriptionId"),
+                  "subscriptionPeriodEnd" = COALESCE($3, "subscriptionPeriodEnd")
+            WHERE id = $4`,
+          [newStatus, subId, periodEnd, customId],
+        );
+      }
     }
 
     res.sendStatus(200);

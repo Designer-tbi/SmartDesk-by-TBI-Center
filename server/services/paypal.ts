@@ -71,6 +71,13 @@ export const PLAN_SPECS: PlanSpec[] = [
   },
 ];
 
+export const PAYPAL_OPTION_PLAN = {
+  id: 'PAYPAL_OPTION_XAF',
+  amountUSD: '5.00',
+  displayLocal: '3 000 XAF',
+  description: 'Option paiements PayPal SmartDesk — abonnement mensuel',
+} as const;
+
 export const resolvePlanForCountry = (country?: string | null): PlanSpec => {
   const c = String(country || '').toUpperCase();
   return PLAN_SPECS.find((p) => p.country === c) || PLAN_SPECS[PLAN_SPECS.length - 1];
@@ -201,6 +208,38 @@ export async function ensureProductAndPlans(db: any): Promise<Record<string, str
   return plans;
 }
 
+export async function ensurePaypalOptionPlan(db: any): Promise<string> {
+  const plans = await ensureProductAndPlans(db);
+  void plans;
+  const cfgKey = `paypal_plan_${PAYPAL_OPTION_PLAN.id}`;
+  let planId = await configGet(db, cfgKey);
+  if (!planId) {
+    const productId = await configGet(db, 'paypal_product_id');
+    const plan = await paypalFetch('/v1/billing/plans', {
+      method: 'POST',
+      body: JSON.stringify({
+        product_id: productId,
+        name: PAYPAL_OPTION_PLAN.description,
+        description: PAYPAL_OPTION_PLAN.description,
+        status: 'ACTIVE',
+        billing_cycles: [{
+          frequency: { interval_unit: 'MONTH', interval_count: 1 },
+          tenure_type: 'REGULAR', sequence: 1, total_cycles: 0,
+          pricing_scheme: { fixed_price: { value: PAYPAL_OPTION_PLAN.amountUSD, currency_code: 'USD' } },
+        }],
+        payment_preferences: {
+          auto_bill_outstanding: true,
+          setup_fee: { value: '0', currency_code: 'USD' },
+          setup_fee_failure_action: 'CONTINUE', payment_failure_threshold: 2,
+        },
+      }),
+    });
+    planId = plan.id;
+    await configSet(db, cfgKey, planId!);
+  }
+  return planId!;
+}
+
 /* ------------------------------------------------------------------ */
 /* Webhook registration (idempotent)                                   */
 /* ------------------------------------------------------------------ */
@@ -264,7 +303,7 @@ export async function getStoredWebhookId(db: any): Promise<string | null> {
 
 export async function createSubscription(
   planId: string,
-  customData: { companyId: string; userEmail: string },
+  customData: { companyId: string; userEmail: string; customId?: string },
   returnUrl: string,
   cancelUrl: string,
 ) {
@@ -272,7 +311,7 @@ export async function createSubscription(
     method: 'POST',
     body: JSON.stringify({
       plan_id: planId,
-      custom_id: customData.companyId,
+      custom_id: customData.customId || customData.companyId,
       subscriber: { email_address: customData.userEmail },
       application_context: {
         brand_name: 'SmartDesk ERP',

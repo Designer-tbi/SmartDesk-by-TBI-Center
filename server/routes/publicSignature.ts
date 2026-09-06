@@ -157,12 +157,13 @@ publicSignatureRouter.get('/invoices/:id', async (req, res, next) => {
     );
 
     const compRes = await req.db.query(
-      `SELECT name, address, email, phone, niu, rccm, "idNat", "taxId", currency, logo, "paypalClientId", "paypalClientSecret"
+      `SELECT name, address, email, phone, niu, rccm, "idNat", "taxId", currency, logo, "paypalClientId", "paypalClientSecret", "paypalOptionStatus"
          FROM companies WHERE id = $1`,
       [invoice.companyId],
     );
     const companyRow = compRes.rows[0] || {};
-    const hasPaypalConfig = !!(companyRow.paypalClientId && companyRow.paypalClientSecret);
+    const hasPaypalConfig = companyRow.paypalOptionStatus === 'active' &&
+      !!(companyRow.paypalClientId && companyRow.paypalClientSecret);
 
     let contact: any = null;
     if (invoice.contactId) {
@@ -206,11 +207,11 @@ publicSignatureRouter.post('/invoices/:id/paypal/create', async (req, res, next)
     }
 
     const compRes = await req.db.query(
-      `SELECT name, currency, "paypalClientId", "paypalClientSecret" FROM companies WHERE id = $1`,
+      `SELECT name, currency, "paypalClientId", "paypalClientSecret", "paypalOptionStatus" FROM companies WHERE id = $1`,
       [invoice.companyId],
     );
     const company = compRes.rows[0];
-    if (!company?.paypalClientId || !company?.paypalClientSecret) {
+    if (company?.paypalOptionStatus !== 'active' || !company?.paypalClientId || !company?.paypalClientSecret) {
       return res.status(400).json({ error: "Le paiement en ligne n'est pas disponible pour cette société." });
     }
 
@@ -265,11 +266,11 @@ publicSignatureRouter.post('/invoices/:id/paypal/capture', async (req, res, next
     }
 
     const compRes = await req.db.query(
-      `SELECT "paypalClientId", "paypalClientSecret" FROM companies WHERE id = $1`,
+      `SELECT "paypalClientId", "paypalClientSecret", "paypalOptionStatus" FROM companies WHERE id = $1`,
       [invoice.companyId],
     );
     const company = compRes.rows[0];
-    if (!company?.paypalClientId || !company?.paypalClientSecret) {
+    if (company?.paypalOptionStatus !== 'active' || !company?.paypalClientId || !company?.paypalClientSecret) {
       return res.status(400).json({ error: "Le paiement en ligne n'est pas disponible pour cette société." });
     }
 

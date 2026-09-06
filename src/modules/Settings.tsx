@@ -82,6 +82,8 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   const [isTestingPaypal, setIsTestingPaypal] = useState(false);
   const [paypalTestStatus, setPaypalTestStatus] = useState<'idle' | 'awaiting' | 'capturing' | 'success' | 'error' | 'cancelled'>('idle');
   const [paypalTestMessage, setPaypalTestMessage] = useState<string | null>(null);
+  const [isSubscribingPaypalOption, setIsSubscribingPaypalOption] = useState(false);
+  const [paypalOptionMessage, setPaypalOptionMessage] = useState<string | null>(null);
 
   const handleDetectCountry = async () => {
     setIsDetectingGeo(true);
@@ -157,6 +159,46 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
     // any unsaved edits the user just made (including auto-detect).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const optionReturn = searchParams.get('paypalOption');
+    if (optionReturn === 'return') {
+      setIsSubscribingPaypalOption(true);
+      apiFetch('/api/subscription/paypal-option/activate', { method: 'POST' })
+        .then(async (res) => ({ ok: res.ok, data: await res.json().catch(() => null) }))
+        .then(async ({ ok, data }) => {
+          if (!ok || data?.status !== 'active') {
+            setPaypalOptionMessage(data?.error || t('settings.paypalOptionPending'));
+            return;
+          }
+          const companyRes = await apiFetch('/api/company');
+          if (companyRes.ok) setCompany(await companyRes.json());
+          setPaypalOptionMessage(t('settings.paypalOptionActivated'));
+        })
+        .catch(() => setPaypalOptionMessage(t('settings.paypalOptionSubscribeError')))
+        .finally(() => setIsSubscribingPaypalOption(false));
+      setSearchParams({ tab: 'company' }, { replace: true });
+    } else if (optionReturn === 'cancel') {
+      setPaypalOptionMessage(t('settings.paypalOptionCancelled'));
+      setSearchParams({ tab: 'company' }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handlePaypalOptionSubscribe = async () => {
+    setIsSubscribingPaypalOption(true);
+    setPaypalOptionMessage(null);
+    try {
+      const res = await apiFetch('/api/subscription/paypal-option/create', { method: 'POST' });
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.approveUrl) window.location.href = data.approveUrl;
+      else setPaypalOptionMessage(data?.error || t('settings.paypalOptionSubscribeError'));
+    } catch {
+      setPaypalOptionMessage(t('settings.paypalOptionSubscribeError'));
+    } finally {
+      setIsSubscribingPaypalOption(false);
+    }
+  };
 
   // Handles the redirect back from PayPal's own site after the user
   // approves (or cancels) the test payment — PayPal appends `token`
@@ -1045,6 +1087,22 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     <p className="text-xs text-slate-400 mt-1">{t('settings.paypalDesc')}</p>
                   </div>
 
+                  {!(company as any).canConfigurePaypal && (
+                    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4" data-testid="settings-paypal-subscription-gate">
+                      <div>
+                        <p className="text-sm font-bold text-amber-900">{t('settings.paypalOptionRequired')}</p>
+                        <p className="text-xs text-amber-700 mt-1">{t('settings.paypalOptionPrice')}</p>
+                        {paypalOptionMessage && <p className="text-xs text-red-600 mt-2" role="status">{paypalOptionMessage}</p>}
+                      </div>
+                      {canManageCompany && <button type="button" onClick={handlePaypalOptionSubscribe} disabled={isSubscribingPaypalOption}
+                        className="shrink-0 flex items-center justify-center gap-2 px-5 py-3 bg-[#0070ba] text-white rounded-xl text-sm font-bold disabled:opacity-50"
+                        data-testid="settings-paypal-subscribe-btn">
+                        {isSubscribingPaypalOption ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" />}
+                        {t('settings.paypalOptionSubscribe')}
+                      </button>}
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-1.5">
                       <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.paypalClientId')}</label>
@@ -1052,6 +1110,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                         <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                           type="text"
+                          disabled={!(company as any).canConfigurePaypal}
                           className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"
                           value={(company as any).paypalClientId || ''}
                           onChange={(e) => setCompany({ ...company, paypalClientId: e.target.value } as any)}
@@ -1067,6 +1126,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                         <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                         <input
                           type="password"
+                          disabled={!(company as any).canConfigurePaypal}
                           autoComplete="new-password"
                           placeholder={(company as any).hasPaypalConfig ? '••••••••••••••••' : t('settings.paypalClientSecretPlaceholder')}
                           className="w-full pl-10 pr-4 py-2.5 bg-luxury-gray border border-red-100 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-accent-red/20 focus:border-accent-red transition-all"

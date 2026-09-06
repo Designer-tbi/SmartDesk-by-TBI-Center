@@ -37,6 +37,8 @@ companyRouter.get('/', async (req, res, next) => {
       hasFiscalizationKey: !!fiscalizationApiKey,
       hasSmtpConfig: !!(company.smtpHost && company.smtpUser && smtpPass),
       hasPaypalConfig: !!(company.paypalClientId && paypalClientSecret),
+      canConfigurePaypal: company.paypalOptionStatus === 'active',
+      paypalOptionStatus: company.paypalOptionStatus || 'inactive',
     });
   } catch (error) {
     next(error);
@@ -168,6 +170,19 @@ companyRouter.put('/', requirePermission('settings.edit'), async (req, res, next
     // "keep the existing value".
     const trimmedSmtpPass = smtpPass ? String(smtpPass).trim() : '';
     const trimmedPaypalSecret = paypalClientSecret ? String(paypalClientSecret).trim() : '';
+    const currentRes = await req.db.query(
+      `SELECT "paypalClientId", "paypalOptionStatus" FROM public.companies WHERE id = $1`,
+      [req.user!.companyId],
+    );
+    const current = currentRes.rows[0];
+    const changesPaypalCredentials = !!trimmedPaypalSecret ||
+      String(paypalClientId || '').trim() !== String(current?.paypalClientId || '').trim();
+    if (changesPaypalCredentials && current?.paypalOptionStatus !== 'active') {
+      return res.status(402).json({
+        code: 'PAYPAL_OPTION_SUBSCRIPTION_REQUIRED',
+        error: "L'option PayPal nécessite un abonnement actif de 3 000 XAF par mois.",
+      });
+    }
 
     const result = await req.db.query(
       `UPDATE public.companies SET
@@ -224,6 +239,8 @@ companyRouter.put('/', requirePermission('settings.edit'), async (req, res, next
       hasFiscalizationKey: !!storedKey,
       hasSmtpConfig: !!(updatedCompany.smtpHost && updatedCompany.smtpUser && storedSmtpPass),
       hasPaypalConfig: !!(updatedCompany.paypalClientId && storedPaypalSecret),
+      canConfigurePaypal: updatedCompany.paypalOptionStatus === 'active',
+      paypalOptionStatus: updatedCompany.paypalOptionStatus || 'inactive',
     });
   } catch (error) {
     console.error('Error updating company:', error);
@@ -255,10 +272,13 @@ companyRouter.post('/smtp/verify', requirePermission('settings.edit'), async (re
 companyRouter.post('/paypal/test-payment', requireManager, async (req, res, next) => {
   try {
     const companyRes = await req.db.query(
-      'SELECT "paypalClientId", "paypalClientSecret" FROM public.companies WHERE id = $1',
+      'SELECT "paypalClientId", "paypalClientSecret", "paypalOptionStatus" FROM public.companies WHERE id = $1',
       [req.user!.companyId],
     );
     const company = companyRes.rows[0];
+    if (company?.paypalOptionStatus !== 'active') {
+      return res.status(402).json({ error: "L'option PayPal nécessite un abonnement actif de 3 000 XAF par mois." });
+    }
     if (!company?.paypalClientId || !company?.paypalClientSecret) {
       return res.status(400).json({ error: "PayPal n'est pas configuré pour cette société." });
     }
@@ -289,10 +309,13 @@ companyRouter.post('/paypal/test-payment/capture', requireManager, async (req, r
     if (!orderId) return res.status(400).json({ error: 'orderId manquant.' });
 
     const companyRes = await req.db.query(
-      'SELECT "paypalClientId", "paypalClientSecret" FROM public.companies WHERE id = $1',
+      'SELECT "paypalClientId", "paypalClientSecret", "paypalOptionStatus" FROM public.companies WHERE id = $1',
       [req.user!.companyId],
     );
     const company = companyRes.rows[0];
+    if (company?.paypalOptionStatus !== 'active') {
+      return res.status(402).json({ error: "L'option PayPal nécessite un abonnement actif de 3 000 XAF par mois." });
+    }
     if (!company?.paypalClientId || !company?.paypalClientSecret) {
       return res.status(400).json({ error: "PayPal n'est pas configuré pour cette société." });
     }

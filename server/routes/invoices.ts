@@ -1026,7 +1026,8 @@ invoicesRouter.post('/:id/send-email', requirePermission('sales.edit'), async (r
     // "Payer en ligne" button — shown whenever the company has its own
     // PayPal credentials configured (Settings → Paiements), for quotes and
     // invoices alike.
-    const hasPaypalConfig = !!(company.paypalClientId && company.paypalClientSecret);
+    const hasPaypalConfig = company.paypalOptionStatus === 'active' &&
+      !!(company.paypalClientId && company.paypalClientSecret);
     const payLink = hasPaypalConfig ? `${signatureBaseUrl}/pay/${invoice.id}?t=${signingToken}` : null;
 
     // Preserve user-entered whitespace + newlines (matches the product
