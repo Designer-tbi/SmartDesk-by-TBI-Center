@@ -11,6 +11,19 @@ import { fetchDetectedLocale, mapIsoToRegion } from '../lib/geo';
 import { useTranslation } from '../lib/i18n';
 import { hasPermission } from '../lib/roles';
 
+const SettingsPanelHeader = ({ icon: Icon, eyebrow, title, description, aside }: any) => (
+  <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 px-6 py-7 text-white sm:px-8">
+    <div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-red-500/20 blur-3xl" />
+    <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center gap-4">
+        <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/15 bg-white/10"><Icon className="h-6 w-6 text-red-200" /></div>
+        <div><p className="text-[10px] font-bold uppercase tracking-[0.22em] text-red-200">{eyebrow}</p><h3 className="mt-1 text-2xl font-black tracking-tight">{title}</h3><p className="mt-1 max-w-2xl text-sm text-slate-300">{description}</p></div>
+      </div>
+      {aside}
+    </div>
+  </div>
+);
+
 export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: any, setUser: any }) => {
   const { t, setLanguage } = useTranslation();
   // PUT /api/company and the CRM/accounting reset routes are all
@@ -480,6 +493,13 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
   ];
   const completedProfileFields = profileChecks.filter((value) => String(value || '').trim()).length;
   const profileCompletion = Math.round((completedProfileFields / profileChecks.length) * 100);
+  const passwordStrength = [
+    passwords.new.length >= 8,
+    /[A-Z]/.test(passwords.new),
+    /[0-9]/.test(passwords.new),
+    /[^A-Za-z0-9]/.test(passwords.new),
+  ].filter(Boolean).length;
+  const enabledNotifications = Object.values(notificationPrefs).filter(Boolean).length;
 
   return (
     <div className="max-w-6xl mx-auto space-y-6 pb-10">
@@ -1273,18 +1293,15 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden"
+            className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
           >
-            <div className="p-6 border-b border-red-50 bg-soft-red/10">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <User className="w-5 h-5 text-accent-red" />
-                {t('settings.profile')}
-              </h3>
-              <p className="text-sm text-slate-500 mt-1">{t('settings.profileDesc')}</p>
-            </div>
+            <SettingsPanelHeader icon={User} eyebrow="Compte personnel" title={t('settings.profile')} description={t('settings.profileDesc')}
+              aside={<div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm backdrop-blur-sm"><p className="text-[10px] uppercase tracking-wider text-slate-300">Rôle actuel</p><p className="mt-1 font-bold capitalize">{globalUser?.role || 'Utilisateur'}</p></div>} />
 
-            <form onSubmit={handleProfileSubmit} className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handleProfileSubmit} className="space-y-6 bg-slate-50/70 p-4 sm:p-6">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                <div className="mb-6 flex items-center gap-3 border-b border-slate-100 pb-4"><div className="rounded-xl bg-red-50 p-2.5 text-accent-red"><User className="h-5 w-5" /></div><div><h4 className="font-bold text-slate-900">Informations personnelles</h4><p className="text-xs text-slate-500">Ces informations identifient votre compte dans SmartDesk.</p></div></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.fullName')}</label>
                   <div className="relative">
@@ -1313,8 +1330,9 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
                 </div>
               </div>
+              </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-slate-100">
+              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                   {successMessage && (
                     <div className="flex items-center gap-1.5 text-emerald-600 animate-in fade-in slide-in-from-left-2">
@@ -1363,18 +1381,15 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden"
+            className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
           >
-            <div className="p-6 border-b border-red-50 bg-soft-red/10">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Shield className="w-5 h-5 text-accent-red" />
-                {t('settings.security')}
-              </h3>
-              <p className="text-sm text-slate-500 mt-1">{t('settings.securityDesc')}</p>
-            </div>
+            <SettingsPanelHeader icon={Shield} eyebrow="Protection du compte" title={t('settings.security')} description={t('settings.securityDesc')}
+              aside={<div className="flex items-center gap-2 rounded-2xl border border-emerald-300/20 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-100"><Shield className="h-4 w-4" /><span className="font-bold">Session sécurisée</span></div>} />
 
-            <form onSubmit={handlePasswordSubmit} className="p-6 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <form onSubmit={handlePasswordSubmit} className="space-y-6 bg-slate-50/70 p-4 sm:p-6">
+              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                <div className="mb-6 flex items-center gap-3 border-b border-slate-100 pb-4"><div className="rounded-xl bg-red-50 p-2.5 text-accent-red"><Key className="h-5 w-5" /></div><div><h4 className="font-bold text-slate-900">Modifier le mot de passe</h4><p className="text-xs text-slate-500">Choisissez un mot de passe unique et difficile à deviner.</p></div></div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-1.5">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.currentPassword')}</label>
                   <div className="relative">
@@ -1437,9 +1452,15 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     </button>
                   </div>
                 </div>
+                </div>
+                <div className="mt-5 rounded-xl bg-slate-50 p-4">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-600"><span>Solidité du nouveau mot de passe</span><span>{passwords.new ? `${passwordStrength}/4` : '—'}</span></div>
+                  <div className="mt-2 grid grid-cols-4 gap-1.5">{[0,1,2,3].map((level) => <div key={level} className={`h-1.5 rounded-full ${level < passwordStrength ? (passwordStrength < 3 ? 'bg-amber-400' : 'bg-emerald-500') : 'bg-slate-200'}`} />)}</div>
+                  <p className="mt-2 text-[11px] text-slate-500">8 caractères minimum, avec majuscule, chiffre et caractère spécial.</p>
+                </div>
               </div>
 
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+              <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                   {successMessage && (
                     <div className="flex items-center gap-1.5 text-emerald-600 animate-in fade-in slide-in-from-left-2">
@@ -1473,19 +1494,14 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden"
+            className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"
           >
-            <div className="p-6 border-b border-red-50 bg-soft-red/10">
-              <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                <Bell className="w-5 h-5 text-accent-red" />
-                {t('settings.notifications')}
-              </h3>
-              <p className="text-sm text-slate-500 mt-1">{t('settings.notificationsDesc')}</p>
-            </div>
+            <SettingsPanelHeader icon={Bell} eyebrow="Préférences" title={t('settings.notifications')} description={t('settings.notificationsDesc')}
+              aside={<div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm backdrop-blur-sm"><p className="text-[10px] uppercase tracking-wider text-slate-300">Alertes actives</p><p className="mt-1 text-xl font-black">{enabledNotifications} / 4</p></div>} />
 
-            <div className="p-6 space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-soft-red/10 rounded-xl border border-red-50">
+            <div className="space-y-6 bg-slate-50/70 p-4 sm:p-6">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-red-200 hover:shadow-md">
                   <div>
                     <h4 className="text-sm font-bold text-primary-red">{t('settings.emailReports')}</h4>
                     <p className="text-xs text-slate-500">{t('settings.emailReportsDesc')}</p>
@@ -1501,7 +1517,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-soft-red/10 rounded-xl border border-red-50">
+                <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-red-200 hover:shadow-md">
                   <div>
                     <h4 className="text-sm font-bold text-primary-red">{t('settings.newLead')}</h4>
                     <p className="text-xs text-slate-500">{t('settings.newLeadDesc')}</p>
@@ -1517,7 +1533,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-soft-red/10 rounded-xl border border-red-50">
+                <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-red-200 hover:shadow-md">
                   <div>
                     <h4 className="text-sm font-bold text-primary-red">{t('settings.invoicePaid')}</h4>
                     <p className="text-xs text-slate-500">{t('settings.invoicePaidDesc')}</p>
@@ -1533,7 +1549,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-soft-red/10 rounded-xl border border-red-50">
+                <div className="flex items-center justify-between gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:border-red-200 hover:shadow-md">
                   <div>
                     <h4 className="text-sm font-bold text-primary-red">{t('settings.projectUpdate')}</h4>
                     <p className="text-xs text-slate-500">{t('settings.projectUpdateDesc')}</p>
@@ -1550,7 +1566,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                 </div>
               </div>
 
-              <div className="flex items-center justify-end pt-4 border-t border-slate-100">
+              <div className="flex items-center justify-end rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
                 <button
                   type="button"
                   disabled={isSavingPrefs}
@@ -1573,7 +1589,11 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            <HelpSection />
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <SettingsPanelHeader icon={HelpCircle} eyebrow="Centre d'assistance" title={t('settings.tab.help')} description="Guides pratiques et réponses rapides pour utiliser SmartDesk au quotidien."
+                aside={<div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-sm backdrop-blur-sm"><p className="font-bold">Besoin d’aide ?</p><p className="text-xs text-slate-300">Consultez les rubriques ci-dessous</p></div>} />
+              <div className="bg-slate-50/70 p-4 sm:p-6"><HelpSection /></div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
