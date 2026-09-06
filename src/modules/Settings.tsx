@@ -474,8 +474,15 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
     );
   }
 
+  const profileChecks = [
+    company.name, company.country, company.email, company.phone, company.address,
+    company.taxId, company.rccm, (company as any).legalForm, (company as any).representativeName,
+  ];
+  const completedProfileFields = profileChecks.filter((value) => String(value || '').trim()).length;
+  const profileCompletion = Math.round((completedProfileFields / profileChecks.length) * 100);
+
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6 pb-10">
       {/* Tabs Navigation */}
       <div className="flex items-center gap-1 p-1 bg-soft-red/30 rounded-2xl max-w-full overflow-x-auto">
         <button
@@ -544,17 +551,52 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            <div className="bg-white rounded-2xl border border-red-100 shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-red-50 bg-soft-red/10">
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Building2 className="w-5 h-5 text-accent-red" />
-                  {t('settings.companyInfo')}
-                </h3>
-                <p className="text-sm text-slate-500 mt-1">{t('settings.companyInfoDesc')}</p>
+            <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+              <div className="relative overflow-hidden bg-gradient-to-br from-slate-950 via-slate-900 to-red-950 px-6 py-7 text-white sm:px-8">
+                <div className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-red-500/20 blur-3xl" />
+                <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/15 bg-white/10 shadow-xl">
+                      {company.logo ? <img src={company.logo} alt="" className="h-full w-full object-contain bg-white" /> : <Building2 className="h-7 w-7 text-red-200" />}
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-[0.22em] text-red-200">Espace entreprise</p>
+                      <h3 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">{company.name || t('settings.companyInfo')}</h3>
+                      <p className="mt-1 max-w-xl text-sm text-slate-300">{t('settings.companyInfoDesc')}</p>
+                    </div>
+                  </div>
+                  <div className="min-w-56 rounded-2xl border border-white/10 bg-white/10 p-4 backdrop-blur-sm">
+                    <div className="flex items-center justify-between text-xs font-bold">
+                      <span>Profil complété</span><span>{profileCompletion}%</span>
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/15">
+                      <div className="h-full rounded-full bg-gradient-to-r from-red-400 to-amber-300 transition-all duration-500" style={{ width: `${profileCompletion}%` }} />
+                    </div>
+                    <p className="mt-2 text-[11px] text-slate-300">{completedProfileFields} informations essentielles sur {profileChecks.length}</p>
+                  </div>
+                </div>
               </div>
 
-              <form onSubmit={handleCompanySubmit} className="p-6 space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <form onSubmit={handleCompanySubmit} className="space-y-6 bg-slate-50/70 p-4 sm:p-6">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {[
+                    { label: 'Profil légal', detail: profileCompletion === 100 ? 'Complet' : 'À compléter', ready: profileCompletion === 100, icon: FileText },
+                    { label: 'Envoi par e-mail', detail: (company as any).hasSmtpConfig ? 'Configuré' : 'Non configuré', ready: !!(company as any).hasSmtpConfig, icon: Mail },
+                    { label: 'Paiement PayPal', detail: (company as any).hasPaypalConfig ? 'Opérationnel' : (company as any).canConfigurePaypal ? 'À configurer' : 'Abonnement requis', ready: !!(company as any).hasPaypalConfig, icon: CreditCard },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${item.ready ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}><item.icon className="h-5 w-5" /></div>
+                      <div className="min-w-0"><p className="text-sm font-bold text-slate-800">{item.label}</p><p className={`text-xs ${item.ready ? 'text-emerald-600' : 'text-slate-500'}`}>{item.detail}</p></div>
+                    </div>
+                  ))}
+                </div>
+
+                <div id="company-identity" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
+                  <div className="mb-6 flex items-start gap-3 border-b border-slate-100 pb-4">
+                    <div className="rounded-xl bg-red-50 p-2.5 text-accent-red"><Building2 className="h-5 w-5" /></div>
+                    <div><h4 className="font-bold text-slate-900">Identité et informations légales</h4><p className="text-xs text-slate-500 mt-0.5">Coordonnées, immatriculation et paramètres comptables utilisés dans vos documents.</p></div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.logoUrl')}</label>
                     <div className="flex items-center gap-4">
@@ -963,8 +1005,9 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     </div>
                   </div>
                 </div>
+                </div>
 
-                <div className="pt-6 mt-2 border-t border-slate-100 space-y-4">
+                <div id="company-email" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 space-y-5">
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                       <Mail className="w-4 h-4 text-accent-red" />
@@ -1078,7 +1121,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   </div>
                 </div>
 
-                <div className="pt-6 mt-2 border-t border-slate-100 space-y-4">
+                <div id="company-paypal" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6 space-y-5">
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                       <CreditCard className="w-4 h-4 text-accent-red" />
@@ -1170,7 +1213,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   )}
                 </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                <div className="sticky bottom-4 z-20 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl shadow-slate-900/10 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-2">
                     {isSaved && (
                       <div className="flex items-center gap-1.5 text-emerald-600 animate-in fade-in slide-in-from-left-2">
@@ -1189,7 +1232,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex items-center gap-2 px-6 py-2.5 bg-accent-red text-white rounded-xl text-sm font-bold hover:bg-primary-red transition-all shadow-lg shadow-accent-red/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent-red px-6 py-3 text-sm font-bold text-white shadow-lg shadow-accent-red/20 transition-all hover:bg-primary-red active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
                   >
                     {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                     {isSubmitting ? t('settings.updating') : t('common.save')}
@@ -1200,7 +1243,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
             </div>
 
             {canManageCompany && (
-            <div className="bg-rose-50 rounded-2xl border border-rose-100 p-6 space-y-4">
+            <div className="bg-white rounded-2xl border border-rose-200 p-6 space-y-4 shadow-sm">
               <div className="flex items-center gap-3 text-rose-700">
                 <Trash2 className="w-5 h-5" />
                 <h3 className="text-lg font-bold">{t('settings.dangerZone')}</h3>
