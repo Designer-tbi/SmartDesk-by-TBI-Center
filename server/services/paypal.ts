@@ -24,6 +24,16 @@ const BASE = MODE === 'sandbox'
 const CLIENT_ID = process.env.PAYPAL_CLIENT_ID || '';
 const CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
 
+export class PaypalPlatformConfigurationError extends Error {
+  status = 503;
+  code = 'PAYPAL_PLATFORM_NOT_CONFIGURED';
+
+  constructor(message = "L'abonnement PayPal est temporairement indisponible : les identifiants PayPal de la plateforme SmartDesk ne sont pas configurés.") {
+    super(message);
+    this.name = 'PaypalPlatformConfigurationError';
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Pricing map                                                         */
 /* ------------------------------------------------------------------ */
@@ -90,6 +100,9 @@ export const resolvePlanForCountry = (country?: string | null): PlanSpec => {
 let cachedToken: { value: string; expiresAt: number } | null = null;
 
 export async function getAccessToken(): Promise<string> {
+  if (!CLIENT_ID.trim() || !CLIENT_SECRET.trim()) {
+    throw new PaypalPlatformConfigurationError();
+  }
   if (cachedToken && cachedToken.expiresAt > Date.now() + 30_000) {
     return cachedToken.value;
   }
@@ -103,8 +116,12 @@ export async function getAccessToken(): Promise<string> {
     body: 'grant_type=client_credentials',
   });
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`PayPal auth failed (${res.status}): ${body}`);
+    if (res.status === 401) {
+      throw new PaypalPlatformConfigurationError(
+        `PayPal refuse les identifiants de la plateforme SmartDesk. Vérifiez PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET et que PAYPAL_MODE=${MODE} correspond au même compte ${MODE === 'sandbox' ? 'Sandbox' : 'Live'}.`,
+      );
+    }
+    throw new Error(`Connexion PayPal impossible (${res.status}).`);
   }
   const json = await res.json();
   cachedToken = {
