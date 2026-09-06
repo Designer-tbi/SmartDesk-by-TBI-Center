@@ -1,3 +1,4 @@
+import { requirePermission } from '../middleware/permissions.js';
 import { Router, Request, Response, NextFunction } from 'express';
 import { requireTenant } from '../middleware/auth.js';
 import { isManagerRole } from '../utils/roles.js';
@@ -129,7 +130,7 @@ companyRouter.post('/onboarding', async (req, res, next) => {
   }
 });
 
-companyRouter.put('/', requireManager, async (req, res, next) => {
+companyRouter.put('/', requirePermission('settings.edit'), async (req, res, next) => {
   try {
     const {
       name, taxId, rccm, idNat, niu, siren, siret, email, phone, website, address,
@@ -380,7 +381,7 @@ companyRouter.get('/roles', async (req, res, next) => {
   }
 });
 
-companyRouter.post('/roles', requireManager, async (req, res, next) => {
+companyRouter.post('/roles', requirePermission('users.manage'), async (req, res, next) => {
   try {
     const role = req.body;
     await req.db.query('BEGIN');
@@ -401,7 +402,7 @@ companyRouter.post('/roles', requireManager, async (req, res, next) => {
   }
 });
 
-companyRouter.put('/roles/:id', requireManager, async (req, res, next) => {
+companyRouter.put('/roles/:id', requirePermission('users.manage'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, permissions } = req.body;
@@ -430,7 +431,7 @@ companyRouter.put('/roles/:id', requireManager, async (req, res, next) => {
   }
 });
 
-companyRouter.delete('/roles/:id', requireManager, async (req, res, next) => {
+companyRouter.delete('/roles/:id', requirePermission('users.manage'), async (req, res, next) => {
   try {
     const { id } = req.params;
     await req.db.query('BEGIN');
@@ -460,7 +461,7 @@ companyRouter.get('/users', async (req, res, next) => {
   }
 });
 
-companyRouter.post('/users', requireManager, async (req, res, next) => {
+companyRouter.post('/users', requirePermission('users.manage'), async (req, res, next) => {
   try {
     const { id, email, password, role, name, status } = req.body;
     if (!email || !name) {
@@ -478,7 +479,7 @@ companyRouter.post('/users', requireManager, async (req, res, next) => {
   }
 });
 
-companyRouter.put('/users/:id', requireManager, async (req, res, next) => {
+companyRouter.put('/users/:id', requirePermission('users.manage'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { email, role, name, status } = req.body;
@@ -494,7 +495,7 @@ companyRouter.put('/users/:id', requireManager, async (req, res, next) => {
   }
 });
 
-companyRouter.delete('/users/:id', requireManager, async (req, res, next) => {
+companyRouter.delete('/users/:id', requirePermission('users.manage'), async (req, res, next) => {
   try {
     const { id } = req.params;
     try {

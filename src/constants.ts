@@ -1,6 +1,16 @@
 import { Role, Permission } from './types';
 
 export const MOCK_PERMISSIONS: Permission[] = [
+  { id: 'dashboard.view', name: 'Voir le tableau de bord', description: 'Consulter les indicateurs de l’entreprise', module: 'Tableau de bord' },
+  { id: 'agenda.view', name: 'Voir l’agenda', description: 'Consulter les rendez-vous', module: 'Agenda' },
+  { id: 'agenda.edit', name: 'Gérer l’agenda', description: 'Créer et modifier les rendez-vous', module: 'Agenda' },
+  { id: 'projects.view', name: 'Voir les projets', description: 'Consulter les projets', module: 'Projets' },
+  { id: 'projects.edit', name: 'Gérer les projets', description: 'Créer et modifier les projets', module: 'Projets' },
+  { id: 'projects.delete', name: 'Supprimer les projets', description: 'Supprimer un projet', module: 'Projets' },
+  { id: 'declarations.view', name: 'Voir les déclarations', description: 'DGID, CNSS, INS, Greffe et calendrier — administrateurs et managers uniquement', module: 'Mes déclarations' },
+  { id: 'declarations.edit', name: 'Gérer les déclarations', description: 'Préparer et suivre les déclarations — administrateurs et managers uniquement', module: 'Mes déclarations' },
+  { id: 'options.view', name: 'Voir mes options', description: 'Consulter les options de l’entreprise', module: 'Mes options' },
+  { id: 'agents.view', name: 'Voir mes agents', description: 'Consulter les agents disponibles', module: 'Mes agents' },
   // CRM
   { id: 'crm.view', name: 'Voir CRM', description: 'Accès en lecture au module CRM', module: 'CRM' },
   { id: 'crm.edit', name: 'Modifier CRM', description: 'Créer et modifier des contacts/projets', module: 'CRM' },
@@ -33,7 +43,8 @@ export const MOCK_PERMISSIONS: Permission[] = [
   // Paramètres & Utilisateurs
   { id: 'settings.view', name: 'Voir Paramètres', description: 'Accès en lecture aux paramètres', module: 'Paramètres' },
   { id: 'settings.edit', name: 'Modifier Paramètres', description: 'Modifier les paramètres de l\'entreprise', module: 'Paramètres' },
-  { id: 'users.manage', name: 'Gérer Utilisateurs', description: 'Gérer les utilisateurs et rôles', module: 'Paramètres' },
+  { id: 'users.view', name: 'Voir les utilisateurs et rôles', description: 'Consulter les utilisateurs et leurs rôles', module: 'Utilisateurs et rôles' },
+  { id: 'users.manage', name: 'Gérer Utilisateurs', description: 'Gérer les utilisateurs et rôles', module: 'Utilisateurs et rôles' },
 ];
 
 export const DEMO_ACCOUNTS = [

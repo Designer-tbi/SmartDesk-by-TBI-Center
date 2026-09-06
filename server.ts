@@ -43,7 +43,7 @@ if (!process.env.VERCEL) {
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 // Only seed database automatically if not on Vercel
-if (!process.env.VERCEL) {
+if (!process.env.VERCEL && process.env.SKIP_DATABASE_SEED !== 'true') {
   seedDatabase(db).catch(err => {
     console.error('Failed to seed database:', err);
   });

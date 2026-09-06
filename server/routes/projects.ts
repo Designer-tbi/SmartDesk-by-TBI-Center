@@ -1,3 +1,4 @@
+import { requirePermission } from '../middleware/permissions.js';
 import { Router, Request, Response, NextFunction } from 'express';
 import { requireTenant } from '../middleware/auth.js';
 import { logActivity } from '../activity.js';
@@ -17,7 +18,7 @@ const requireManager = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-projectsRouter.get('/', async (req, res, next) => {
+projectsRouter.get('/', requirePermission('projects.view'), async (req, res, next) => {
   try {
     const projects = await req.db.query('SELECT * FROM projects WHERE "companyId" = $1', [req.user!.companyId]);
     const parsedProjects = projects.rows.map(p => ({
@@ -31,7 +32,7 @@ projectsRouter.get('/', async (req, res, next) => {
   }
 });
 
-projectsRouter.post('/', async (req, res, next) => {
+projectsRouter.post('/', requirePermission('projects.edit'), async (req, res, next) => {
   try {
     const proj = req.body;
     await req.db.query('INSERT INTO projects (id, "companyId", name, client, "contactId", status, deadline, "startDate", progress, description, details, priority, budget, "teamIds", "expenseItems") VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)',
@@ -45,7 +46,7 @@ projectsRouter.post('/', async (req, res, next) => {
   }
 });
 
-projectsRouter.put('/:id', async (req, res, next) => {
+projectsRouter.put('/:id', requirePermission('projects.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const proj = req.body;
@@ -61,7 +62,7 @@ projectsRouter.put('/:id', async (req, res, next) => {
   }
 });
 
-projectsRouter.delete('/:id', requireManager, async (req, res, next) => {
+projectsRouter.delete('/:id', requirePermission('projects.delete'), requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     const result = await req.db.query('DELETE FROM projects WHERE id = $1 AND "companyId" = $2', [id, req.user!.companyId]);

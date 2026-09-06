@@ -7,14 +7,14 @@ import { ConfirmModal } from '../components/ConfirmModal';
 import { useTranslation } from '../lib/i18n';
 import { EmptyState } from '../components/ui';
 import { toast } from '../lib/toast';
-import { isManagerRole } from '../lib/roles';
+import { hasPermission } from '../lib/roles';
 
 export const Users = ({ user }: { user?: any }) => {
   const { t } = useTranslation();
   // POST/PUT/DELETE on users and roles are all requireManager server-side
   // (server/routes/company.ts) — hide those actions for non-managers so
   // the buttons don't just 403 on click.
-  const canManage = isManagerRole(user?.role);
+  const canManage = hasPermission(user?.permissions, 'users.manage');
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [activeTab, setActiveTab] = useState<'users' | 'roles'>('users');
@@ -332,7 +332,7 @@ export const Users = ({ user }: { user?: any }) => {
                   <span className="px-2 py-1 bg-soft-red text-accent-red rounded-lg text-[10px] font-bold uppercase tracking-wider">{t('users.viewAll')}</span>
                 ) : (
                   role.permissions.slice(0, 3).map(p => (
-                    <span key={p} className="px-2 py-1 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">{p}</span>
+                    <span key={p} className="px-2 py-1 bg-slate-50 text-slate-600 rounded-lg text-[10px] font-bold uppercase tracking-wider">{MOCK_PERMISSIONS.find(permission => permission.id === p)?.name || p}</span>
                   ))
                 )}
                 {!role.permissions.includes('all') && role.permissions.length > 3 && (

@@ -55,7 +55,7 @@ publicSignatureRouter.get('/quotes/:id', async (req, res, next) => {
     );
 
     const compRes = await req.db.query(
-      `SELECT name, address, email, phone, niu, currency, logo
+      `SELECT name, address, email, phone, niu, rccm, "idNat", "taxId", currency, logo
          FROM companies WHERE id = $1`,
       [invoice.companyId],
     );
@@ -157,7 +157,7 @@ publicSignatureRouter.get('/invoices/:id', async (req, res, next) => {
     );
 
     const compRes = await req.db.query(
-      `SELECT name, address, email, phone, niu, currency, logo, "paypalClientId", "paypalClientSecret"
+      `SELECT name, address, email, phone, niu, rccm, "idNat", "taxId", currency, logo, "paypalClientId", "paypalClientSecret"
          FROM companies WHERE id = $1`,
       [invoice.companyId],
     );
@@ -322,7 +322,7 @@ publicSignatureRouter.get('/contracts/:id', async (req, res, next) => {
     delete contract.signingToken;
 
     const compRes = await req.db.query(
-      `SELECT name, address, email, phone, niu, currency, logo
+      `SELECT name, address, email, phone, niu, rccm, "idNat", "taxId", currency, logo
          FROM companies WHERE id = $1`,
       [contract.companyId],
     );

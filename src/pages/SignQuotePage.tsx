@@ -253,7 +253,7 @@ export default function SignQuotePage() {
               <div className="text-xs text-slate-500 whitespace-pre-line">
                 {company?.address || '—'}
               </div>
-              {company?.niu && <div className="text-xs text-slate-500 mt-1">NIU : {company.niu}</div>}
+              {Object.entries({ NIU: company?.niu, RCCM: company?.rccm, 'ID NAT': company?.idNat, 'Identifiant fiscal': company?.taxId }).filter(([, value]) => value).map(([label, value]) => <div key={label} className="text-xs text-slate-500 mt-1">{label} : {String(value)}</div>)}
             </div>
             <div>
               <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">

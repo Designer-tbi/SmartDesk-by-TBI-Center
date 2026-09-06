@@ -1,4 +1,6 @@
+import { hasModuleAccess } from './lib/roles';
 import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
+import { canAccessDeclarations } from '../shared/declarationAccess';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
@@ -211,25 +213,25 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
         <SubscriptionGate>
         <Suspense fallback={<div className="flex items-center justify-center h-64">Chargement du module...</div>}>
           <Routes>
-            <Route path="/" element={<Dashboard user={user} />} />
-            <Route path="/crm" element={<CRM user={user} />} />
-            <Route path="/sales" element={<Sales user={user} />} />
-            <Route path="/inventory" element={<Inventory user={user} />} />
-            <Route path="/projects" element={<Projects user={user} />} />
-            <Route path="/hr" element={<HR user={user} />} />
-            <Route path="/accounting" element={<Accounting user={user} />} />
-            <Route path="/agenda" element={<Agenda user={user} />} />
-            <Route path="/planning" element={<Planning user={user} />} />
+            <Route path="/" element={hasModuleAccess(user?.permissions, 'dashboard') ? <Dashboard user={user} /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/crm" element={hasModuleAccess(user?.permissions, 'crm') ? <CRM user={user} /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/sales" element={hasModuleAccess(user?.permissions, 'sales') ? <Sales user={user} /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/inventory" element={hasModuleAccess(user?.permissions, 'inventory') ? <Inventory user={user} /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/projects" element={hasModuleAccess(user?.permissions, 'projects') ? <Projects user={user} /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/hr" element={hasModuleAccess(user?.permissions, 'hr') ? <HR user={user} /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/accounting" element={hasModuleAccess(user?.permissions, 'accounting') ? <Accounting user={user} /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/agenda" element={hasModuleAccess(user?.permissions, 'agenda') ? <Agenda user={user} /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/planning" element={hasModuleAccess(user?.permissions, 'planning') ? <Planning user={user} /> : <div role="alert">Accès non autorisé.</div>} />
             {/* Declaration sub-modules are Congo-specific. Users from other
                 countries still receive a 404-style fallback so direct
                 URL access doesn't accidentally load the module. */}
             {((user?.country || '').toUpperCase() === 'CG' || (user?.country || '').toUpperCase() === 'CONGO') && (
-              <Route path="/declarations/*" element={<Declarations />} />
+              <Route path="/declarations/*" element={canAccessDeclarations(user?.role) && hasModuleAccess(user?.permissions, 'declarations') ? <Declarations /> : <div role="alert">Accès réservé aux administrateurs et managers.</div>} />
             )}
-            <Route path="/users" element={<Users user={user} />} />
-            <Route path="/my-options" element={<MyOptions />} />
-            <Route path="/my-agents" element={<MyAgents />} />
-            <Route path="/settings" element={<Settings user={user} setUser={setUser} />} />
+            <Route path="/users" element={hasModuleAccess(user?.permissions, 'users') ? <Users user={user} /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/my-options" element={hasModuleAccess(user?.permissions, 'options') ? <MyOptions /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/my-agents" element={hasModuleAccess(user?.permissions, 'agents') ? <MyAgents /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/settings" element={hasModuleAccess(user?.permissions, 'settings') ? <Settings user={user} setUser={setUser} /> : <div role="alert">Accès non autorisé.</div>} />
             {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
           </Routes>
         </Suspense>

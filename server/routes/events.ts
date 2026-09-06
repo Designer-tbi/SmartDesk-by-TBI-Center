@@ -1,3 +1,4 @@
+import { requirePermission } from '../middleware/permissions.js';
 import { Router } from 'express';
 import { requireTenant } from '../middleware/auth.js';
 import { isManagerRole } from '../utils/roles.js';
@@ -6,7 +7,7 @@ export const eventsRouter = Router();
 
 eventsRouter.use(...requireTenant);
 
-eventsRouter.get('/', async (req, res, next) => {
+eventsRouter.get('/', requirePermission('agenda.view'), async (req, res, next) => {
   try {
     // Real tenant admins carry role_admin_<companyId>, not the literal
     // 'admin' — isManagerRole is the actual check used elsewhere
@@ -54,7 +55,7 @@ eventsRouter.get('/', async (req, res, next) => {
   }
 });
 
-eventsRouter.post('/', async (req, res, next) => {
+eventsRouter.post('/', requirePermission('agenda.edit'), async (req, res, next) => {
   try {
     const { id, title, description, startDate, endDate, category, isPrivate, assignedTo } = req.body;
     const eventId = id || `evt_${Date.now()}`;
@@ -71,7 +72,7 @@ eventsRouter.post('/', async (req, res, next) => {
   }
 });
 
-eventsRouter.put('/:id', async (req, res, next) => {
+eventsRouter.put('/:id', requirePermission('agenda.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { title, description, startDate, endDate, category, isPrivate, assignedTo } = req.body;
@@ -102,7 +103,7 @@ eventsRouter.put('/:id', async (req, res, next) => {
   }
 });
 
-eventsRouter.delete('/:id', async (req, res, next) => {
+eventsRouter.delete('/:id', requirePermission('agenda.edit'), async (req, res, next) => {
   try {
     const { id } = req.params;
     

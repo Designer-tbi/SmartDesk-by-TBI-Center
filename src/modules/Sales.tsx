@@ -1158,11 +1158,17 @@ export const Sales = ({ user }: { user: any }) => {
                               value={item.productId || ''}
                               onChange={(e) => handleUpdateItem(index, 'productId', e.target.value)}
                             >
-                              <option value="">{t('sales.selectProduct')}</option>
+                              <option value="">Saisie manuelle (hors catalogue)</option>
                               {products.map(p => (
                                 <option key={p.id} value={p.id}>{p.name} - {p.price} {currencySymbol}</option>
                               ))}
                             </select>
+                            {!item.productId && (
+                              <input aria-label="Désignation du produit" required maxLength={240}
+                                placeholder="Nom du produit ou de la prestation"
+                                className="mt-2 w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm"
+                                value={item.name || ''} onChange={e => handleUpdateItem(index, 'name', e.target.value)} />
+                            )}
                           </div>
                           <div className="w-24">
                             <input 
@@ -1434,9 +1440,7 @@ export const Sales = ({ user }: { user: any }) => {
                     <p className="text-xs text-slate-500 mt-1 whitespace-pre-line">
                       {companyInfo?.address}<br/>
                       {companyInfo?.email}<br/>
-                      {companyInfo?.taxId} | {companyInfo?.rccm}<br/>
-                      {companyInfo?.idNat}
-                      {companyInfo?.niu && <><br/>NIU : {companyInfo.niu}</>}
+                      {Object.entries({ NIU: companyInfo?.niu, RCCM: companyInfo?.rccm, 'ID NAT': companyInfo?.idNat, 'Identifiant fiscal': companyInfo?.taxId, SIREN: companyInfo?.siren, SIRET: companyInfo?.siret }).filter(([, value]) => value).map(([label, value]) => <React.Fragment key={label}>{label} : {value}<br/></React.Fragment>)}
                     </p>
                   </div>
                 </div>

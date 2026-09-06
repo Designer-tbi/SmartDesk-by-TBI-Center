@@ -30,6 +30,7 @@ import { twMerge } from 'tailwind-merge';
 import { I18nProvider, useTranslation } from '../../lib/i18n';
 import { InstallAppButton } from '../InstallAppButton';
 import { hasModuleAccess } from '../../lib/roles';
+import { canAccessDeclarations } from '../../../shared/declarationAccess';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -75,15 +76,15 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
   // company's country is Congo-Brazzaville. France & RDC users get a
   // simpler navigation without this section.
   const country = (user?.country || '').toUpperCase();
-  const showDeclarations = country === 'CG' || country === 'CONGO';
+  const showDeclarations = (country === 'CG' || country === 'CONGO') && canAccessDeclarations(user?.role) && hasModuleAccess(user?.permissions, 'declarations');
 
   const navSections = [
     {
       key: 'main',
       title: t('nav.section.main'),
       items: [
-        { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/' },
-        { icon: Calendar, label: t('nav.agenda'), path: '/agenda' },
+        { icon: LayoutDashboard, label: t('nav.dashboard'), path: '/', permModule: 'dashboard' },
+        { icon: Calendar, label: t('nav.agenda'), path: '/agenda', permModule: 'agenda' },
       ]
     },
     {
@@ -101,10 +102,10 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
       items: [
         // Planning stays unfiltered — employees see their own assigned
         // shifts there regardless of role (self-service, like Agenda).
-        { icon: Clock, label: t('nav.planning'), path: '/planning' },
+        { icon: Clock, label: t('nav.planning'), path: '/planning', permModule: 'planning' },
         // Projects has no dedicated permission id — deliberately open to
         // any tenant member (collaborative by design, see projects.ts).
-        { icon: Briefcase, label: t('nav.projects'), path: '/projects' },
+        { icon: Briefcase, label: t('nav.projects'), path: '/projects', permModule: 'projects' },
         { icon: UserCircle, label: t('nav.hr'), path: '/hr', permModule: 'hr' },
         { icon: Calculator, label: t('nav.accounting'), path: '/accounting', permModule: 'accounting' },
       ].filter((item) => !item.permModule || hasModuleAccess(user?.permissions, item.permModule))
@@ -127,10 +128,10 @@ export const Sidebar = ({ user, isOpen, onClose }: { user?: any, isOpen?: boolea
       key: 'config',
       title: t('nav.section.config'),
       items: [
-        { icon: Shield, label: t('nav.users'), path: '/users' },
-        { icon: Wallet, label: t('nav.myOptions'), path: '/my-options' },
-        { icon: Bot, label: t('nav.myAgents'), path: '/my-agents' },
-        { icon: Settings, label: t('nav.settings'), path: '/settings' },
+        { icon: Shield, label: t('nav.users'), path: '/users', permModule: 'users' },
+        { icon: Wallet, label: t('nav.myOptions'), path: '/my-options', permModule: 'options' },
+        { icon: Bot, label: t('nav.myAgents'), path: '/my-agents', permModule: 'agents' },
+        { icon: Settings, label: t('nav.settings'), path: '/settings', permModule: 'settings' },
       ]
     }
   ];

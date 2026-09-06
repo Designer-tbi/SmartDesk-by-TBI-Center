@@ -7,6 +7,33 @@ export const productsRouter = Router();
 
 productsRouter.use(...requireTenant);
 
+productsRouter.get('/categories', async (req, res, next) => {
+  try {
+    const result = await req.db.query(`SELECT name FROM product_categories WHERE "companyId" = $1
+      UNION SELECT category AS name FROM products WHERE "companyId" = $1 AND category IS NOT NULL AND trim(category) <> '' ORDER BY name`, [req.user!.companyId]);
+    res.json(result.rows.map((row: any) => row.name));
+  } catch (error) { next(error); }
+});
+
+productsRouter.post('/categories', requirePermission('inventory.edit'), async (req, res, next) => {
+  try {
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+    if (!name || name.length > 120) return res.status(400).json({ error: 'Saisissez un nom de catégorie de 1 à 120 caractères.' });
+    await req.db.query('INSERT INTO product_categories ("companyId", name) VALUES ($1, $2) ON CONFLICT DO NOTHING', [req.user!.companyId, name]);
+    res.status(201).json({ name });
+  } catch (error) { next(error); }
+});
+
+productsRouter.delete('/categories/:name', requirePermission('inventory.edit'), async (req, res, next) => {
+  try {
+    await req.db.query('BEGIN');
+    await req.db.query('UPDATE products SET category = $1 WHERE "companyId" = $2 AND category = $3', ['', req.user!.companyId, req.params.name]);
+    await req.db.query('DELETE FROM product_categories WHERE "companyId" = $1 AND name = $2', [req.user!.companyId, req.params.name]);
+    await req.db.query('COMMIT');
+    res.sendStatus(204);
+  } catch (error) { await req.db.query('ROLLBACK'); next(error); }
+});
+
 productsRouter.get('/', async (req, res, next) => {
   try {
     const products = await req.db.query('SELECT * FROM products WHERE "companyId" = $1', [req.user!.companyId]);

@@ -9,14 +9,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { fetchDetectedLocale, mapIsoToRegion } from '../lib/geo';
 
 import { useTranslation } from '../lib/i18n';
-import { isManagerRole } from '../lib/roles';
+import { hasPermission } from '../lib/roles';
 
 export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: any, setUser: any }) => {
   const { t, setLanguage } = useTranslation();
   // PUT /api/company and the CRM/accounting reset routes are all
   // requireManager server-side — hide those actions for non-managers so
   // they aren't left filling out a form that will just 403 on submit.
-  const canManageCompany = isManagerRole(globalUser?.role);
+  const canManageCompany = hasPermission(globalUser?.permissions, 'settings.edit');
   const [searchParams, setSearchParams] = useSearchParams();
   const VALID_TABS = ['company', 'profile', 'security', 'notifications', 'help'] as const;
   type SettingsTab = (typeof VALID_TABS)[number];
@@ -645,7 +645,7 @@ export const Settings = ({ user: globalUser, setUser: setGlobalUser }: { user: a
                     </div>
                   </div>
 
-                  {(company.country === 'AFRIQUE' || company.country === 'CONGO') && (
+                  {(['AFRIQUE', 'CONGO'].includes(company.country || '') || ['AFRIQUE', 'CONGO'].includes(mapIsoToRegion(company.country))) && (
                     <>
                       <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">{t('settings.taxId')}</label>

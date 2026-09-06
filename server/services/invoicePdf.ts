@@ -56,7 +56,13 @@ export async function buildInvoicePdfBuffer(
   if (company.address) doc.text(company.address, 14, 65);
   if (company.email) doc.text(company.email, 14, 70);
   if (company.phone) doc.text(company.phone, 14, 75);
-  if (company.niu) doc.text(`NIU: ${company.niu}`, 14, 80);
+  let identityY = 80;
+  for (const [label, value] of [['NIU', company.niu], ['RCCM', company.rccm], ['ID NAT', company.idNat], ['Identifiant fiscal', company.taxId], ['SIREN', company.siren], ['SIRET', company.siret]]) {
+    if (!value) continue;
+    const lines = doc.splitTextToSize(`${label}: ${value}`, 95);
+    doc.text(lines, 14, identityY);
+    identityY += lines.length * 5;
+  }
 
   if (contact) {
     doc.text('Adressé à:', 120, 55);
@@ -77,7 +83,7 @@ export async function buildInvoicePdfBuffer(
   ]);
 
   autoTable(doc, {
-    startY: 90,
+    startY: Math.max(90, identityY + 5),
     head: [['Description', 'Qté', 'Prix Unitaire', 'TVA', 'Total HT']],
     body: tableData,
     theme: 'striped',

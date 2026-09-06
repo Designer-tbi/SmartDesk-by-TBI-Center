@@ -50,7 +50,9 @@ export const Inventory = ({ user }: { user: any }) => {
       if (response.ok) {
         const data = await response.json();
         setProducts(data);
-        setCategories(Array.from(new Set(data.map((p: Product) => p.category))));
+        const categoryResponse = await apiFetch('/api/products/categories');
+        if (!categoryResponse.ok) throw new Error('Impossible de charger les catégories.');
+        setCategories(await categoryResponse.json());
       }
     } catch (error) {
       console.error('Failed to fetch products:', error);
@@ -141,10 +143,28 @@ export const Inventory = ({ user }: { user: any }) => {
     }
   };
 
-  const handleDeleteCategory = (cat: string) => {
-    setCategories(categories.filter(c => c !== cat));
-    setProducts(products.map(p => p.category === cat ? { ...p, category: '' } : p));
-    setDeleteCategoryConfirm(null);
+  const handleCreateCategory = async () => {
+    if (!newCategory.trim() || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      const response = await apiFetch('/api/products/categories', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newCategory.trim() }),
+      });
+      if (!response.ok) throw new Error((await response.json()).error || 'Création impossible.');
+      setNewCategory('');
+      await fetchProducts();
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Erreur de connexion.'); }
+    finally { setIsSubmitting(false); }
+  };
+
+  const handleDeleteCategory = async (cat: string) => {
+    try {
+      const response = await apiFetch(`/api/products/categories/${encodeURIComponent(cat)}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error((await response.json()).error || 'Suppression impossible.');
+      await fetchProducts();
+      setDeleteCategoryConfirm(null);
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Erreur de connexion.'); }
   };
 
   return (
@@ -506,7 +526,8 @@ export const Inventory = ({ user }: { user: any }) => {
                 onChange={e => setNewCategory(e.target.value)} 
               />
               <button 
-                onClick={() => { if(newCategory && !categories.includes(newCategory)) { setCategories([...categories, newCategory]); setNewCategory(''); } }} 
+                onClick={handleCreateCategory}
+                disabled={isSubmitting || !newCategory.trim()}
                 className="px-6 bg-accent-red text-white rounded-xl font-bold hover:bg-red-700 transition-all shadow-md shadow-accent-red/20"
               >
                 {t('common.add')}

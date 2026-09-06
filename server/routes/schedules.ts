@@ -1,3 +1,4 @@
+import { requirePermission } from '../middleware/permissions.js';
 import { Router } from 'express';
 import { requireTenant } from '../middleware/auth.js';
 
@@ -15,7 +16,7 @@ const isManagerRole = (role?: string | null) => {
   return false;
 };
 
-schedulesRouter.get('/', async (req, res, next) => {
+schedulesRouter.get('/', requirePermission('planning.view'), async (req, res, next) => {
   try {
     const isAdmin = isManagerRole(req.user!.role);
     
@@ -60,7 +61,7 @@ schedulesRouter.get('/', async (req, res, next) => {
   }
 });
 
-schedulesRouter.post('/', async (req, res, next) => {
+schedulesRouter.post('/', requirePermission('planning.edit'), async (req, res, next) => {
   try {
     const isAdmin = isManagerRole(req.user!.role);
     if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
@@ -83,7 +84,7 @@ schedulesRouter.post('/', async (req, res, next) => {
   }
 });
 
-schedulesRouter.put('/:id', async (req, res, next) => {
+schedulesRouter.put('/:id', requirePermission('planning.edit'), async (req, res, next) => {
   try {
     const isAdmin = isManagerRole(req.user!.role);
     if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });
@@ -103,7 +104,7 @@ schedulesRouter.put('/:id', async (req, res, next) => {
   }
 });
 
-schedulesRouter.delete('/:id', async (req, res, next) => {
+schedulesRouter.delete('/:id', requirePermission('planning.edit'), async (req, res, next) => {
   try {
     const isAdmin = isManagerRole(req.user!.role);
     if (!isAdmin) return res.status(403).json({ error: 'Forbidden' });

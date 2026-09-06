@@ -3,7 +3,7 @@ import ExcelJS from 'exceljs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { requireTenant } from '../middleware/auth.js';
-import { requirePermission } from '../middleware/permissions.js';
+import { requireDeclarationManager } from '../middleware/declarations.js';
 import {
   computeLine, computeTotals, CnssLineInput, CnssAdjustments,
 } from '../services/cnssCalc.js';
@@ -12,7 +12,7 @@ export const cnssRouter = Router();
 
 cnssRouter.use(...requireTenant);
 // Payroll-derived declarations are as sensitive as payslips themselves.
-cnssRouter.use(requirePermission('hr.payroll'));
+cnssRouter.use(requireDeclarationManager);
 
 const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 

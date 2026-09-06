@@ -1,9 +1,11 @@
 import { Router } from 'express';
 import { requireTenant } from '../middleware/auth.js';
 
+import { requireDeclarationManager } from '../middleware/declarations.js';
 export const declarationsRouter = Router();
 
 declarationsRouter.use(...requireTenant);
+declarationsRouter.use(requireDeclarationManager);
 
 /**
  * The declaration calendar itself (DGID/CNSS/INS/Greffe deadlines) is

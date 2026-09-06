@@ -1,3 +1,4 @@
+import { requirePermission } from '../middleware/permissions.js';
 import { Router, Request, Response, NextFunction } from 'express';
 import { requireTenant } from '../middleware/auth.js';
 import { isManagerRole } from '../utils/roles.js';
@@ -14,7 +15,7 @@ const requireManager = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-accountingRouter.post('/journal-entries/suggest', ...requireTenant, async (req, res, next) => {
+accountingRouter.post('/journal-entries/suggest', ...requireTenant, requirePermission('accounting.edit'), async (req, res, next) => {
   try {
     const { description, amount, standard } = req.body || {};
     if (!description || !Number.isFinite(Number(amount))) {
@@ -30,7 +31,7 @@ accountingRouter.post('/journal-entries/suggest', ...requireTenant, async (req, 
   }
 });
 
-accountingRouter.get('/transactions', ...requireTenant, async (req, res, next) => {
+accountingRouter.get('/transactions', ...requireTenant, requirePermission('accounting.view'), async (req, res, next) => {
   try {
     const transactions = await req.db.query('SELECT * FROM transactions WHERE "companyId" = $1', [req.user!.companyId]);
     res.json(transactions.rows);
@@ -39,7 +40,7 @@ accountingRouter.get('/transactions', ...requireTenant, async (req, res, next) =
   }
 });
 
-accountingRouter.get('/journal-entries', ...requireTenant, async (req, res, next) => {
+accountingRouter.get('/journal-entries', ...requireTenant, requirePermission('accounting.view'), async (req, res, next) => {
   try {
     const entriesRes = await req.db.query('SELECT * FROM journal_entries WHERE "companyId" = $1', [req.user!.companyId]);
     const entries = entriesRes.rows;
@@ -75,7 +76,7 @@ function assertBalanced(items: any[]) {
   }
 }
 
-accountingRouter.post('/journal-entries', ...requireTenant, requireManager, async (req, res, next) => {
+accountingRouter.post('/journal-entries', ...requireTenant, requirePermission('accounting.edit'), requireManager, async (req, res, next) => {
   try {
     const entry = req.body;
     assertBalanced(entry.items);
@@ -105,7 +106,7 @@ accountingRouter.post('/journal-entries', ...requireTenant, requireManager, asyn
   }
 });
 
-accountingRouter.put('/journal-entries/:id', ...requireTenant, requireManager, async (req, res, next) => {
+accountingRouter.put('/journal-entries/:id', ...requireTenant, requirePermission('accounting.edit'), requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     const entry = req.body;
@@ -138,7 +139,7 @@ accountingRouter.put('/journal-entries/:id', ...requireTenant, requireManager, a
   }
 });
 
-accountingRouter.delete('/journal-entries/:id', ...requireTenant, requireManager, async (req, res, next) => {
+accountingRouter.delete('/journal-entries/:id', ...requireTenant, requirePermission('accounting.edit'), requireManager, async (req, res, next) => {
   try {
     const { id } = req.params;
     
@@ -162,7 +163,7 @@ accountingRouter.delete('/journal-entries/:id', ...requireTenant, requireManager
   }
 });
 
-accountingRouter.post('/reset', ...requireTenant, requireManager, async (req, res, next) => {
+accountingRouter.post('/reset', ...requireTenant, requirePermission('accounting.edit'), requireManager, async (req, res, next) => {
   try {
     const companyId = req.user!.companyId;
     
