@@ -153,6 +153,9 @@ subscriptionRouter.post('/create', requireAuth, requireCompany, async (req, res,
     if (!planId) return res.status(500).json({ error: 'PayPal plan unavailable for this country' });
 
     const base = process.env.PAYPAL_RETURN_URL_BASE || `${req.protocol}://${req.get('host')}`;
+    // Register (or repair) the shared lifecycle webhook before checkout so
+    // renewals, cancellations and failed payments update this company.
+    if (base.startsWith('https://')) await ensureWebhook(req.db, base);
     const subscription = await createSubscription(
       planId,
       { companyId: cid, userEmail: req.user!.email || 'admin@smartdesk.cg' },
@@ -281,6 +284,9 @@ subscriptionRouter.post('/paypal-option/create', requireAuth, requireCompany, re
     }
     const planId = await ensurePaypalOptionPlan(req.db);
     const base = process.env.PAYPAL_RETURN_URL_BASE || `${req.protocol}://${req.get('host')}`;
+    // The 3 000 XAF option uses the exact same platform webhook and PayPal
+    // lifecycle configuration as the main recurring subscription.
+    if (base.startsWith('https://')) await ensureWebhook(req.db, base);
     const subscription = await createSubscription(
       planId,
       { companyId: cid, userEmail: req.user!.email || 'admin@smartdesk.cg', customId: `paypal-option:${cid}` },

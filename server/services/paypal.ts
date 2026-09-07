@@ -263,6 +263,7 @@ export async function ensurePaypalOptionPlan(db: any): Promise<string> {
 
 const WEBHOOK_EVENTS = [
   'BILLING.SUBSCRIPTION.ACTIVATED',
+  'BILLING.SUBSCRIPTION.RE-ACTIVATED',
   'BILLING.SUBSCRIPTION.CANCELLED',
   'BILLING.SUBSCRIPTION.SUSPENDED',
   'BILLING.SUBSCRIPTION.EXPIRED',
@@ -292,6 +293,17 @@ export async function ensureWebhook(
   const existing = (list.webhooks || []).find((w: any) => w.url === webhookUrl);
 
   if (existing) {
+    const configured = new Set((existing.event_types || []).map((event: any) => event.name));
+    if (WEBHOOK_EVENTS.some((name) => !configured.has(name)) || configured.size !== WEBHOOK_EVENTS.length) {
+      await paypalFetch(`/v1/notifications/webhooks/${existing.id}`, {
+        method: 'PATCH',
+        body: JSON.stringify([{
+          op: 'replace',
+          path: '/event_types',
+          value: WEBHOOK_EVENTS.map((name) => ({ name })),
+        }]),
+      });
+    }
     await configSet(db, 'paypal_webhook_id', existing.id);
     await configSet(db, 'paypal_webhook_url', webhookUrl);
     return { id: existing.id, url: webhookUrl, created: false };
