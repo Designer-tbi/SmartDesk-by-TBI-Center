@@ -11,7 +11,7 @@ import { useTranslation } from '../lib/i18n';
  * Money providers aren't wired up on the backend yet, so they're shown as
  * "coming soon" placeholders.
  */
-export const MyOptions = () => {
+export const MyOptions = ({ embedded = false }: { embedded?: boolean }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [hasPaypalConfig, setHasPaypalConfig] = useState(false);
@@ -29,7 +29,7 @@ export const MyOptions = () => {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('myOptions.title')} description={t('myOptions.desc')} />
+      {!embedded && <PageHeader title={t('myOptions.title')} description={t('myOptions.desc')} />}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <Card

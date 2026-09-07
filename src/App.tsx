@@ -1,7 +1,7 @@
 import { hasModuleAccess } from './lib/roles';
 import React, { Suspense, lazy, useState, useEffect, useCallback } from 'react';
 import { canAccessDeclarations } from '../shared/declarationAccess';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { AnimatePresence, motion } from 'motion/react';
@@ -31,8 +31,7 @@ const Planning = lazy(() => import('./modules/Planning').then(m => ({ default: m
 const Login = lazy(() => import('./modules/Login').then(m => ({ default: m.Login })));
 const SuperAdmin = lazy(() => import('./modules/SuperAdmin').then(m => ({ default: m.SuperAdmin })));
 const Declarations = lazy(() => import('./modules/Declarations').then(m => ({ default: m.Declarations })));
-const MyOptions = lazy(() => import('./modules/MyOptions').then(m => ({ default: m.MyOptions })));
-const MyAgents = lazy(() => import('./modules/MyAgents').then(m => ({ default: m.MyAgents })));
+const Subscriptions = lazy(() => import('./modules/Subscriptions').then(m => ({ default: m.Subscriptions })));
 
 const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, onLogout?: () => void, user: any }) => {
   const location = useLocation();
@@ -54,6 +53,7 @@ const PageWrapper = ({ children, onLogout, user }: { children: React.ReactNode, 
       case '/super-admin': return t('header.superAdmin');
       case '/agenda': return t('header.agenda');
       case '/planning': return t('header.planning');
+      case '/subscriptions': return t('nav.subscriptions');
       case '/declarations': return t('nav.section.declarations');
       default:
         if (path.startsWith('/declarations/')) return t('nav.section.declarations');
@@ -229,8 +229,9 @@ const AppContent = ({ user, setUser, isLoading, setIsLoading }: any) => {
               <Route path="/declarations/*" element={canAccessDeclarations(user?.role) && hasModuleAccess(user?.permissions, 'declarations') ? <Declarations /> : <div role="alert">Accès réservé aux administrateurs et managers.</div>} />
             )}
             <Route path="/users" element={hasModuleAccess(user?.permissions, 'users') ? <Users user={user} /> : <div role="alert">Accès non autorisé.</div>} />
-            <Route path="/my-options" element={hasModuleAccess(user?.permissions, 'options') ? <MyOptions /> : <div role="alert">Accès non autorisé.</div>} />
-            <Route path="/my-agents" element={hasModuleAccess(user?.permissions, 'agents') ? <MyAgents /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/subscriptions" element={(hasModuleAccess(user?.permissions, 'subscriptions') || hasModuleAccess(user?.permissions, 'options') || hasModuleAccess(user?.permissions, 'agents')) ? <Subscriptions /> : <div role="alert">Accès non autorisé.</div>} />
+            <Route path="/my-options" element={<Navigate to="/subscriptions?tab=options" replace />} />
+            <Route path="/my-agents" element={<Navigate to="/subscriptions?tab=agents" replace />} />
             <Route path="/settings" element={hasModuleAccess(user?.permissions, 'settings') ? <Settings user={user} setUser={setUser} /> : <div role="alert">Accès non autorisé.</div>} />
             {user?.role === 'super_admin' && <Route path="/super-admin" element={<SuperAdmin />} />}
           </Routes>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { BookOpen, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Shield, SettingsIcon, Bot, Zap, Crown, ListOrdered, CheckCircle2, FileCheck2, SlidersHorizontal, Sparkles, ArrowRight, Info, BellRing, Search } from 'lucide-react';
+import { BookOpen, LayoutDashboard, Calendar, Users, ShoppingCart, Package, Clock, Briefcase, UserCheck, Calculator, Shield, SettingsIcon, Bot, Zap, Crown, ListOrdered, CheckCircle2, FileCheck2, SlidersHorizontal, ArrowRight, Info, BellRing, Search } from 'lucide-react';
 
 type HelpTab = 'guide' | 'modules' | 'automation';
 
@@ -29,8 +29,7 @@ export const HelpSection = () => {
     ['Comptabilité', '/accounting', Calculator, 'Transactions et écritures selon le référentiel choisi.', ['Journal comptable', 'Plan OHADA', 'Écritures automatiques']],
     ['Mes déclarations', '/declarations', FileCheck2, 'Espace fiscal, social, statistique et juridique.', ['DGID', 'CNSS et INS', 'Greffe et calendrier'], 'Administrateurs et managers uniquement'],
     ['Utilisateurs et rôles', '/users', Shield, 'Comptes et permissions par fonction.', ['Rôles personnalisés', 'Permissions détaillées', 'Activation des comptes']],
-    ['Mes options', '/my-options', SlidersHorizontal, 'Services additionnels de l’entreprise.', ['Paiement PayPal', 'État des options', 'Configuration guidée']],
-    ['Mes agents', '/my-agents', Sparkles, 'Assistants spécialisés disponibles ou à venir.', ['Agents métier', 'Disponibilité', 'Accès centralisé']],
+    ['Mes abonnements', '/subscriptions', SlidersHorizontal, 'Abonnement SmartDesk, options et agents de l’entreprise.', ['État de l’abonnement', 'Options de paiement', 'Agents métier']],
     ['Paramètres', '/settings', SettingsIcon, 'Entreprise, profil, sécurité et intégrations.', ['Identité légale', 'SMTP et PayPal', 'Préférences']],
     ['Super administration', '/super-admin', Crown, 'Pilotage global des entreprises et abonnements.', ['Entreprises', 'Abonnements', 'Mobile Money'], 'Super administrateur uniquement'],
   ] as const;

@@ -7,12 +7,12 @@ import { useTranslation } from '../lib/i18n';
  * Placeholder hub for upcoming specialized agents — cards only for now,
  * no functionality wired up yet.
  */
-export const MyAgents = () => {
+export const MyAgents = ({ embedded = false }: { embedded?: boolean }) => {
   const { t } = useTranslation();
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t('myAgents.title')} description={t('myAgents.desc')} />
+      {!embedded && <PageHeader title={t('myAgents.title')} description={t('myAgents.desc')} />}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         <Card className="flex flex-col gap-4 opacity-70" data-testid="my-agents-hr-card">

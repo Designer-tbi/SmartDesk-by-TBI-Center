@@ -18,7 +18,7 @@ test('declarations allow admin and manager, reject HR and other roles', () => {
 test('every tenant navigation module has a permission and IDs are unique', () => {
   const ids = MOCK_PERMISSIONS.map(p => p.id);
   assert.equal(new Set(ids).size, ids.length);
-  for (const module of ['dashboard','agenda','crm','sales','inventory','planning','projects','hr','accounting','declarations','users','options','agents','settings']) {
+  for (const module of ['dashboard','agenda','crm','sales','inventory','planning','projects','hr','accounting','declarations','users','subscriptions','options','agents','settings']) {
     assert.ok(ids.some(id => id.startsWith(`${module}.`)), module);
   }
 });

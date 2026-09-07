@@ -1214,7 +1214,7 @@ export async function seedDemoCompanyData(_dbInstance: any, _companyId: string, 
 export async function seedDefaultRoles(dbInstance: any, companyId: string) {
   const roles = [
     { id: `role_admin_${companyId}`, name: 'Administrator', permissions: ['all'] },
-    { id: `role_manager_${companyId}`, name: 'Manager', permissions: ['dashboard.view', 'agenda.view', 'agenda.edit', 'planning.view', 'options.view', 'agents.view', 'settings.view', 'declarations.view', 'declarations.edit', 'crm.view', 'crm.edit', 'sales.view', 'sales.edit', 'inventory.view', 'hr.view', 'projects.view', 'projects.edit'] },
+    { id: `role_manager_${companyId}`, name: 'Manager', permissions: ['dashboard.view', 'agenda.view', 'agenda.edit', 'planning.view', 'subscriptions.view', 'options.view', 'agents.view', 'settings.view', 'declarations.view', 'declarations.edit', 'crm.view', 'crm.edit', 'sales.view', 'sales.edit', 'inventory.view', 'hr.view', 'projects.view', 'projects.edit'] },
     { id: `role_sales_${companyId}`, name: 'Sales Representative', permissions: ['crm.view', 'crm.edit', 'sales.view', 'sales.edit'] },
     { id: `role_accountant_${companyId}`, name: 'Accountant', permissions: ['accounting.view', 'accounting.edit', 'sales.view'] },
     { id: `role_user_${companyId}`, name: 'User', permissions: ['crm.view', 'sales.view'] }
@@ -1227,6 +1227,13 @@ export async function seedDefaultRoles(dbInstance: any, companyId: string) {
       for (const perm of role.permissions) {
         await dbInstance.query('INSERT INTO role_permissions ("roleId", "permissionId") VALUES ($1, $2)', [role.id, perm]);
       }
+    } else if (role.id === `role_manager_${companyId}`) {
+      // Keep existing tenant managers aligned with the unified subscription
+      // module introduced after their company and default roles were created.
+      await dbInstance.query(
+        'INSERT INTO role_permissions ("roleId", "permissionId") VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [role.id, 'subscriptions.view'],
+      );
     }
   }
 }

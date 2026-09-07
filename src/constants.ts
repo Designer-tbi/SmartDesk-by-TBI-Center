@@ -11,6 +11,7 @@ export const MOCK_PERMISSIONS: Permission[] = [
   { id: 'declarations.edit', name: 'Gérer les déclarations', description: 'Préparer et suivre les déclarations — administrateurs et managers uniquement', module: 'Mes déclarations' },
   { id: 'options.view', name: 'Voir mes options', description: 'Consulter les options de l’entreprise', module: 'Mes options' },
   { id: 'agents.view', name: 'Voir mes agents', description: 'Consulter les agents disponibles', module: 'Mes agents' },
+  { id: 'subscriptions.view', name: 'Voir mes abonnements', description: 'Consulter l’abonnement SmartDesk, les options et les agents de l’entreprise', module: 'Mes abonnements' },
   // CRM
   { id: 'crm.view', name: 'Voir CRM', description: 'Accès en lecture au module CRM', module: 'CRM' },
   { id: 'crm.edit', name: 'Modifier CRM', description: 'Créer et modifier des contacts/projets', module: 'CRM' },
