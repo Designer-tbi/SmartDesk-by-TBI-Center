@@ -28,7 +28,7 @@ import {
 
 export const subscriptionRouter = Router();
 
-const TRIAL_DAYS = 15;
+const TRIAL_DAYS = 14;
 
 const computeStatus = (company: any) => {
   const now = Date.now();
