@@ -24,7 +24,14 @@ import os
 import time
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://login-troubleshoot-18.preview.emergentagent.com').rstrip('/')
-EXTERNAL_API_KEY = os.environ.get('EXTERNAL_API_KEY', '6c9fcb634abe477d1e8643c51517f6e59ac7ebde1d1d05945c57e959c25ac998')
+EXTERNAL_API_KEY = os.environ.get("EXTERNAL_API_KEY")
+
+# These tests create accounts against a remote service.  They are intentionally
+# opt-in and receive their credential only from the execution environment.
+pytestmark = pytest.mark.skipif(
+    os.environ.get("RUN_EXTERNAL_API_TESTS") != "1" or not EXTERNAL_API_KEY,
+    reason="Set RUN_EXTERNAL_API_TESTS=1 and EXTERNAL_API_KEY to run remote provisioning tests.",
+)
 
 
 class TestExternalApiAuthentication:

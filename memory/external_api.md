@@ -1,5 +1,5 @@
 # EXTERNAL_API_KEY for partner-platform provisioning
-EXTERNAL_API_KEY=6c9fcb634abe477d1e8643c51517f6e59ac7ebde1d1d05945c57e959c25ac998
+EXTERNAL_API_KEY=<configure-in-environment>
 
 # Sample partner request:
 #
