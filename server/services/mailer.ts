@@ -37,7 +37,10 @@ export function getAuthMailer(): MailerHandle {
   const host = process.env.SMTP_AUTH_HOST || 'ssl0.ovh.net';
   const port = Number(process.env.SMTP_AUTH_PORT || 465);
   return {
-    transporter: nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } }),
+    transporter: nodemailer.createTransport({
+      host, port, secure: port === 465, auth: { user, pass },
+      connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 10_000,
+    }),
     from: `"SmartDesk" <${user}>`, fromAddress: user, isDemo: false,
   };
 }

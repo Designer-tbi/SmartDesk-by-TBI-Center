@@ -606,6 +606,17 @@ authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    // Avoid creating an account whose initial password cannot be delivered.
+    // SMTP can be unavailable on some Railway plans or during network issues.
+    let authMailer: ReturnType<typeof getAuthMailer>;
+    try {
+      authMailer = getAuthMailer();
+      await authMailer.transporter.verify();
+    } catch (mailError) {
+      console.error('Demo signup: authentication mail unavailable:', mailError);
+      return res.status(503).json({ error: 'Messagerie de connexion indisponible. Réessayez plus tard.' });
+    }
+
     // The access code is the demo account's password — it must be
     // generated server-side. Trusting a client-supplied `code` would let
     // anyone set their own demo password before the confirmation email
@@ -654,7 +665,7 @@ authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next
     }
 
     // Account-access mail uses the platform authentication mailbox.
-    const { transporter, from } = getAuthMailer();
+    const { transporter, from } = authMailer;
 
     // 1. Email to the user with their code
     const userMailOptions = {
