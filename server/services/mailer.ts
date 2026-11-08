@@ -27,6 +27,21 @@ export class MailConfigurationError extends Error {
   }
 }
 
+/** Authentication mail has one verified platform sender, independent of tenant SMTP. */
+export function getAuthMailer(): MailerHandle {
+  const user = process.env.SMTP_AUTH_USER || 'connexion@smart-desk.pro';
+  const pass = process.env.SMTP_AUTH_PASS;
+  if (!pass || user.toLowerCase() !== 'connexion@smart-desk.pro') {
+    throw new MailConfigurationError('Messagerie de connexion SmartDesk non configurée.');
+  }
+  const host = process.env.SMTP_AUTH_HOST || 'ssl0.ovh.net';
+  const port = Number(process.env.SMTP_AUTH_PORT || 465);
+  return {
+    transporter: nodemailer.createTransport({ host, port, secure: port === 465, auth: { user, pass } }),
+    from: `"SmartDesk" <${user}>`, fromAddress: user, isDemo: false,
+  };
+}
+
 const DEMO_HOST = process.env.SMTP_DEMO_HOST || 'ssl0.ovh.net';
 const DEMO_PORT = parseInt(process.env.SMTP_DEMO_PORT || '465', 10);
 const DEMO_USER = process.env.SMTP_DEMO_USER || 'demo@smart-desk.pro';

@@ -24,6 +24,9 @@ export const Login = ({ onLogin }: LoginProps) => {
   
   const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotRole, setForgotRole] = useState('admin');
+  const [challengeId, setChallengeId] = useState('');
+  const [verificationCode, setVerificationCode] = useState('');
 
   const [regForm, setRegForm] = useState({ nom: '', prenom: '', email: '', telephone: '', companyName: '', country: 'CG', state: '' });
   const [countryTouched, setCountryTouched] = useState(false);
@@ -78,7 +81,9 @@ export const Login = ({ onLogin }: LoginProps) => {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, demoMode: loginMode === 'demo' })
+        body: JSON.stringify(challengeId
+          ? { email, challengeId, code: verificationCode, demoMode: loginMode === 'demo' }
+          : { email, password, demoMode: loginMode === 'demo' })
       });
 
       if (response.ok) {
@@ -87,6 +92,11 @@ export const Login = ({ onLogin }: LoginProps) => {
           throw new Error("L'API n'est pas configurée correctement sur le serveur (HTML reçu au lieu de JSON).");
         }
         const data = await response.json();
+        if (data.verificationRequired) {
+          setChallengeId(data.challengeId);
+          setSuccessMessage(language === 'en' ? 'Enter the code sent to your email.' : 'Saisissez le code envoyé par e-mail.');
+          return;
+        }
         // Session is now stored in an HttpOnly cookie set by the server —
         // we only need to hand the user object over to the app shell.
         onLogin(data.user);
@@ -130,7 +140,11 @@ export const Login = ({ onLogin }: LoginProps) => {
           throw new Error("L'API n'est pas configurée correctement sur le serveur (HTML reçu au lieu de JSON).");
         }
         const data = await response.json();
-        onLogin(data.user);
+        if (data.verificationRequired) {
+          setEmail('admin@smartdesk.cg');
+          setChallengeId(data.challengeId);
+          setSuccessMessage(language === 'en' ? 'Enter the code sent to your email.' : 'Saisissez le code envoyé par e-mail.');
+        } else onLogin(data.user);
       } else {
         const text = await response.text();
         let errorMessage = t('login.invalidCredentials');
@@ -168,24 +182,7 @@ export const Login = ({ onLogin }: LoginProps) => {
       const text = await response.text();
       if (response.ok) {
         const data = JSON.parse(text);
-        // Skip the "note down your code and log in again" round-trip —
-        // sign the visitor straight into their new demo account.
-        if (data.code) {
-          const loginRes = await fetch('/api/auth/login', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: regForm.email, password: data.code, demoMode: true }),
-          });
-          if (loginRes.ok) {
-            const loginData = await loginRes.json();
-            onLogin(loginData.user);
-            return;
-          }
-        }
-        // Fallback: auto-login failed for some reason — show the code so
-        // the visitor can still log in manually.
-        setSuccessMessage(t('login.accountCreated', { code: data.code }));
+        setSuccessMessage(data.message || (language === 'en' ? 'Account created. Check your email.' : 'Compte créé. Consultez votre messagerie.'));
         setIsRegistering(false);
         setLoginMode('demo');
         setEmail(regForm.email);
@@ -214,7 +211,7 @@ export const Login = ({ onLogin }: LoginProps) => {
       const response = await fetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: forgotEmail }),
+        body: JSON.stringify({ email: forgotEmail, role: forgotRole, language }),
       });
       const data = await response.json().catch(() => null);
       if (response.ok) {
@@ -400,6 +397,16 @@ export const Login = ({ onLogin }: LoginProps) => {
                       />
                     </div>
                   </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">{language === 'en' ? 'Role' : 'Rôle'}</label>
+                    <input required list="smartdesk-roles" value={forgotRole} onChange={(e) => setForgotRole(e.target.value)}
+                      className="w-full px-4 py-4 bg-slate-900 border border-white/10 rounded-2xl text-white text-sm" />
+                    <datalist id="smartdesk-roles">
+                      <option value="admin" /><option value="super_admin" />
+                      <option value="Administrator" /><option value="manager" />
+                      <option value="employee" /><option value="user" />
+                    </datalist>
+                  </div>
                   <button
                     type="submit"
                     disabled={isLoading}
@@ -574,7 +581,21 @@ export const Login = ({ onLogin }: LoginProps) => {
                     </motion.div>
                   )}
 
-                  <div className="space-y-2">
+                  {challengeId && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">
+                        {language === 'en' ? 'Email verification code' : 'Code reçu par e-mail'}
+                      </label>
+                      <input required inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
+                        value={verificationCode} onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                        className="w-full px-4 py-4 bg-white/5 border border-white/10 rounded-2xl text-white text-sm" />
+                      <button type="button" onClick={() => { setChallengeId(''); setVerificationCode(''); setError(''); }}
+                        className="text-sm text-slate-400 hover:text-white">
+                        {language === 'en' ? 'Start over' : 'Recommencer'}
+                      </button>
+                    </div>
+                  )}
+                  {!challengeId && <div className="space-y-2">
                     <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Identifiant</label>
                     <div className="relative group">
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-focus-within:text-accent-red transition-colors" />
@@ -587,9 +608,9 @@ export const Login = ({ onLogin }: LoginProps) => {
                         onChange={(e) => setEmail(e.target.value)}
                       />
                     </div>
-                  </div>
+                  </div>}
 
-                  <div className="space-y-2">
+                  {!challengeId && <div className="space-y-2">
                     <div className="flex justify-between items-center px-1">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">Mot de passe</label>
                       <button
@@ -618,7 +639,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                         {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                       </button>
                     </div>
-                  </div>
+                  </div>}
 
                   <div className="flex items-center gap-3 px-1">
                     <button 
