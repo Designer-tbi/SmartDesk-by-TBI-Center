@@ -835,6 +835,17 @@ export async function initializeDatabase() {
     // "Mot de passe oublié" flow: hashed reset token + expiry.
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "resetTokenHash" TEXT`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "resetTokenExpires" TIMESTAMPTZ`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "loginFailures" INTEGER NOT NULL DEFAULT 0`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS "loginSuspendedUntil" TIMESTAMPTZ`);
+    await db.query(`CREATE TABLE IF NOT EXISTS login_challenges (
+      id TEXT PRIMARY KEY,
+      "userId" TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      "codeHash" TEXT NOT NULL,
+      "expiresAt" TIMESTAMPTZ NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await db.query(`CREATE INDEX IF NOT EXISTS login_challenges_user_idx ON login_challenges ("userId")`);
 
     // Per-tenant completion tracking for the Declarations calendar
     // (DGID/CNSS/INS/Greffe deadlines) — the calendar itself is generated

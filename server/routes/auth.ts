@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { requireAuth } from '../middleware/auth.js';
 import { seedDefaultRoles } from '../../db.js';
-import { getMailerForCompany } from '../services/mailer.js';
+import { getAuthMailer } from '../services/mailer.js';
 import { JWT_SECRET } from '../utils/jwtSecret.js';
 import { loginRateLimiter, demoSignupRateLimiter } from '../middleware/rateLimit.js';
 import { resolvePermissionsList } from '../middleware/permissions.js';
@@ -139,13 +139,20 @@ authRouter.put('/change-password', requireAuth, async (req, res, next) => {
  */
 authRouter.post('/forgot-password', loginRateLimiter, async (req, res, next) => {
   try {
-    const { email } = req.body || {};
+    const { email, role, language } = req.body || {};
     const generic = { ok: true, message: 'Si un compte existe pour cet email, un lien de réinitialisation vient d\'être envoyé.' };
-    if (!email) return res.json(generic);
+    if (!email || !role) return res.json(generic);
 
-    const userRes = await req.db.query('SELECT id, name, "companyId" FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+    const userRes = await req.db.query(
+      `SELECT u.id, u.name, u.email, u.role FROM users u
+       LEFT JOIN roles r ON r.id = u.role
+       WHERE LOWER(u.email) = LOWER($1)
+         AND (LOWER(u.role) = LOWER($2) OR LOWER(r.name) = LOWER($2)
+              OR ($2 = 'admin' AND u.role LIKE 'role_admin_%'))`,
+      [email, role],
+    );
     const user = userRes.rows[0];
-    if (!user) return res.json(generic);
+    if (!user || user.email.toLowerCase() === 'eden@tbi-center.fr') return res.json(generic);
 
     const token = crypto.randomBytes(32).toString('hex');
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
@@ -155,30 +162,18 @@ authRouter.post('/forgot-password', loginRateLimiter, async (req, res, next) => 
       [tokenHash, expires.toISOString(), user.id],
     );
 
-    const companyRes = user.companyId
-      ? await req.db.query('SELECT type, name FROM companies WHERE id = $1', [user.companyId])
-      : { rows: [] as any[] };
-    const company = companyRes.rows[0];
-
-    const reqOrigin =
-      (req.headers.origin as string | undefined) ||
-      (req.headers.referer ? new URL(req.headers.referer as string).origin : undefined);
-    const baseUrl = reqOrigin || process.env.PUBLIC_BASE_URL || 'https://smart-desk.pro';
+    const baseUrl = process.env.PUBLIC_BASE_URL || 'https://smartdesk-by-tbi-center-tbi.up.railway.app';
     const resetLink = `${baseUrl}/reset-password/${token}`;
 
     try {
-      const { transporter, from } = getMailerForCompany(company?.type, company?.name || 'SmartDesk');
+      const { transporter, from } = getAuthMailer();
       await transporter.sendMail({
         from,
-        to: email,
-        subject: 'Réinitialisation de votre mot de passe SmartDesk',
-        html: `
-          <p>Bonjour ${user.name || ''},</p>
-          <p>Une demande de réinitialisation de mot de passe a été effectuée pour ce compte.</p>
-          <p><a href="${resetLink}" style="background:#be123c;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;font-weight:bold;">Réinitialiser mon mot de passe</a></p>
-          <p>Ce lien expire dans 1 heure. Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.</p>
-        `,
-        text: `Réinitialisez votre mot de passe : ${resetLink} (expire dans 1 heure)`,
+        to: user.email,
+        subject: language === 'en' ? 'Reset your SmartDesk password' : 'Réinitialisation de votre mot de passe SmartDesk',
+        text: language === 'en'
+          ? `Reset your password: ${resetLink} (expires in 1 hour). If you did not request this, ignore this email.`
+          : `Réinitialisez votre mot de passe : ${resetLink} (expire dans 1 heure). Si vous n'êtes pas à l'origine de cette demande, ignorez cet email.`,
       });
     } catch (mailErr) {
       console.error('forgot-password: failed to send reset email:', mailErr);
@@ -206,8 +201,8 @@ authRouter.post('/reset-password', loginRateLimiter, async (req, res, next) => {
 
     const tokenHash = crypto.createHash('sha256').update(String(token)).digest('hex');
     const userRes = await req.db.query(
-      'SELECT id FROM users WHERE "resetTokenHash" = $1 AND "resetTokenExpires" > NOW()',
-      [tokenHash],
+      'SELECT id FROM users WHERE "resetTokenHash" = $1 AND "resetTokenExpires" > NOW() AND LOWER(email) <> $2',
+      [tokenHash, 'eden@tbi-center.fr'],
     );
     const user = userRes.rows[0];
     if (!user) {
@@ -216,7 +211,7 @@ authRouter.post('/reset-password', loginRateLimiter, async (req, res, next) => {
 
     const hashed = await bcrypt.hash(newPassword, 10);
     await req.db.query(
-      'UPDATE users SET password = $1, "resetTokenHash" = NULL, "resetTokenExpires" = NULL WHERE id = $2',
+      'UPDATE users SET password = $1, "resetTokenHash" = NULL, "resetTokenExpires" = NULL, "loginFailures" = 0, "loginSuspendedUntil" = NULL WHERE id = $2',
       [hashed, user.id],
     );
     // Invalidate existing sessions so a leaked/expired token can't be
@@ -231,10 +226,10 @@ authRouter.post('/reset-password', loginRateLimiter, async (req, res, next) => {
 
 authRouter.post('/login', loginRateLimiter, async (req, res, next) => {
   try {
-    const { email, password, demoMode } = req.body;
+    const { email, password, demoMode, challengeId, code } = req.body;
     console.log('Login attempt for email:', email, 'demoMode:', demoMode);
     
-    if (!email || !password) {
+    if (!email || (!password && !challengeId)) {
       return res.status(400).json({ error: 'Email and password are required' });
     }
     
@@ -248,8 +243,34 @@ authRouter.post('/login', loginRateLimiter, async (req, res, next) => {
       return res.status(401).json({ error: 'Identifiants incorrects. Utilisateur non trouvé.' });
     }
 
-    console.log('Comparing password length:', password.length, 'with hash length:', user.password.length);
-    const isMatch = await bcrypt.compare(password, user.password);
+    const exempt = user.email.toLowerCase() === 'eden@tbi-center.fr';
+    if (!exempt && user.loginSuspendedUntil && new Date(user.loginSuspendedUntil) > new Date()) {
+      return res.status(423).json({ error: 'Compte suspendu pour 30 minutes. / Account suspended for 30 minutes.' });
+    }
+    let verifiedCode = false;
+    if (challengeId && !exempt) {
+      const challengeRes = await req.db.query(
+        'SELECT * FROM login_challenges WHERE id = $1 AND "userId" = $2 AND "expiresAt" > NOW()',
+        [challengeId, user.id],
+      );
+      const challenge = challengeRes.rows[0];
+      const candidate = crypto.createHash('sha256').update(`${challengeId}:${String(code || '')}`).digest('hex');
+      verifiedCode = !!challenge && /^\d{6}$/.test(String(code || '')) &&
+        crypto.timingSafeEqual(Buffer.from(candidate), Buffer.from(challenge.codeHash));
+      if (!verifiedCode) {
+        if (challenge) {
+          await req.db.query('UPDATE login_challenges SET attempts = attempts + 1 WHERE id = $1', [challengeId]);
+          if (challenge.attempts >= 2) {
+            await req.db.query('DELETE FROM login_challenges WHERE "userId" = $1', [user.id]);
+            await req.db.query("UPDATE users SET \"loginSuspendedUntil\" = NOW() + INTERVAL '30 minutes' WHERE id = $1", [user.id]);
+          }
+        }
+        return res.status(401).json({ error: 'Code invalide ou expiré. / Invalid or expired code.' });
+      }
+      await req.db.query('DELETE FROM login_challenges WHERE "userId" = $1', [user.id]);
+      await req.db.query('UPDATE users SET "loginFailures" = 0, "loginSuspendedUntil" = NULL WHERE id = $1', [user.id]);
+    }
+    const isMatch = verifiedCode || await bcrypt.compare(password || '', user.password);
     console.log('isMatch result:', isMatch);
     if (!isMatch) {
       console.log('Login failed: Password mismatch for email:', email);
@@ -259,6 +280,13 @@ authRouter.post('/login', loginRateLimiter, async (req, res, next) => {
         error = 'Mot de passe incorrect. Indice : utilisez le code à 6 chiffres reçu par email.';
       }
 
+      if (!exempt) {
+        const failure = await req.db.query(
+          `UPDATE users SET "loginFailures" = "loginFailures" + 1,
+            "loginSuspendedUntil" = CASE WHEN "loginFailures" + 1 >= 3 THEN NOW() + INTERVAL '30 minutes' ELSE NULL END
+           WHERE id = $1 RETURNING "loginFailures"`, [user.id]);
+        if (failure.rows[0]?.loginFailures >= 3) error = 'Compte suspendu pour 30 minutes.';
+      }
       return res.status(401).json({ error });
     }
 
@@ -284,7 +312,7 @@ authRouter.post('/login', loginRateLimiter, async (req, res, next) => {
       // Stamp both the legacy `firstLoginAt` fields (kept for display
       // purposes) and the unified `trialStartedAt` used by the
       // subscription gate middleware.
-      if (company.type === 'demo') {
+      if ((verifiedCode || exempt) && company.type === 'demo') {
         const now = new Date();
         if (!company.firstLoginAt) {
           const expires = new Date(now.getTime() + 15 * 24 * 60 * 60 * 1000);
@@ -304,7 +332,7 @@ authRouter.post('/login', loginRateLimiter, async (req, res, next) => {
         // which opens a dedicated upgrade modal instead of blocking
         // login altogether — keeps the user on the app so they can
         // pay and come right back in.
-      } else if (user.role !== 'super_admin') {
+      } else if ((verifiedCode || exempt) && user.role !== 'super_admin') {
         // Non-demo tenants also have a 15-day trial before billing.
         await req.db.query(
           `UPDATE companies
@@ -320,6 +348,28 @@ authRouter.post('/login', loginRateLimiter, async (req, res, next) => {
       company = companyRes.rows[0];
     }
 
+    if (!exempt && !verifiedCode) {
+      const codeToSend = crypto.randomInt(100000, 1000000).toString();
+      const id = crypto.randomUUID();
+      const hash = crypto.createHash('sha256').update(`${id}:${codeToSend}`).digest('hex');
+      await req.db.query('DELETE FROM login_challenges WHERE "userId" = $1', [user.id]);
+      await req.db.query(
+        `INSERT INTO login_challenges (id, "userId", "codeHash", "expiresAt") VALUES ($1, $2, $3, NOW() + INTERVAL '10 minutes')`,
+        [id, user.id, hash],
+      );
+      try {
+        const { transporter, from } = getAuthMailer();
+        await transporter.sendMail({
+          from, to: user.email, subject: 'Code de connexion SmartDesk / SmartDesk sign-in code',
+          text: `Votre code de connexion SmartDesk : ${codeToSend}. Il expire dans 10 minutes.\nYour SmartDesk sign-in code: ${codeToSend}. It expires in 10 minutes.`,
+        });
+      } catch (mailError) {
+        await req.db.query('DELETE FROM login_challenges WHERE id = $1', [id]);
+        console.error('Login verification email failed:', mailError);
+        return res.status(503).json({ error: 'Envoi du code indisponible. Réessayez plus tard. / Verification email unavailable. Try again later.' });
+      }
+      return res.json({ verificationRequired: true, challengeId: id });
+    }
     const isDemo = company?.type === 'demo';
     console.log('Login successful for user:', user.id, 'isDemo:', isDemo);
     
@@ -560,7 +610,7 @@ authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next
     // generated server-side. Trusting a client-supplied `code` would let
     // anyone set their own demo password before the confirmation email
     // even arrives.
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const code = crypto.randomInt(100000, 1000000).toString();
 
     // Create a new demo company and user in the database
     const db = req.db;
@@ -603,9 +653,8 @@ authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next
       throw e;
     }
 
-    // Demo signup → use the dedicated OVH demo mailbox
-    // (`demo@smart-desk.pro`).
-    const { transporter, from } = getMailerForCompany('demo', 'SmartDesk Demo');
+    // Account-access mail uses the platform authentication mailbox.
+    const { transporter, from } = getAuthMailer();
 
     // 1. Email to the user with their code
     const userMailOptions = {
@@ -660,13 +709,12 @@ authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next
       console.log('Demo emails sent successfully');
     } catch (mailError: any) {
       console.error('Nodemailer Error:', mailError);
-      // We don't throw here so the user can still log in using the code displayed in the UI
+      return res.status(503).json({ error: 'Compte créé, mais envoi du courriel indisponible. Contactez le support.' });
     }
 
     res.status(200).json({ 
       success: true, 
-      message: 'Compte créé avec succès',
-      code: code // Return the code so the frontend can display it if email fails
+      message: 'Compte créé. Consultez votre messagerie pour recevoir vos accès.',
     });
   } catch (error: any) {
     console.error('Error in send-demo-email route:', error);
