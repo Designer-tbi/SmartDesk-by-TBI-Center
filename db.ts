@@ -846,6 +846,16 @@ export async function initializeDatabase() {
       "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )`);
     await db.query(`CREATE INDEX IF NOT EXISTS login_challenges_user_idx ON login_challenges ("userId")`);
+    await db.query(`CREATE TABLE IF NOT EXISTS pending_demo_signups (
+      id TEXT PRIMARY KEY,
+      email TEXT NOT NULL,
+      payload JSONB NOT NULL,
+      "codeHash" TEXT NOT NULL,
+      "expiresAt" TIMESTAMPTZ NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )`);
+    await db.query(`CREATE INDEX IF NOT EXISTS pending_demo_signups_email_idx ON pending_demo_signups (LOWER(email))`);
 
     // Per-tenant completion tracking for the Declarations calendar
     // (DGID/CNSS/INS/Greffe deadlines) — the calendar itself is generated
