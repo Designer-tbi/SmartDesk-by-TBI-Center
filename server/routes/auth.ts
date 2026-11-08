@@ -5,7 +5,7 @@ import bcrypt from 'bcryptjs';
 import nodemailer from 'nodemailer';
 import { requireAuth } from '../middleware/auth.js';
 import { seedDefaultRoles } from '../../db.js';
-import { getAuthMailer } from '../services/mailer.js';
+import { sendAuthMail, checkAuthMailConfiguration } from '../services/mailer.js';
 import { JWT_SECRET } from '../utils/jwtSecret.js';
 import { loginRateLimiter, demoSignupRateLimiter } from '../middleware/rateLimit.js';
 import { resolvePermissionsList } from '../middleware/permissions.js';
@@ -166,9 +166,7 @@ authRouter.post('/forgot-password', loginRateLimiter, async (req, res, next) => 
     const resetLink = `${baseUrl}/reset-password/${token}`;
 
     try {
-      const { transporter, from } = getAuthMailer();
-      await transporter.sendMail({
-        from,
+      await sendAuthMail({
         to: user.email,
         subject: language === 'en' ? 'Reset your SmartDesk password' : 'Réinitialisation de votre mot de passe SmartDesk',
         text: language === 'en'
@@ -358,9 +356,8 @@ authRouter.post('/login', loginRateLimiter, async (req, res, next) => {
         [id, user.id, hash],
       );
       try {
-        const { transporter, from } = getAuthMailer();
-        await transporter.sendMail({
-          from, to: user.email, subject: 'Code de connexion SmartDesk / SmartDesk sign-in code',
+        await sendAuthMail({
+          to: user.email, subject: 'Code de connexion SmartDesk / SmartDesk sign-in code',
           text: `Votre code de connexion SmartDesk : ${codeToSend}. Il expire dans 10 minutes.\nYour SmartDesk sign-in code: ${codeToSend}. It expires in 10 minutes.`,
         });
       } catch (mailError) {
@@ -608,10 +605,8 @@ authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next
 
     // Avoid creating an account whose initial password cannot be delivered.
     // SMTP can be unavailable on some Railway plans or during network issues.
-    let authMailer: ReturnType<typeof getAuthMailer>;
     try {
-      authMailer = getAuthMailer();
-      await authMailer.transporter.verify();
+      await checkAuthMailConfiguration();
     } catch (mailError) {
       console.error('Demo signup: authentication mail unavailable:', mailError);
       return res.status(503).json({ error: 'Messagerie de connexion indisponible. Réessayez plus tard.' });
@@ -665,11 +660,8 @@ authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next
     }
 
     // Account-access mail uses the platform authentication mailbox.
-    const { transporter, from } = authMailer;
-
     // 1. Email to the user with their code
     const userMailOptions = {
-      from,
       to: email,
       subject: "Vos accès à la démo SmartDesk",
       text: `Bonjour ${prenom} ${nom},\n\nVoici vos identifiants pour accéder à la démo de SmartDesk :\n\nIdentifiant : ${email}\nMot de passe : ${code}\n\nPour vous connecter :\n1. Rendez-vous sur la page de connexion de l'application.\n2. Saisissez votre identifiant et votre mot de passe.\n3. Cliquez sur "Se connecter".\n\nÀ bientôt !`,
@@ -692,7 +684,6 @@ authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next
 
     // 2. Email to eden@tbi-center.fr with the summary
     const adminMailOptions = {
-      from,
       to: "eden@tbi-center.fr",
       subject: "Nouvelle inscription Démo SmartDesk",
       text: `Nouvelle inscription à la démo :\n\nNom : ${nom}\nPrénom : ${prenom}\nEmail : ${email}\nTéléphone : ${telephone}\nEntreprise : ${companyName || 'Non renseigné'}\nPays : ${country || 'Non renseigné'}\nÉtat : ${state || 'Non renseigné'}\nCode généré : ${code}\nEntreprise ID: ${companyId}`,
@@ -714,8 +705,8 @@ authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next
     console.log('Attempting to send demo emails to:', email, 'and admin');
     try {
       await Promise.all([
-        transporter.sendMail(userMailOptions),
-        transporter.sendMail(adminMailOptions)
+        sendAuthMail(userMailOptions),
+        sendAuthMail(adminMailOptions)
       ]);
       console.log('Demo emails sent successfully');
     } catch (mailError: any) {
