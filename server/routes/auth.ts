@@ -606,118 +606,82 @@ authRouter.post('/send-demo-email', demoSignupRateLimiter, async (req, res, next
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // The access code is the demo account's password — it must be
-    // generated server-side. Trusting a client-supplied `code` would let
-    // anyone set their own demo password before the confirmation email
-    // even arrives.
+    const normalizedEmail = String(email).trim().toLowerCase();
+    if (normalizedEmail === 'eden@tbi-center.fr') return res.status(400).json({ error: 'Adresse non disponible.' });
+    const existing = await req.db.query('SELECT 1 FROM users WHERE LOWER(email) = $1 LIMIT 1', [normalizedEmail]);
+    if (existing.rows.length) return res.status(409).json({ error: 'Un compte existe déjà pour cet email.' });
+    const id = crypto.randomUUID();
     const code = crypto.randomInt(100000, 1000000).toString();
-
-    // Create a new demo company and user in the database
-    const db = req.db;
-    const companyId = `demo-company-${Date.now()}`;
-    const userId = `demo-user-${Date.now()}`;
-    
+    const initialPassword = crypto.randomBytes(18).toString('base64url');
+    const codeHash = crypto.createHash('sha256').update(`${id}:${code}`).digest('hex');
+    const payload = { nom, prenom, telephone, companyName, country, state, passwordHash: await bcrypt.hash(initialPassword, 10) };
+    await req.db.query('DELETE FROM pending_demo_signups WHERE LOWER(email) = $1', [normalizedEmail]);
+    await req.db.query(
+      `INSERT INTO pending_demo_signups (id, email, payload, "codeHash", "expiresAt")
+       VALUES ($1, $2, $3, $4, NOW() + INTERVAL '10 minutes')`,
+      [id, normalizedEmail, JSON.stringify(payload), codeHash],
+    );
     try {
-      await db.query('BEGIN');
-      
-      // Create company with regional accounting defaults derived from country.
-      // The SFEC API key is intentionally NOT seeded here — the user will
-      // configure it during the first-login onboarding wizard.
-      const finalCompanyName = companyName ? `${companyName} (${country || 'Démo'})` : `Démo - ${prenom} ${nom}`;
-      const defaults = regionalDefaultsFromCountry(country);
-      await db.query(`
-        INSERT INTO companies (id, name, type, status, country, state, email, phone, language, currency, "accountingStandard", "onboardingCompleted", "createdAt")
-        VALUES ($1, $2, 'demo', 'active', $3, $4, $5, $6, $7, $8, $9, FALSE, CURRENT_TIMESTAMP)
-      `, [companyId, finalCompanyName, country || 'CG', state || null, email, telephone || null, defaults.language, defaults.currency, defaults.accountingStandard]);
-      
-      // Bind the RLS session to this new tenant so subsequent INSERTs into
-      // the isolated tables (roles, ...) pass the WITH CHECK policy.
-      await db.query(
-        `SELECT set_config('app.current_company_id', $1, false)`,
-        [companyId],
-      );
-
-      // Seed default roles for the new demo company
-      await seedDefaultRoles(db, companyId);
-      
-      // Create user
-      const hashedCode = bcrypt.hashSync(code, 10);
-      await db.query(`
-        INSERT INTO users (id, "companyId", email, password, role, name)
-        VALUES ($1, $2, $3, $4, $5, $6)
-      `, [userId, companyId, email, hashedCode, `role_admin_${companyId}`, `${prenom} ${nom}`]);
-      
-      await db.query('COMMIT');
-    } catch (e) {
-      await db.query('ROLLBACK');
-      throw e;
+      const { transporter, from } = getAuthMailer();
+      await transporter.sendMail({
+        from, to: normalizedEmail,
+        subject: 'Validez votre inscription SmartDesk / Verify your SmartDesk signup',
+        text: `Code de validation : ${code} (valable 10 minutes).\nVotre mot de passe initial : ${initialPassword}\n\nVerification code: ${code} (valid for 10 minutes).\nInitial password: ${initialPassword}`,
+      });
+    } catch (mailError) {
+      await req.db.query('DELETE FROM pending_demo_signups WHERE id = $1', [id]);
+      console.error('Demo signup verification email failed:', mailError);
+      return res.status(503).json({ error: 'Envoi du code indisponible. Aucun compte créé.' });
     }
-
-    // Account-access mail uses the platform authentication mailbox.
-    const { transporter, from } = getAuthMailer();
-
-    // 1. Email to the user with their code
-    const userMailOptions = {
-      from,
-      to: email,
-      subject: "Vos accès à la démo SmartDesk",
-      text: `Bonjour ${prenom} ${nom},\n\nVoici vos identifiants pour accéder à la démo de SmartDesk :\n\nIdentifiant : ${email}\nMot de passe : ${code}\n\nPour vous connecter :\n1. Rendez-vous sur la page de connexion de l'application.\n2. Saisissez votre identifiant et votre mot de passe.\n3. Cliquez sur "Se connecter".\n\nÀ bientôt !`,
-      html: `
-        <p>Bonjour ${prenom} ${nom},</p>
-        <p>Voici vos identifiants pour accéder à la démo de SmartDesk :</p>
-        <ul>
-          <li><strong>Identifiant :</strong> ${email}</li>
-          <li><strong>Mot de passe :</strong> ${code}</li>
-        </ul>
-        <h3>Comment se connecter ?</h3>
-        <ol>
-          <li>Rendez-vous sur la page de connexion de l'application.</li>
-          <li>Saisissez votre identifiant et votre mot de passe.</li>
-          <li>Cliquez sur "Se connecter".</li>
-        </ol>
-        <p>À bientôt !</p>
-      `
-    };
-
-    // 2. Email to eden@tbi-center.fr with the summary
-    const adminMailOptions = {
-      from,
-      to: "eden@tbi-center.fr",
-      subject: "Nouvelle inscription Démo SmartDesk",
-      text: `Nouvelle inscription à la démo :\n\nNom : ${nom}\nPrénom : ${prenom}\nEmail : ${email}\nTéléphone : ${telephone}\nEntreprise : ${companyName || 'Non renseigné'}\nPays : ${country || 'Non renseigné'}\nÉtat : ${state || 'Non renseigné'}\nCode généré : ${code}\nEntreprise ID: ${companyId}`,
-      html: `<h2>Nouvelle inscription à la démo</h2>
-             <ul>
-               <li><strong>Nom :</strong> ${nom}</li>
-               <li><strong>Prénom :</strong> ${prenom}</li>
-               <li><strong>Email :</strong> ${email}</li>
-               <li><strong>Téléphone :</strong> ${telephone}</li>
-               <li><strong>Entreprise :</strong> ${companyName || 'Non renseigné'}</li>
-               <li><strong>Pays :</strong> ${country || 'Non renseigné'}</li>
-               <li><strong>État :</strong> ${state || 'Non renseigné'}</li>
-               <li><strong>Code généré :</strong> ${code}</li>
-               <li><strong>Entreprise ID :</strong> ${companyId}</li>
-             </ul>`
-    };
-
-    // Send both emails
-    console.log('Attempting to send demo emails to:', email, 'and admin');
-    try {
-      await Promise.all([
-        transporter.sendMail(userMailOptions),
-        transporter.sendMail(adminMailOptions)
-      ]);
-      console.log('Demo emails sent successfully');
-    } catch (mailError: any) {
-      console.error('Nodemailer Error:', mailError);
-      return res.status(503).json({ error: 'Compte créé, mais envoi du courriel indisponible. Contactez le support.' });
-    }
-
-    res.status(200).json({ 
-      success: true, 
-      message: 'Compte créé. Consultez votre messagerie pour recevoir vos accès.',
-    });
+    res.json({ challengeId: id, message: 'Saisissez le code reçu par email pour créer votre compte.' });
   } catch (error: any) {
     console.error('Error in send-demo-email route:', error);
-    res.status(500).json({ error: error.message || 'Failed to create demo account' });
+    next(error);
+  }
+});
+
+authRouter.post('/confirm-demo-signup', demoSignupRateLimiter, async (req, res, next) => {
+  const { challengeId, code } = req.body;
+  if (typeof challengeId !== 'string' || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+    return res.status(400).json({ error: 'Code invalide.' });
+  }
+  try {
+    await req.db.query('BEGIN');
+    const pendingResult = await req.db.query(
+      'SELECT * FROM pending_demo_signups WHERE id = $1 FOR UPDATE', [challengeId],
+    );
+    const pending = pendingResult.rows[0];
+    if (!pending || new Date(pending.expiresAt).getTime() <= Date.now() || pending.attempts >= 3) {
+      await req.db.query('ROLLBACK');
+      return res.status(400).json({ error: 'Code expiré ou inscription suspendue. Recommencez.' });
+    }
+    const suppliedHash = crypto.createHash('sha256').update(`${challengeId}:${code}`).digest('hex');
+    if (!crypto.timingSafeEqual(Buffer.from(suppliedHash), Buffer.from(pending.codeHash))) {
+      await req.db.query('UPDATE pending_demo_signups SET attempts = attempts + 1 WHERE id = $1', [challengeId]);
+      await req.db.query('COMMIT');
+      return res.status(400).json({ error: 'Code incorrect. Trois essais maximum.' });
+    }
+    const { nom, prenom, telephone, companyName, country, state, passwordHash } = pending.payload;
+    const companyId = `demo-company-${crypto.randomUUID()}`;
+    const userId = `demo-user-${crypto.randomUUID()}`;
+    const defaults = regionalDefaultsFromCountry(country);
+    const finalCompanyName = companyName ? `${companyName} (${country || 'Démo'})` : `Démo - ${prenom} ${nom}`;
+    await req.db.query(
+      `INSERT INTO companies (id, name, type, status, country, state, email, phone, language, currency, "accountingStandard", "onboardingCompleted", "createdAt")
+       VALUES ($1, $2, 'demo', 'active', $3, $4, $5, $6, $7, $8, $9, FALSE, CURRENT_TIMESTAMP)`,
+      [companyId, finalCompanyName, country || 'CG', state || null, pending.email, telephone || null, defaults.language, defaults.currency, defaults.accountingStandard],
+    );
+    await req.db.query(`SELECT set_config('app.current_company_id', $1, false)`, [companyId]);
+    await seedDefaultRoles(req.db, companyId);
+    await req.db.query(
+      `INSERT INTO users (id, "companyId", email, password, role, name) VALUES ($1, $2, $3, $4, $5, $6)`,
+      [userId, companyId, pending.email, passwordHash, `role_admin_${companyId}`, `${prenom} ${nom}`],
+    );
+    await req.db.query('DELETE FROM pending_demo_signups WHERE id = $1', [challengeId]);
+    await req.db.query('COMMIT');
+    res.json({ success: true, message: 'Compte créé après validation. Vous pouvez vous connecter.' });
+  } catch (error) {
+    await req.db.query('ROLLBACK').catch(() => {});
+    next(error);
   }
 });

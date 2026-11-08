@@ -29,6 +29,8 @@ export const Login = ({ onLogin }: LoginProps) => {
   const [verificationCode, setVerificationCode] = useState('');
 
   const [regForm, setRegForm] = useState({ nom: '', prenom: '', email: '', telephone: '', companyName: '', country: 'CG', state: '' });
+  const [signupChallengeId, setSignupChallengeId] = useState('');
+  const [signupCode, setSignupCode] = useState('');
   const [countryTouched, setCountryTouched] = useState(false);
   const [geoDetected, setGeoDetected] = useState(false);
   const [langAutoApplied, setLangAutoApplied] = useState(false);
@@ -172,7 +174,6 @@ export const Login = ({ onLogin }: LoginProps) => {
     setSuccessMessage('');
 
     try {
-      // The access code is generated server-side now (see /api/auth/send-demo-email).
       const response = await fetch('/api/auth/send-demo-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -182,10 +183,8 @@ export const Login = ({ onLogin }: LoginProps) => {
       const text = await response.text();
       if (response.ok) {
         const data = JSON.parse(text);
-        setSuccessMessage(data.message || (language === 'en' ? 'Account created. Check your email.' : 'Compte créé. Consultez votre messagerie.'));
-        setIsRegistering(false);
-        setLoginMode('demo');
-        setEmail(regForm.email);
+        setSignupChallengeId(data.challengeId);
+        setSuccessMessage(data.message || (language === 'en' ? 'Enter the code sent by email.' : 'Saisissez le code reçu par email.'));
       } else {
         try {
           const errorData = JSON.parse(text);
@@ -196,6 +195,31 @@ export const Login = ({ onLogin }: LoginProps) => {
         }
       }
     } catch (err) {
+      setError(t('login.connectionError'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/auth/confirm-demo-signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challengeId: signupChallengeId, code: signupCode }),
+      });
+      const data = await response.json();
+      if (!response.ok) return setError(data.error || t('login.connectionError'));
+      setSignupChallengeId('');
+      setSignupCode('');
+      setIsRegistering(false);
+      setLoginMode('demo');
+      setEmail(regForm.email);
+      setSuccessMessage(data.message);
+    } catch {
       setError(t('login.connectionError'));
     } finally {
       setIsLoading(false);
@@ -431,7 +455,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 20 }}
                   transition={{ duration: 0.5 }}
-                  onSubmit={handleRegister} 
+                  onSubmit={signupChallengeId ? handleConfirmSignup : handleRegister}
                   className="p-8 pt-0 space-y-4 flex-1"
                 >
                   {error && (
@@ -445,6 +469,19 @@ export const Login = ({ onLogin }: LoginProps) => {
                     </motion.div>
                   )}
 
+                  {successMessage && (
+                    <p className="p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-emerald-400 text-sm">{successMessage}</p>
+                  )}
+
+                  {signupChallengeId ? <>
+                    <p className="text-sm text-slate-300">{language === 'en' ? 'Enter the 6-digit code sent to your email. Your account will be created only after validation.' : 'Saisissez le code à 6 chiffres reçu par email. Le compte sera créé seulement après validation.'}</p>
+                    <input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} required autoComplete="one-time-code"
+                      value={signupCode} onChange={(e) => setSignupCode(e.target.value.replace(/\D/g, ''))}
+                      aria-label={language === 'en' ? 'Verification code' : 'Code de validation'}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-2xl text-white text-sm" />
+                    <button type="button" onClick={() => { setSignupChallengeId(''); setSignupCode(''); setError(''); setSuccessMessage(''); }}
+                      className="text-sm text-slate-400 hover:text-white">{language === 'en' ? 'Request a new code' : 'Demander un nouveau code'}</button>
+                  </> : <>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Prénom</label>
@@ -525,6 +562,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                     </div>
                   </div>
 
+                  </>}
                   <button
                     type="submit"
                     disabled={isLoading}
@@ -535,7 +573,7 @@ export const Login = ({ onLogin }: LoginProps) => {
                     ) : (
                       <>
                         <CheckCircle2 className="w-5 h-5" />
-                        Confirmer l'inscription
+                        {signupChallengeId ? (language === 'en' ? 'Verify code and create account' : 'Valider le code et créer le compte') : (language === 'en' ? 'Send verification code' : 'Envoyer le code de validation')}
                       </>
                     )}
                   </button>
